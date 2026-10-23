@@ -1,0 +1,188 @@
+# ===========================================
+# Docker Compose Configuration - Pharma 360°
+# ===========================================
+# ID Tâche: QA-004
+# Responsable: QA/DevOps
+# Durée: 1 jour
+# Statut: TERMINÉ
+# Description: Orchestration des services (PostgreSQL, Backend, Frontend, IA, Nginx)
+# ===========================================
+
+version: '3.8'
+
+# Configuration des services
+services:
+  # Base de données PostgreSQL
+  pharma360-db:
+    image: postgres:15-alpine
+    container_name: pharma360-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pharma360_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-pharma_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pharma_pass_2025}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+      TZ: Africa/Porto-Novo
+    volumes:
+      - pharma360-db-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./scripts/backup-db.sh:/docker-entrypoint-initdb.d/backup-db.sh
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - pharma360-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pharma_user} -d ${POSTGRES_DB:-pharma360_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      sh -c '
+        docker-entrypoint.sh postgres &
+        sleep 5
+        psql -U $$POSTGRES_USER -d $$POSTGRES_DB -f /docker-entrypoint-initdb.d/init-db.sql
+      '
+
+  # Service Backend (FastAPI)
+  pharma360-backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: pharma360-backend
+    restart: unless-stopped
+    environment:
+      APP_NAME: ${APP_NAME:-Pharma-360}
+      APP_ENV: ${APP_ENV:-development}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-changer_par_une_cle_secrete}
+      POSTGRES_HOST: pharma360-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-pharma360_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-pharma_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pharma_pass_2025}
+      JWT_SECRET: ${JWT_SECRET:-changer_par_une_cle_jwt_secrete}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-30}
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 8000
+      CORS_ORIGINS: ${CORS_ORIGINS:-"*"}
+    depends_on:
+      pharma360-db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    networks:
+      - pharma360-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ./backend:/app:ro
+      - ./backend/logs:/app/logs
+      - ./backend/uploads:/app/uploads
+
+  # Service Frontend (React + Nginx)
+  pharma360-frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: pharma360-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      FRONTEND_PORT: ${FRONTEND_PORT:-3000}
+      BACKEND_URL: http://pharma360-backend:8000
+      IA_URL: http://pharma360-ia:8001
+    depends_on:
+      pharma360-backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - pharma360-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # Service IA (OCR + Analytics)
+  pharma360-ia:
+    build:
+      context: .
+      dockerfile: docker/ia.Dockerfile
+    container_name: pharma360-ia
+    restart: unless-stopped
+    environment:
+      IA_HOST: 0.0.0.0
+      IA_PORT: 8001
+      POSTGRES_HOST: pharma360-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-pharma360_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-pharma_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pharma_pass_2025}
+      TESSDATA_PREFIX: /usr/share/tesseract-ocr/4.00/tessdata
+    depends_on:
+      pharma360-db:
+        condition: service_healthy
+      pharma360-backend:
+        condition: service_healthy
+    ports:
+      - "${IA_PORT:-8001}:8001"
+    networks:
+      - pharma360-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8001/api/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    volumes:
+      - ./ia:/app:ro
+      - ./ia/logs:/app/logs
+      - ./ia/models:/app/models
+      - ./ia/uploads:/app/uploads
+
+  # Reverse Proxy Nginx
+  pharma360-nginx:
+    image: nginx:alpine
+    container_name: pharma360-nginx
+    restart: unless-stopped
+    depends_on:
+      pharma360-backend:
+        condition: service_healthy
+      pharma360-frontend:
+        condition: service_healthy
+      pharma360-ia:
+        condition: service_healthy
+    ports:
+      - "${NGINX_PORT:-80}:80"
+      - "${NGINX_SSL_PORT:-443}:443"
+    networks:
+      - pharma360-network
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+# Volumes pour la persistance des données
+volumes:
+  pharma360-db-data:
+    driver: local
+    name: pharma360-db-data
+
+# Réseau dédié pour le projet
+networks:
+  pharma360-network:
+    driver: bridge
+    name: pharma360-network
