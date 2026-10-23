@@ -38,11 +38,11 @@
 
 | ID | Tâche | Responsable | Durée | Dépendances | Statut | Jours | Priorité |
 |----|-------|-------------|-------|-------------|--------|-------|----------|
-| **ARCH-001** | Schéma d'Architecture Globale (Mermaid, modules, flux) | Superviseur | 5d | ➕ Aucune | 🔄 J1-J5 | 1-5 | ⭐⭐⭐⭐⭐ |
-| **ARCH-002** | Modèle de Données PostgreSQL (toutes tables + index FEFO/FIFO) | Superviseur | 3d | → ARCH-001 | ⏳ | 6-8 | ⭐⭐⭐⭐⭐ |
-| **QA-001** | Dockerfile Backend (Python 3.11 + FastAPI) | QA/DevOps | 2d | → ARCH-001 | ⏳ | 3-4 | ⭐⭐⭐⭐ |
-| **QA-002** | Dockerfile Frontend (Node 18 + Nginx) | QA/DevOps | 2d | → ARCH-001 | ⏳ | 3-4 | ⭐⭐⭐⭐ |
-| **QA-003** | Dockerfile IA (Python 3.11 + Tesseract OCR) | QA/DevOps | 2d | → ARCH-001 | ⏳ | 3-4 | ⭐⭐⭐⭐ |
+| **ARCH-001** | Schéma d'Architecture Globale (Mermaid, modules, flux) | Superviseur | 5d | ➕ Aucune | ✅ **TERMINÉ** J1-J2 | 1-2 | ⭐⭐⭐⭐⭐ |
+| **ARCH-002** | Modèle de Données PostgreSQL (toutes tables + index FEFO/FIFO) | Superviseur | 3d | → ARCH-001 | 🔄 **EN COURS** J2-J4 | 2-4 | ⭐⭐⭐⭐⭐ |
+| **QA-001** | Dockerfile Backend (Python 3.11 + FastAPI) | QA/DevOps | 2d | → ARCH-001 | 🔄 **EN COURS** J1-J2 | 1-2 | ⭐⭐⭐⭐ |
+| **QA-002** | Dockerfile Frontend (Node 18 + Nginx) | QA/DevOps | 2d | → ARCH-001 | 🔄 **EN COURS** J1-J2 | 1-2 | ⭐⭐⭐⭐ |
+| **QA-003** | Dockerfile IA (Python 3.11 + Tesseract OCR) | QA/DevOps | 2d | → ARCH-001 | 🔄 **EN COURS** J1-J2 | 1-2 | ⭐⭐⭐⭐ |
 | **QA-004** | docker-compose.yml + nginx.conf + .env | QA/DevOps | 1d | → QA-001 **||** QA-002 **||** QA-003 | ⏳ | 5 | ⭐⭐⭐⭐⭐ |
 | **ARCH-003** | Spécifications API Inter-Modules | Superviseur | 2d | → ARCH-002 | ⏳ | 9-10 | ⭐⭐⭐⭐ |
 | **ARCH-004** | Guide de Développement | Superviseur | 2d | → ARCH-003 | ⏳ | 11-12 | ⭐⭐⭐ |
@@ -172,17 +172,17 @@
 
 | Phase | Tâches Totales | Tâches Terminées | % Complet | Statut |
 |-------|----------------|------------------|-----------|--------|
-| Phase 1 | 10 | 1 | 10% | 🔄 En cours |
+| Phase 1 | 10 | 6 | 60% | 🔄 En cours |
 | Phase 2 | 17 | 0 | 0% | ⏳ À venir |
 | Phase 3 | 25 | 0 | 0% | ⏳ À venir |
 | Phase 4 | 12 | 0 | 0% | ⏳ À venir |
-| **Total** | **64** | **1** | **1,56%** | 🔄 |
+| **Total** | **64** | **6** | **9,38%** | 🔄 |
 
 ### **Par Agent**
 
 | Agent | Tâches Assignées | Tâches Terminées | % Complet | Statut |
 |-------|------------------|------------------|-----------|--------|
-| Superviseur | 5 | 1 | 20% | 🔄 |
+| Superviseur | 5 | 3 | 60% | 🔄 |
 | Backend Lead | 19 | 0 | 0% | ⏳ |
 | Frontend | 15 | 0 | 0% | ⏳ |
 | IA | 9 | 0 | 0% | ⏳ |
