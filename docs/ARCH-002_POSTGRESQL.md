@@ -444,6 +444,150 @@ CREATE TABLE invoices (
     file_path VARCHAR(255),  -- Chemin vers le fichier PDF/OCR
     ocr_processed BOOLEAN DEFAULT FALSE,
     ocr_data JSONB,  -- Données extraites par OCR
+## 📋 Structure de `invoices.ocr_data` (JSONB)
+
+La colonne `ocr_data` de la table `invoices` stocke les données extraites par le module OCR.
+
+### Schéma JSON
+
+```json
+{
+  "metadata": {
+    "ocr_engine": "pytesseract",
+    "ocr_version": "0.3.10",
+    "processing_time_seconds": 2.5,
+    "confidence_score": 0.95,
+    "timestamp": "2025-01-08T10:00:00Z",
+    "file_name": "facture_fournisseur_001.png",
+    "file_size_bytes": 1024000,
+    "mime_type": "image/png"
+  },
+  "supplier": {
+    "name": "Pharma Distributeur SARL",
+    "tax_id": "RCCM-BJ-12345",
+    "address": "123 Rue de la Santé, Cotonou, Bénin",
+    "phone": "+229 12 34 56 78",
+    "email": "contact@pharmadist.com"
+  },
+  "invoice": {
+    "number": "FACT-2025-001",
+    "date": "2025-01-05",
+    "due_date": "2025-02-04",
+    "reference": "REF-12345",
+    "currency": "XOF"
+  },
+  "totals": {
+    "subtotal": 500000.00,
+    "tax_rate": 18.0,
+    "tax_amount": 90000.00,
+    "discount_rate": 5.0,
+    "discount_amount": 25000.00,
+    "total": 565000.00
+  },
+  "items": [
+    {
+      "line_number": 1,
+      "product_name": "Paracétamol 500mg",
+      "dci": "Paracétamol",
+      "barcode": "3400932123456",
+      "batch_number": "BATCH-2025-001",
+      "expiry_date": "2026-12-31",
+      "quantity": 100,
+      "unit": "boîte",
+      "unit_price": 5000.00,
+      "total_price": 500000.00,
+      "manufacturer": "Labo Pharma",
+      "confidence": 0.98
+    }
+  ],
+  "raw_text": {
+    "full_text": "PHARMA DISTRIBUTEUR SARL...",
+    "supplier_section": "...",
+    "invoice_section": "...",
+    "items_section": "...",
+    "totals_section": "..."
+  },
+  "warnings": [
+    "Barcode non reconnu pour le produit Amoxicilline 1g"
+  ]
+}
+```
+
+### Champs Obligatoires
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `metadata` | object | Métadonnées de traitement OCR |
+| `metadata.ocr_engine` | string | Moteur OCR utilisé (ex: "pytesseract") |
+| `metadata.timestamp` | string | Date/heure du traitement (ISO 8601) |
+| `supplier` | object | Informations du fournisseur |
+| `supplier.name` | string | Nom du fournisseur |
+| `invoice` | object | Informations de la facture |
+| `invoice.number` | string | Numéro de la facture |
+| `invoice.date` | string | Date de la facture (YYYY-MM-DD) |
+| `totals` | object | Totaux de la facture |
+| `totals.subtotal` | number | Sous-total (sans taxe) |
+| `totals.total` | number | Total final |
+| `items` | array | Liste des articles |
+
+### Champs Optionnels
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `metadata.confidence_score` | number | Score de confiance (0-1) |
+| `metadata.processing_time_seconds` | number | Temps de traitement |
+| `metadata.ocr_version` | string | Version de l'OCR |
+| `metadata.file_name` | string | Nom du fichier |
+| `metadata.file_size_bytes` | number | Taille du fichier |
+| `metadata.mime_type` | string | Type MIME |
+| `supplier.tax_id` | string | Numéro fiscal |
+| `supplier.address` | string | Adresse complète |
+| `supplier.phone` | string | Téléphone |
+| `supplier.email` | string | Email |
+| `invoice.due_date` | string | Date d'échéance |
+| `invoice.reference` | string | Référence fournisseur |
+| `invoice.currency` | string | Devise (ex: XOF) |
+| `totals.tax_rate` | number | Taux de taxe (%) |
+| `totals.tax_amount` | number | Montant de la taxe |
+| `totals.discount_rate` | number | Taux de remise (%) |
+| `totals.discount_amount` | number | Montant de la remise |
+| `items[*].line_number` | number | Numéro de ligne |
+| `items[*].dci` | string | Dénomination Commune Internationale |
+| `items[*].barcode` | string | Code-barres du produit |
+| `items[*].batch_number` | string | Numéro de lot |
+| `items[*].expiry_date` | string | Date de péremption (YYYY-MM-DD) |
+| `items[*].quantity` | number | Quantité |
+| `items[*].unit` | string | Unité (ex: boîte) |
+| `items[*].unit_price` | number | Prix unitaire |
+| `items[*].total_price` | number | Prix total |
+| `items[*].manufacturer` | string | Fabricant |
+| `items[*].confidence` | number | Confiance OCR (0-1) |
+| `raw_text` | object | Texte brut extrait par OCR |
+| `warnings` | array | Avertissements de traitement |
+
+### Validation
+
+- ✅ Validé par IA (`agent-data-scientist-expert-ia`)
+- ✅ Validé par Backend Lead (`agent-d-veloppeur-backend-lead`)
+- Date de validation : 2025-01-08
+
+### Exemples de Requêtes
+
+```sql
+-- Trouver les factures avec un fournisseur spécifique
+SELECT * FROM invoices 
+WHERE ocr_data->'supplier'->>'name' = 'Pharma Distributeur SARL';
+
+-- Trouver les factures avec un produit spécifique
+SELECT * FROM invoices 
+WHERE EXISTS (
+  SELECT 1 FROM jsonb_array_elements(ocr_data->'items') AS item
+  WHERE item->>'product_name' = 'Paracétamol 500mg'
+);
+
+-- Créer un index sur le numéro de facture
+CREATE INDEX idx_invoices_ocr_number ON invoices ((ocr_data->'invoice'->>'number'));
+```
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
