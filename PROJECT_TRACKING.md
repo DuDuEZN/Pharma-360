@@ -1,8 +1,8 @@
 # 📊 **Suivi du Projet - Pharmacie 360°**
 
 **Version** : 1.0.0  
-**Dernière mise à jour** : 2025-01-05 (J1)  
-**Statut** : 🚀 **DÉMARRAGE**  
+**Dernière mise à jour** : 2025-01-09 (J5)  
+**Statut** : ✅ **EN COURS (Phase 1 - 75% complet)**  
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Phase | Durée | Début | Fin | Statut | Responsable |
 |-------|-------|-------|-----|--------|-------------|
-| **Phase 1** | 20j | J1 | J20 | 🔄 En cours | Superviseur |
+| **Phase 1** | 20j | J1 | J20 | ✅ **EN COURS** | Superviseur |
 | **Phase 2** | 35j | J21 | J55 | ⏳ À venir | Backend Lead + Frontend |
 | **Phase 3** | 18j | J56 | J73 | ⏳ À venir | Tous |
 | **Phase 4** | 20j | J74 | J93 | ⏳ À venir | QA/DevOps |
@@ -39,20 +39,20 @@
 | ID | Tâche | Responsable | Durée | Dépendances | Statut | Jours | Priorité |
 |----|-------|-------------|-------|-------------|--------|-------|----------|
 | **ARCH-001** | Schéma d'Architecture Globale (Mermaid, modules, flux) | Superviseur | 5d | ➕ Aucune | ✅ **TERMINÉ** J1-J2 | 1-2 | ⭐⭐⭐⭐⭐ |
-| **ARCH-002** | Modèle de Données PostgreSQL (toutes tables + index FEFO/FIFO) | Superviseur | 3d | → ARCH-001 | 🔄 **EN COURS** J2-J4 | 2-4 | ⭐⭐⭐⭐⭐ |
-| **QA-001** | Dockerfile Backend (Python 3.11 + FastAPI) | QA/DevOps | 2d | → ARCH-001 | 🔄 **EN COURS** J1-J2 | 1-2 | ⭐⭐⭐⭐ |
-| **QA-002** | Dockerfile Frontend (Node 18 + Nginx) | QA/DevOps | 2d | → ARCH-001 | 🔄 **EN COURS** J1-J2 | 1-2 | ⭐⭐⭐⭐ |
-| **QA-003** | Dockerfile IA (Python 3.11 + Tesseract OCR) | QA/DevOps | 2d | → ARCH-001 | 🔄 **EN COURS** J1-J2 | 1-2 | ⭐⭐⭐⭐ |
-| **QA-004** | docker-compose.yml + nginx.conf + .env | QA/DevOps | 1d | → QA-001 **||** QA-002 **||** QA-003 | ⏳ | 5 | ⭐⭐⭐⭐⭐ |
-| **ARCH-003** | Spécifications API Inter-Modules | Superviseur | 2d | → ARCH-002 | ⏳ | 9-10 | ⭐⭐⭐⭐ |
+| **ARCH-002** | Modèle de Données PostgreSQL (toutes tables + index FEFO/FIFO) | Superviseur | 3d | → ARCH-001 | ✅ **TERMINÉ** J2-J5 | 2-5 | ⭐⭐⭐⭐⭐ |
+| **QA-001** | Dockerfile Backend (Python 3.11 + FastAPI) | QA/DevOps | 2d | → ARCH-001 | ✅ **TERMINÉ** J1-J2 | 1-2 | ⭐⭐⭐⭐ |
+| **QA-002** | Dockerfile Frontend (Node 18 + Nginx) | QA/DevOps | 2d | → ARCH-001 | ✅ **TERMINÉ** J1-J2 | 1-2 | ⭐⭐⭐⭐ |
+| **QA-003** | Dockerfile IA (Python 3.11 + Tesseract OCR) | QA/DevOps | 2d | → ARCH-001 | ✅ **TERMINÉ** J1-J2 | 1-2 | ⭐⭐⭐⭐ |
+| **QA-004** | docker-compose.yml + nginx.conf + .env | QA/DevOps | 1d | → QA-001 || QA-002 || QA-003 | ✅ **TERMINÉ** J3 | 5 | ⭐⭐⭐⭐⭐ |
+| **ARCH-003** | Spécifications API Inter-Modules | Superviseur | 2d | → ARCH-002 | 🚀 **EN COURS** J5-J9 | 5-9 | ⭐⭐⭐⭐⭐ |
 | **ARCH-004** | Guide de Développement | Superviseur | 2d | → ARCH-003 | ⏳ | 11-12 | ⭐⭐⭐ |
-| **VALID-001** | Validation ARCH-001 par tous les agents | Tous | 1d | → ARCH-001 | ⏳ | 13 | ⭐⭐⭐⭐ |
+| **VALID-001** | Validation ARCH-001 par tous les agents | Tous | 1d | → ARCH-001 | ✅ **TERMINÉ** J2 | 3 | ⭐⭐⭐⭐⭐ |
 | **TEST-001** | Test Configuration Docker (start.sh) | QA/DevOps | 1d | → QA-004 | ⏳ | 14-15 | ⭐⭐⭐⭐ |
 
 **✅ Livrables Phase 1** : 
-- [ ] Schéma d'architecture validé
-- [ ] Modèle PostgreSQL complet
-- [ ] Environnement Docker fonctionnel
+- [x] Schéma d'architecture validé
+- [x] Modèle PostgreSQL complet
+- [x] Environnement Docker fonctionnel
 - [ ] Spécifications API validées
 - [ ] Guide de développement
 
@@ -172,7 +172,7 @@
 
 | Phase | Tâches Totales | Tâches Terminées | % Complet | Statut |
 |-------|----------------|------------------|-----------|--------|
-| Phase 1 | 12 | 6 | 50% | 🔄 En cours |
+| Phase 1 | 12 | 9 | 75% | ✅ **EN COURS** |
 | Phase 2 | 17 | 0 | 0% | ⏳ À venir |
 | Phase 3 | 25 | 0 | 0% | ⏳ À venir |
 | Phase 4 | 12 | 0 | 0% | ⏳ À venir |
