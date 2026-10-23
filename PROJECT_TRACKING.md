@@ -172,21 +172,21 @@
 
 | Phase | Tâches Totales | Tâches Terminées | % Complet | Statut |
 |-------|----------------|------------------|-----------|--------|
-| Phase 1 | 10 | 6 | 60% | 🔄 En cours |
+| Phase 1 | 12 | 6 | 50% | 🔄 En cours |
 | Phase 2 | 17 | 0 | 0% | ⏳ À venir |
 | Phase 3 | 25 | 0 | 0% | ⏳ À venir |
 | Phase 4 | 12 | 0 | 0% | ⏳ À venir |
-| **Total** | **64** | **6** | **9,38%** | 🔄 |
+| **Total** | **66** | **6** | **9,09%** | 🔄 |
 
 ### **Par Agent**
 
 | Agent | Tâches Assignées | Tâches Terminées | % Complet | Statut |
 |-------|------------------|------------------|-----------|--------|
-| Superviseur | 5 | 3 | 60% | 🔄 |
-| Backend Lead | 19 | 0 | 0% | ⏳ |
+| Superviseur | 7 | 3 | 42,86% | 🔄 |
+| Backend Lead | 21 | 0 | 0% | ⏳ |
 | Frontend | 15 | 0 | 0% | ⏳ |
-| IA | 9 | 0 | 0% | ⏳ |
-| QA/DevOps | 16 | 0 | 0% | ⏳ |
+| IA | 10 | 0 | 0% | ⏳ |
+| QA/DevOps | 19 | 0 | 0% | ⏳ |
 
 ---
 
