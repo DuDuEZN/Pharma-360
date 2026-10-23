@@ -372,6 +372,27 @@ $$ language 'plpgsql';
 CREATE TRIGGER IF NOT EXISTS update_sale_item_expiry_date
     BEFORE INSERT ON sale_items
     FOR EACH ROW
+
+-- REC-002: Ajouter trigger pour sale_items.expiry_date sur UPDATE
+CREATE OR REPLACE FUNCTION update_sale_item_expiry_date()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Si batch_id a changé, recalculer expiry_date
+    IF NEW.batch_id IS DISTINCT FROM OLD.batch_id THEN
+        NEW.expiry_date := (
+            SELECT expiry_date 
+            FROM batches 
+            WHERE id = NEW.batch_id
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_sale_item_expiry_date_on_update
+    BEFORE UPDATE ON sale_items
+    FOR EACH ROW
+    EXECUTE FUNCTION update_sale_item_expiry_date();
     EXECUTE FUNCTION set_sale_item_expiry_date();
 
 -- Trigger pour valider que quantity <= initial_quantity dans batches
@@ -424,37 +445,13 @@ BEGIN
     RETURN NEW;
 END;
 $$ language 'plpgsql';
-
--- Note: Le trigger ci-dessus nécessite une configuration spécifique pour current_setting
--- Pour l'instant, nous créons une version simplifiée qui utilise NULL pour user_id
-CREATE OR REPLACE FUNCTION IF NOT EXISTS log_batch_quantity_change_simple()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.quantity != OLD.quantity THEN
-        INSERT INTO movements (
-            type, reference_id, reference_type, product_id, batch_id,
-            old_quantity, new_quantity, quantity_change, user_id, notes
-        ) VALUES (
-            CASE 
-                WHEN NEW.quantity > OLD.quantity THEN 'purchase'
-                WHEN NEW.quantity < OLD.quantity THEN 'sale'
-                ELSE 'adjustment'
-            END,
-            NEW.id, 'batch', NEW.product_id, NEW.id,
-            OLD.quantity, NEW.quantity, NEW.quantity - OLD.quantity,
-            NULL,  -- user_id sera NULL, à mettre à jour par l'application
-            'Automatic quantity update'
-        );
-    END IF;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
+-- Trigger principal pour enregistrer automatiquement les mouvements de stock
+-- Utilise current_setting('app.current_user_id') pour obtenir l'ID de l'utilisateur
 CREATE TRIGGER IF NOT EXISTS log_batch_quantity_change_trigger
     AFTER UPDATE ON batches
     FOR EACH ROW
     WHEN (OLD.quantity IS DISTINCT FROM NEW.quantity)
-    EXECUTE FUNCTION log_batch_quantity_change_simple();
+    EXECUTE FUNCTION log_batch_quantity_change();
 
 -- =============================================================================
 -- 6. DONNÉES INITIALES (Optionnel - pour démonstration)
