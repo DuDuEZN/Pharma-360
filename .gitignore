@@ -157,12 +157,15 @@ dist/
 
 ## 🗃️ **Base de Données (PostgreSQL)**
 # PostgreSQL
-*.sql
+# Exclure les fichiers SQL temporaires, mais PAS ceux dans scripts/
 *.sql.gz
 *.dump
 *.backup
 postgresql.conf
 pg_hba.conf
+
+# Autoriser les fichiers SQL dans scripts/
+!scripts/*.sql
 
 ---
 
