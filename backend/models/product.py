@@ -5,8 +5,10 @@ SQLAlchemy model for products table
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
+from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, Decimal, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Numeric,  Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy.types import Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -54,12 +56,12 @@ class Product(Base):
     )
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     price: Mapped[float] = mapped_column(
-        Decimal(10, 2),
+        Numeric(10, 2),
         default=0.00,
         nullable=False
     )
     cost_price: Mapped[float] = mapped_column(
-        Decimal(10, 2),
+        Numeric(10, 2),
         default=0.00,
         nullable=False
     )

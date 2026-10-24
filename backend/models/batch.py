@@ -6,7 +6,7 @@ SQLAlchemy model for batches table (CORE for FEFO/FIFO system)
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, Date, DateTime, Decimal, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Numeric,  Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -80,12 +80,12 @@ class Batch(Base):
         index=True
     )
     cost_price: Mapped[float] = mapped_column(
-        Decimal(10, 2),
+        Numeric(10, 2),
         default=0.00,
         nullable=False
     )
     selling_price: Mapped[float] = mapped_column(
-        Decimal(10, 2),
+        Numeric(10, 2),
         default=0.00,
         nullable=False
     )

@@ -6,7 +6,7 @@ SQLAlchemy model for sale_items table
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Date, DateTime, Decimal, ForeignKey, Integer
+from sqlalchemy import Numeric,  Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -56,11 +56,11 @@ class SaleItem(Base):
     )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     unit_price: Mapped[float] = mapped_column(
-        Decimal(10, 2),
+        Numeric(10, 2),
         nullable=False
     )
     total_price: Mapped[float] = mapped_column(
-        Decimal(12, 2),
+        Numeric(12, 2),
         nullable=False
     )
     expiry_date: Mapped[Optional[date]] = mapped_column(

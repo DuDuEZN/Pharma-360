@@ -6,7 +6,7 @@ SQLAlchemy model for users table with RBAC
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, DateTime, String, func
+from sqlalchemy import Numeric,  Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base

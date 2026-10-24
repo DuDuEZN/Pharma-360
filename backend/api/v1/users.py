@@ -3,7 +3,7 @@ Users API Endpoints for Pharmacie 360 Backend
 FastAPI endpoints for user management (CRUD operations)
 """
 
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func

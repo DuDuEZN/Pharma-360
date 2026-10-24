@@ -4,7 +4,7 @@ Handles product management and FEFO/FIFO batch selection
 """
 
 from datetime import date
-from typing import Optional, list as ListType
+from typing import Optional, List as ListType
 
 from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
