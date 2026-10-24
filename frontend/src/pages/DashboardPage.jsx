@@ -2,9 +2,12 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { Package, ShoppingCart, CreditCard, Users, BarChart3, Clock, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAlerts } from '../hooks/useAlerts'
+import { AlertSystem } from '../components/common'
 
 function DashboardPage() {
   const { user } = useAuth()
+  const { stats, isLoading } = useAlerts()
 
   const stats = [
     { 
@@ -29,11 +32,11 @@ function DashboardPage() {
       bgColor: 'bg-warning-50'
     },
     { 
-      label: 'Alertes stock', 
-      value: '12', 
+      label: 'Alertes actives', 
+      value: isLoading ? '...' : stats.total,
       icon: AlertTriangle,
-      color: 'danger',
-      bgColor: 'bg-danger-50'
+      color: stats.critical > 0 ? 'danger' : stats.warning > 0 ? 'warning' : 'primary',
+      bgColor: stats.critical > 0 ? 'bg-danger-50' : stats.warning > 0 ? 'bg-warning-50' : 'bg-primary-50'
     },
   ]
 
@@ -117,7 +120,7 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Activity */}
+      {/* Alerts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -131,12 +134,10 @@ function DashboardPage() {
         </div>
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Alertes de stock
+            Alertes de stock et péremption
           </h2>
           <div className="card">
-            <p className="text-gray-500 text-center py-8">
-              Aucune alerte pour le moment
-            </p>
+            <AlertSystem showStats={false} showFilters={false} />
           </div>
         </div>
       </div>

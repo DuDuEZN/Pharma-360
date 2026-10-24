@@ -5,6 +5,8 @@ import Input from '../components/common/Input'
 import Button from '../components/common/Button'
 import api from '../services/api'
 import { useToast } from '../components/common/Toast'
+import { useAlerts } from '../hooks/useAlerts'
+import { AlertBadge } from '../components/common'
 
 function ProductsPage() {
   const [products, setProducts] = useState([])
@@ -13,6 +15,7 @@ function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [barcodeInput, setBarcodeInput] = useState('')
   const { addToast } = useToast()
+  const { hasAlerts, getAlertCountForProduct, getProductAlertSeverity } = useAlerts()
 
   useEffect(() => {
     fetchProducts()
@@ -188,7 +191,12 @@ function ProductsPage() {
                         {product.barcode || 'N/A'}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-medium text-gray-900">{product.name}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium text-gray-900">{product.name}</div>
+                          {hasAlerts(product.id) && (
+                            <AlertBadge productId={product.id} size="sm" />
+                          )}
+                        </div>
                         <div className="text-xs text-gray-500 truncate max-w-xs">
                           {product.description}
                         </div>

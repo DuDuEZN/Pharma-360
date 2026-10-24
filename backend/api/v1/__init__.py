@@ -9,6 +9,7 @@ from .products import router as products_router
 from .batches import router as batches_router
 from .sales import router as sales_router
 from .barcode import router as barcode_router
+from .alerts import router as alerts_router
 
 # List of all routers to be included in main.py
 routers = [
@@ -18,4 +19,5 @@ routers = [
     batches_router,
     sales_router,
     barcode_router,
+    alerts_router,
 ]
