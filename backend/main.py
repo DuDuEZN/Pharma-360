@@ -75,9 +75,14 @@ async def root():
 
 # Import and include API routers
 from .api.v1 import routers as v1_routers
+from .api.websocket import router as websocket_router
 
+# Include v1 REST API routers
 for router in v1_routers:
     app.include_router(router)
+
+# Include WebSocket router
+app.include_router(websocket_router)
 
 
 # Error handlers
