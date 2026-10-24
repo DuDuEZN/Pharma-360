@@ -82,7 +82,7 @@
 | **FRNT-001** | Structure React/Vite + Routing | Frontend | 3d | → ARCH-003 **&&** QA-004 | 21-23 | ⏳ |
 | **FRNT-002** | Composants Communs (Header, Sidebar, Modal) | Frontend | 4d | → FRNT-001 | 24-27 | ⏳ |
 | **FRNT-003** | Composant BarcodeInput (focus auto) | Frontend | 2d | → FRNT-002 | 28-29 | ✅ |
-| **FRNT-004** | Session Administrateur (Gestion utilisateurs/roles) | Frontend | 3d | → FRNT-002 **&&** BKND-001 | 28-30 | ⏳ |
+| **FRNT-004** | Session Administrateur (Gestion utilisateurs/roles) | Frontend | 3d | → FRNT-002 **&&** BKND-001 | 28-30 | ✅ |
 | **FRNT-005** | Session Vente (Recherche + FEFO + envoi Caisse) | Frontend | 4d | → FRNT-003 **&&** BKND-007 | 31-34 | ⏳ |
 | **FRNT-006** | Session Caisse (File d'attente + encaissement) | Frontend | 3d | → FRNT-005 **&&** BKND-008 | 35-37 | ⏳ |
 | **FRNT-007** | Système Alertes (Code couleur péremptions/stocks) | Frontend | 2d | → FRNT-005 | 35-36 | ⏳ |
