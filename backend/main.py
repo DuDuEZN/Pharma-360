@@ -74,21 +74,10 @@ async def root():
 
 
 # Import and include API routers
-# This will be populated as we create the API modules
-# from .api.v1 import auth, users, products, batches, sales, returns, invoices, reports
-# app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
-# app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
-# app.include_router(products.router, prefix="/api/v1/products", tags=["products"])
-# app.include_router(batches.router, prefix="/api/v1/batches", tags=["batches"])
-# app.include_router(sales.router, prefix="/api/v1/sales", tags=["sales"])
-# app.include_router(returns.router, prefix="/api/v1/returns", tags=["returns"])
-# app.include_router(invoices.router, prefix="/api/v1/invoices", tags=["invoices"])
-# app.include_router(reports.router, prefix="/api/v1/reports", tags=["reports"])
+from .api.v1 import routers as v1_routers
 
-
-# WebSocket endpoints will be added here
-# from .api.websocket import websocket_router
-# app.include_router(websocket_router)
+for router in v1_routers:
+    app.include_router(router)
 
 
 # Error handlers
