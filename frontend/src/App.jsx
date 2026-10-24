@@ -4,6 +4,7 @@ import { Toaster } from './components/common/Toast'
 import { AuthProvider } from './hooks/useAuth'
 import { CartProvider } from './hooks/useCart'
 import { BarcodeScannerProvider } from './hooks/useBarcodeScanner'
+import { WebSocketProvider } from './hooks/useWebSocket'
 
 // Layout
 import Layout from './components/layout/Layout'
@@ -32,8 +33,9 @@ function App() {
     <AuthProvider>
       <BarcodeScannerProvider>
         <CartProvider>
-          <Toaster />
-          <Routes>
+          <WebSocketProvider role="cashier">
+            <Toaster />
+            <Routes>
             <Route path="/login" element={<LoginPage />} />
             
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
@@ -59,6 +61,7 @@ function App() {
             
             <Route path="*" element={<div>404 - Page non trouvée</div>} />
           </Routes>
+          </WebSocketProvider>
         </CartProvider>
       </BarcodeScannerProvider>
     </AuthProvider>

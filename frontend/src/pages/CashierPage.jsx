@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { CreditCard, Clock, Check, X, ShoppingCart, User, Printer, FileText } from 'lucide-react'
+import { CreditCard, Clock, Check, X, ShoppingCart, User, Printer, FileText, Wifi, WifiOff } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useWebSocket } from '../hooks/useWebSocket'
 import api from '../services/api'
 import { useToast } from '../components/common/Toast'
 import Button from '../components/common/Button'
@@ -15,6 +16,7 @@ import Modal from '../components/common/Modal'
 function CashierPage() {
   const { user } = useAuth()
   const { addToast } = useToast()
+  const { isConnected, isConnecting, queueItems, lastMessage, sendPaymentValidated } = useWebSocket()
   
   const [pendingSales, setPendingSales] = useState([])
   const [selectedSale, setSelectedSale] = useState(null)
@@ -25,14 +27,23 @@ function CashierPage() {
   const [showReceipt, setShowReceipt] = useState(false)
   const [receipt, setReceipt] = useState(null)
 
-  // Fetch pending sales
+  // Sync queue items with pending sales
   useEffect(() => {
-    fetchPendingSales()
-    
-    // Poll for new sales
-    const interval = setInterval(fetchPendingSales, 5000)
-    return () => clearInterval(interval)
-  }, [])
+    if (queueItems.length > 0) {
+      setPendingSales(queueItems)
+    }
+  }, [queueItems])
+
+  // Fetch pending sales on mount and when WebSocket is not connected
+  useEffect(() => {
+    if (!isConnected && !isConnecting) {
+      fetchPendingSales()
+      
+      // Poll for new sales when WebSocket is not connected
+      const interval = setInterval(fetchPendingSales, 5000)
+      return () => clearInterval(interval)
+    }
+  }, [isConnected, isConnecting])
 
   const fetchPendingSales = async () => {
     try {
@@ -80,6 +91,12 @@ function CashierPage() {
       // Remove from pending list
       setPendingSales(pendingSales.filter(s => s.id !== selectedSale.id))
       setSelectedSale(null)
+      
+      // Send WebSocket notification
+      sendPaymentValidated({
+        sale_id: selectedSale.id,
+        sale_number: selectedSale.sale_number || `SALE-${selectedSale.id}`
+      })
       
       addToast({
         type: 'success',
@@ -137,6 +154,26 @@ function CashierPage() {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          {/* WebSocket Connection Status */}
+          <div className="flex items-center gap-2">
+            {isConnected ? (
+              <span className="flex items-center gap-1 text-success-600">
+                <Wifi className="w-4 h-4" />
+                <span className="text-sm">Connecté</span>
+              </span>
+            ) : isConnecting ? (
+              <span className="flex items-center gap-1 text-warning-600">
+                <WifiOff className="w-4 h-4" />
+                <span className="text-sm">Connexion...</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-danger-600">
+                <WifiOff className="w-4 h-4" />
+                <span className="text-sm">Déconnecté</span>
+              </span>
+            )}
+          </div>
+          
           <span className="text-sm text-gray-500">
             Caissier: {user?.username}
           </span>

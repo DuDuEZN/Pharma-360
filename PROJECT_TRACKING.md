@@ -176,7 +176,7 @@
 | Phase 2 | 17 | 0 | 0% | ⏳ À venir |
 | Phase 3 | 25 | 0 | 0% | ⏳ À venir |
 | Phase 4 | 12 | 0 | 0% | ⏳ À venir |
-| **Total** | **65** | **11** | **16,92%** | 🚀 |
+| **Total** | **65** | **28** | **43,08%** | 🚀 |
 
 ### **Par Agent**
 
@@ -327,6 +327,10 @@ gantt
 | 2025-01-16 | 12:00 | **Backend structure créé** | Backend Lead | Modèles + Schémas |
 | 2025-01-16 | 15:00 | **BKND-001 à BKND-009 TERMINÉS** | Backend Lead | APIs Backend complètes |
 | 2025-01-16 | 15:30 | **BKND-010 démarré** | Backend Lead | Middleware Barcode |
+| 2025-01-16 | 16:00 | **BKND-010 TERMINÉ** | Backend Lead | Middleware Barcode Scanner intégré |
+| 2025-01-16 | 16:30 | **FRNT-001 à FRNT-005 TERMINÉS** | Frontend | Structure + Vente + Admin |
+| 2025-01-16 | 17:00 | **FRNT-006 démarré** | Frontend | Session Caisse WebSocket |
+| 2025-01-16 | 18:00 | **FRNT-006 TERMINÉ** | Frontend | Session Caisse avec WebSocket intégré |
 
 ---
 
@@ -363,7 +367,9 @@ Tous les livrables de la Phase 1 ont été validés
 
 **Début prévu : J12 (2025-01-16)**
 
+**Prochaine étape : FRNT-007 (Système Alertes)**
+
 ---
 
-**Dernière mise à jour** : 2025-01-16 15:30  
-**Prochaine mise à jour** : 2025-01-16 18:00
+**Dernière mise à jour** : 2025-01-16 18:00  
+**Prochaine mise à jour** : 2025-01-16 18:30
