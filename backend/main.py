@@ -86,10 +86,10 @@ from .api.websocket import router as websocket_router
 
 # Include v1 REST API routers
 for router in v1_routers:
-    app.include_router(router)
+    app.include_router(router, prefix="/api/v1")
 
 # Include WebSocket router
-app.include_router(websocket_router)
+app.include_router(websocket_router, prefix="/api")
 
 
 # Error handlers
