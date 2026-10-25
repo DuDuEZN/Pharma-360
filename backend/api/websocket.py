@@ -5,7 +5,7 @@ Real-time communication between Sales and Cashier sessions
 
 import json
 import asyncio
-from typing import Dict
+from typing import Dict, Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import HTMLResponse
@@ -49,7 +49,7 @@ class ConnectionManager:
         
         return True
     
-    def disconnect(self, websocket: WebSocket, user: User):
+    async def disconnect(self, websocket: WebSocket, user: User):
         """Remove a WebSocket connection"""
         role = user.role
         group = "sales" if role in ["seller", "admin"] else "cashiers"
@@ -248,7 +248,7 @@ async def cashier_websocket(
 
 @router.get("/queue")
 async def get_queue_via_http(
-    db: AsyncSession = Depends(lambda: None),  # Will be injected
+    db: object = Depends(lambda: None),  # Will be injected
 ):
     """HTTP endpoint to get current queue (for debugging)"""
     from ..core.database import async_session_maker

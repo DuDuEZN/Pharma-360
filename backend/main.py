@@ -42,6 +42,13 @@ app.add_middleware(
 
 
 # Mount static files
+import os
+from pathlib import Path
+
+# Create directories if they don't exist
+Path("static").mkdir(exist_ok=True)
+Path("uploads").mkdir(exist_ok=True)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 

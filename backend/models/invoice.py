@@ -6,7 +6,7 @@ SQLAlchemy model for invoices table (supplier purchase invoices)
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Numeric,  Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Numeric, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -76,7 +76,7 @@ class Invoice(Base):
     file_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     ocr_processed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     ocr_data: Mapped[Optional[dict]] = mapped_column(
-        type_=dict,
+        JSON,
         nullable=True,
         comment="Data extracted by OCR from invoice image"
     )

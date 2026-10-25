@@ -14,7 +14,7 @@ class InvoiceBase(BaseModel):
     """Base invoice schema"""
     invoice_number: str = Field(..., min_length=1, max_length=50, description="Invoice number")
     supplier_id: int = Field(..., ge=1, description="Supplier ID")
-    date: date = Field(default_factory=date.today, description="Invoice date")
+    invoice_date: date = Field(default_factory=date.today, description="Invoice date")
     due_date: Optional[date] = Field(None, description="Payment due date")
     subtotal: float = Field(default=0.0, ge=0, description="Subtotal amount")
     tax_amount: float = Field(default=0.0, ge=0, description="Tax amount")
@@ -48,7 +48,7 @@ class InvoiceUpdate(BaseModel):
     """Schema for updating an invoice"""
     invoice_number: Optional[str] = Field(None, min_length=1, max_length=50)
     supplier_id: Optional[int] = Field(None, ge=1)
-    date: Optional[date] = Field(None)
+    invoice_date: Optional[date] = Field(None)
     due_date: Optional[date] = Field(None)
     subtotal: Optional[float] = Field(None, ge=0)
     tax_amount: Optional[float] = Field(None, ge=0)
