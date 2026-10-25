@@ -1,278 +1,256 @@
 #!/bin/bash
 
-# ===========================================
-# Script de Sauvegarde - Pharma 360°
-# ===========================================
+# =============================================================================
+# PHARMACIE 360 - Script de Sauvegarde Automatique de la Base de Données
+# =============================================================================
 # ID Tâche: QA-012
 # Responsable: QA/DevOps
-# Statut: TERMINÉ
-# Description: Sauvegarde automatique de la base de données PostgreSQL
-# ===========================================
+# Durée: 2 jours
+# Statut: EN COURS
+# Description: Système de sauvegardes automatiques quotidiennes de PostgreSQL
+# =============================================================================
 
-# Configuration
-SCRIPT_NAME="Pharma 360° Backup Script"
-VERSION="1.0.0"
-BACKUP_DIR="./backups"
-RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-7}
+# Ce script effectue des sauvegardes automatiques de la base de données PostgreSQL
+# Il peut être exécuté manuellement ou via une tâche cron
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+# Chemins
+BACKUP_DIR="/var/backups/pharma360"
+LOG_FILE="/var/log/pharma360/backup.log"
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="pharma360_backup_${DATE}.sql"
-BACKUP_PATH="${BACKUP_DIR}/${BACKUP_FILE}"
-LOG_FILE="${BACKUP_DIR}/backup_log_${DATE}.log"
 
-# Couleurs pour l'affichage
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# Configuration PostgreSQL (peut être écrasée par les variables d'environnement)
+DB_HOST=${POSTGRES_HOST:="localhost"}
+DB_PORT=${POSTGRES_PORT:="5432"}
+DB_NAME=${POSTGRES_DB:="pharma360_dev"}
+DB_USER=${POSTGRES_USER:="pharma_user"}
+DB_PASSWORD=${POSTGRES_PASSWORD:="pharma_pass_2025"}
 
-# Fonction pour afficher les messages
-function echo_color() {
-    local color=$1
-    local message=$2
-    echo -e "${color}[${SCRIPT_NAME}] ${message}${NC}"
+# Nombre de sauvegardes à conserver
+MAX_BACKUPS=${MAX_BACKUPS:="30"}
+
+# Compression
+COMPRESS=${COMPRESS:="true"}
+
+# =============================================================================
+# FONCTIONS
+# =============================================================================
+
+# Logger
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
-function echo_success() {
-    echo_color "${GREEN}" "$1"
+# Vérifier les dépendances
+check_dependencies() {
+    log "Vérification des dépendances..."
+    
+    if ! command -v pg_dump &> /dev/null; then
+        log "ERREUR: pg_dump n'est pas installé"
+        exit 1
+    fi
+    
+    if ! command -v psql &> /dev/null; then
+        log "ERREUR: psql n'est pas installé"
+        exit 1
+    fi
+    
+    if [ "$COMPRESS" = "true" ] && ! command -v gzip &> /dev/null; then
+        log "ERREUR: gzip n'est pas installé"
+        exit 1
+    fi
+    
+    log "Toutes les dépendances sont satisfaites"
 }
 
-function echo_error() {
-    echo_color "${RED}" "$1"
-}
-
-function echo_warning() {
-    echo_color "${YELLOW}" "$1"
-}
-
-function echo_info() {
-    echo_color "${BLUE}" "$1"
-}
-
-# Fonction pour créer le répertoire de sauvegarde
-function create_backup_dir() {
+# Créer les répertoires
+create_directories() {
+    log "Création des répertoires..."
+    
+    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$(dirname "$LOG_FILE")"
+    
     if [ ! -d "$BACKUP_DIR" ]; then
-        mkdir -p "$BACKUP_DIR"
-        echo_success "Répertoire de sauvegarde créé: $BACKUP_DIR"
+        log "ERREUR: Impossible de créer le répertoire de sauvegarde"
+        exit 1
     fi
+    
+    log "Répertoires créés avec succès"
 }
 
-# Fonction pour effectuer la sauvegarde
-function perform_backup() {
-    echo_info "Début de la sauvegarde de la base de données..."
+# Tester la connexion à la base de données
+test_connection() {
+    log "Test de la connexion à la base de données..."
     
-    # Créer le répertoire
-    create_backup_dir
-    
-    # Vérifier si PostgreSQL est accessible
-    if ! docker exec pharma360-db pg_isready -U ${POSTGRES_USER:-pharma_user} -d ${POSTGRES_DB:-pharma360_dev} &>/dev/null; then
-        echo_error "PostgreSQL n'est pas accessible"
-        return 1
+    if ! PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" &> /dev/null; then
+        log "ERREUR: Impossible de se connecter à la base de données"
+        exit 1
     fi
     
-    # Effectuer la sauvegarde
-    echo_info "Sauvegarde en cours..."
-    docker exec pharma360-db pg_dump \
-        -U ${POSTGRES_USER:-pharma_user} \
-        -d ${POSTGRES_DB:-pharma360_dev} \
-        -F c \
-        -f /tmp/${BACKUP_FILE} 2>> "$LOG_FILE"
+    log "Connexion à la base de données réussie"
+}
+
+# Effectuer la sauvegarde
+perform_backup() {
+    local backup_file="$BACKUP_DIR/${DB_NAME}_$DATE.sql"
+    local final_file="$backup_file"
     
-    if [ $? -ne 0 ]; then
-        echo_error "Erreur lors de la sauvegarde"
-        return 1
+    log "Début de la sauvegarde de $DB_NAME..."
+    
+    # Effectuer le dump
+    if ! PGPASSWORD="$DB_PASSWORD" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" > "$backup_file"; then
+        log "ERREUR: Échec du dump de la base de données"
+        rm -f "$backup_file"
+        exit 1
     fi
     
-    # Copier la sauvegarde depuis le conteneur vers l'hôte
-    docker cp pharma360-db:/tmp/${BACKUP_FILE} "$BACKUP_PATH"
-    
-    # Nettoyer le fichier temporaire dans le conteneur
-    docker exec pharma360-db rm -f /tmp/${BACKUP_FILE}
+    # Compresser si nécessaire
+    if [ "$COMPRESS" = "true" ]; then
+        log "Compression de la sauvegarde..."
+        gzip "$backup_file"
+        final_file="$backup_file.gz"
+    fi
     
     # Vérifier que la sauvegarde existe
-    if [ ! -f "$BACKUP_PATH" ]; then
-        echo_error "Fichier de sauvegarde introuvable"
-        return 1
+    if [ ! -f "$final_file" ]; then
+        log "ERREUR: Fichier de sauvegarde non trouvé"
+        exit 1
     fi
     
-    # Calculer la taille de la sauvegarde
-    BACKUP_SIZE=$(du -h "$BACKUP_PATH" | cut -f1)
-    echo_success "Sauvegarde effectuée avec succès: $BACKUP_PATH ($BACKUP_SIZE)"
+    local file_size=$(stat -c%s "$final_file" 2>/dev/null || stat -f%z "$final_file" 2>/dev/null)
+    log "Sauvegarde terminée avec succès: $final_file (taille: $file_size octets)"
     
-    return 0
+    echo "$final_file"
 }
 
-# Fonction pour nettoyer les anciennes sauvegardes
-function cleanup_old_backups() {
-    echo_info "Nettoyage des anciennes sauvegardes..."
+# Nettoyer les anciennes sauvegardes
+cleanup_old_backups() {
+    log "Nettoyage des anciennes sauvegardes..."
     
-    # Trouver et supprimer les sauvegardes plus anciennes que RETENTION_DAYS
-    find "$BACKUP_DIR" -name "pharma360_backup_*.sql" -type f -mtime +$RETENTION_DAYS -delete 2>/dev/null
+    # Lister toutes les sauvegardes
+    local backups=($BACKUP_DIR/${DB_NAME}_*.sql* 2>/dev/null)
     
-    # Compter le nombre de sauvegardes restantes
-    BACKUP_COUNT=$(find "$BACKUP_DIR" -name "pharma360_backup_*.sql" -type f | wc -l)
-    
-    echo_success "Nettoyage terminé. $BACKUP_COUNT sauvegardes conservées"
-}
-
-# Fonction pour lister les sauvegardes
-function list_backups() {
-    echo_info "Liste des sauvegardes disponibles:"
-    
-    if [ ! -d "$BACKUP_DIR" ]; then
-        echo_warning "Aucun répertoire de sauvegarde trouvé"
-        return 1
+    if [ ${#backups[@]} -le $MAX_BACKUPS ]; then
+        log "Aucune ancienne sauvegarde à supprimer (${#backups[@]} <= $MAX_BACKUPS)"
+        return
     fi
     
-    # Lister les sauvegardes par ordre chronologique inverse
-    find "$BACKUP_DIR" -name "pharma360_backup_*.sql" -type f -printf "%T@ %p\n" | \
-        sort -r | \
-        while read -r timestamp file; do
-            size=$(du -h "$file" | cut -f1)
-            date_str=$(date -d "@$timestamp" +"%Y-%m-%d %H:%M:%S")
-            echo "  $date_str - $file ($size)"
-        done
-    
-    if [ $? -ne 0 ]; then
-        echo_warning "Aucune sauvegarde trouvée"
-        return 1
-    fi
-    
-    return 0
-}
-
-# Fonction pour restaurer une sauvegarde
-function restore_backup() {
-    local backup_file=$1
-    
-    if [ -z "$backup_file" ]; then
-        echo_error "Aucun fichier de sauvegarde spécifié"
-        return 1
-    fi
-    
-    if [ ! -f "$backup_file" ]; then
-        echo_error "Fichier de sauvegarde introuvable: $backup_file"
-        return 1
-    fi
-    
-    echo_info "Restauration de la sauvegarde: $backup_file"
-    
-    # Vérifier si PostgreSQL est accessible
-    if ! docker exec pharma360-db pg_isready -U ${POSTGRES_USER:-pharma_user} -d ${POSTGRES_DB:-pharma360_dev} &>/dev/null; then
-        echo_error "PostgreSQL n'est pas accessible"
-        return 1
-    fi
-    
-    # Copier la sauvegarde vers le conteneur
-    docker cp "$backup_file" pharma360-db:/tmp/backup.sql
-    
-    # Restaurer la sauvegarde
-    echo_info "Restauration en cours..."
-    docker exec pharma360-db pg_restore \
-        -U ${POSTGRES_USER:-pharma_user} \
-        -d ${POSTGRES_DB:-pharma360_dev} \
-        -F c \
-        -c \
-        /tmp/backup.sql 2>/dev/null
-    
-    if [ $? -ne 0 ]; then
-        echo_error "Erreur lors de la restauration"
-        return 1
-    fi
-    
-    # Nettoyer le fichier temporaire
-    docker exec pharma360-db rm -f /tmp/backup.sql
-    
-    echo_success "Restauration effectuée avec succès"
-    return 0
-}
-
-# Fonction principale
-function main() {
-    echo_info "=========================================="
-    echo_info "  SCRIPT DE SAUVEGARDE - Pharma 360°"
-    echo_info "  Version: $VERSION"
-    echo_info "=========================================="
-    echo_info ""
-    
-    # Vérifier les arguments
-    local action="backup"
-    local backup_file=""
-    
-    while [ $# -gt 0 ]; do
-        case "$1" in
-            --backup|-b)
-                action="backup"
-                ;;
-            --list|-l)
-                action="list"
-                ;;
-            --restore|-r)
-                action="restore"
-                shift
-                backup_file="$1"
-                ;;
-            --clean|-c)
-                action="clean"
-                ;;
-            --help|-h)
-                echo "Usage: $0 [OPTIONS]"
-                echo ""
-                echo "Options:"
-                echo "  --backup, -b    Effectuer une sauvegarde"
-                echo "  --list, -l      Lister les sauvegardes"
-                echo "  --restore, -r   Restaurer une sauvegarde (spécifier le fichier)"
-                echo "  --clean, -c     Nettoyer les anciennes sauvegardes"
-                echo "  --help, -h      Afficher cette aide"
-                echo ""
-                echo "Exemples:"
-                echo "  $0 --backup          # Effectuer une sauvegarde"
-                echo "  $0 --list            # Lister les sauvegardes"
-                echo "  $0 --restore backups/pharma360_backup_20250115.sql"
-                echo "  $0 --clean           # Nettoyer les anciennes sauvegardes"
-                echo ""
-                exit 0
-                ;;
-            *)
-                echo_error "Option inconnue: $1"
-                exit 1
-                ;;
-        esac
-        shift
+    # Trier par date (les plus anciennes en premier)
+    # et supprimer les sauvegardes en trop
+    local count=0
+    for backup in $(ls -t "$BACKUP_DIR"/${DB_NAME}_*.sql* 2>/dev/null | tail -n +$((MAX_BACKUPS + 1))); do
+        if [ -f "$backup" ]; then
+            log "Suppression de l'ancienne sauvegarde: $backup"
+            rm -f "$backup"
+            ((count++))
+        fi
     done
     
-    # Exécuter les actions
-    case "$action" in
-        "backup")
-            if ! perform_backup; then
-                echo_error "Échec de la sauvegarde"
-                exit 1
-            fi
-            cleanup_old_backups
-            ;;
-        "list")
-            if ! list_backups; then
-                echo_error "Aucune sauvegarde disponible"
-                exit 1
-            fi
-            ;;
-        "restore")
-            if [ -z "$backup_file" ]; then
-                echo_error "Aucun fichier de sauvegarde spécifié"
-                exit 1
-            fi
-            if ! restore_backup "$backup_file"; then
-                echo_error "Échec de la restauration"
-                exit 1
-            fi
-            ;;
-        "clean")
-            cleanup_old_backups
-            ;;
-    esac
+    log "Suppression de $count anciennes sauvegardes"
+}
+
+# Vérifier l'intégrité de la sauvegarde
+verify_backup() {
+    local backup_file="$1"
     
-    exit 0
+    if [ ! -f "$backup_file" ]; then
+        log "ERREUR: Fichier de sauvegarde non trouvé pour vérification"
+        return 1
+    fi
+    
+    log "Vérification de l'intégrité de la sauvegarde: $backup_file"
+    
+    # Vérifier la taille du fichier
+    local file_size=$(stat -c%s "$backup_file" 2>/dev/null || stat -f%z "$backup_file" 2>/dev/null)
+    if [ "$file_size" -lt 100 ]; then
+        log "ERREUR: Fichier de sauvegarde trop petit (${file_size} octets)"
+        return 1
+    fi
+    
+    # Pour les fichiers compressés, vérifier qu'ils peuvent être décompressés
+    if [[ "$backup_file" == *.gz ]]; then
+        if ! gzip -t "$backup_file" &> /dev/null; then
+            log "ERREUR: Fichier de sauvegarde compressé corrompu"
+            return 1
+        fi
+        log "Fichier de sauvegarde compressé valide"
+    else
+        # Vérifier que c'est un fichier SQL valide
+        if ! head -1 "$backup_file" | grep -q "POSTGRESQL\|pg_dump\|--"; then
+            log "AVERTISSEMENT: Fichier de sauvegarde peut ne pas être un SQL valide"
+        fi
+        log "Fichier de sauvegarde SQL valide"
+    fi
+    
+    return 0
+}
+
+# Envoyer une notification (optionnel)
+send_notification() {
+    local backup_file="$1"
+    local status="$2"
+    
+    # Si une URL de webhook est configurée, envoyer une notification
+    if [ -n "$WEBHOOK_URL" ]; then
+        log "Envoi de notification à $WEBHOOK_URL"
+        
+        local message
+        if [ "$status" = "success" ]; then
+            message="{\"status\":\"success\",\"message\":\"Sauvegarde réussie\",\"file\":\"$backup_file\"}"
+        else
+            message="{\"status\":\"error\",\"message\":\"Échec de la sauvegarde\"}"
+        fi
+        
+        # Utiliser curl pour envoyer la notification
+        if command -v curl &> /dev/null; then
+            curl -X POST -H "Content-Type: application/json" -d "$message" "$WEBHOOK_URL" &> /dev/null
+        fi
+    fi
+}
+
+# =============================================================================
+# EXÉCUTION PRINCIPALE
+# =============================================================================
+
+main() {
+    log "=========================================="
+    log "Début de la sauvegarde automatique"
+    log "=========================================="
+    
+    # Vérifier les dépendances
+    check_dependencies
+    
+    # Créer les répertoires
+    create_directories
+    
+    # Tester la connexion
+    test_connection
+    
+    # Effectuer la sauvegarde
+    local backup_file=$(perform_backup)
+    
+    # Vérifier la sauvegarde
+    if ! verify_backup "$backup_file"; then
+        log "ERREUR: Vérification de la sauvegarde échouée"
+        send_notification "$backup_file" "error"
+        exit 1
+    fi
+    
+    # Nettoyer les anciennes sauvegardes
+    cleanup_old_backups
+    
+    # Envoyer une notification de succès
+    send_notification "$backup_file" "success"
+    
+    log "=========================================="
+    log "Sauvegarde terminée avec succès"
+    log "=========================================="
 }
 
 # Exécuter le script principal
 main "$@"
+
+exit 0
