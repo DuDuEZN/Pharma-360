@@ -12,6 +12,7 @@ from .barcode import router as barcode_router
 from .alerts import router as alerts_router
 from .returns import router as returns_router
 from .invoices import router as invoices_router
+from .suppliers import router as suppliers_router
 
 # List of all routers to be included in main.py
 routers = [
@@ -24,4 +25,5 @@ routers = [
     alerts_router,
     returns_router,
     invoices_router,
+    suppliers_router,
 ]
