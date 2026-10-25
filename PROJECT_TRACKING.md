@@ -432,5 +432,4 @@ graph TD
 
 ---
 
-*Document généré et mis à jour par Vibe Code (Mistral AI)*
 *Tous les agents peuvent consulter ce document pour suivre l'avancement en temps réel.*
