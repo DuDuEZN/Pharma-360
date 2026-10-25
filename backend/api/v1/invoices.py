@@ -3,8 +3,9 @@ Invoices API Endpoints for Pharmacie 360 Backend
 FastAPI endpoints for supplier invoice management with OCR support
 """
 
-from typing import Annotated, Optional, UploadFile, File
+from typing import Annotated, Optional
 from datetime import datetime
+from fastapi import UploadFile, File
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Form
 from sqlalchemy.ext.asyncio import AsyncSession
