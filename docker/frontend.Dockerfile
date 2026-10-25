@@ -21,7 +21,7 @@ RUN apk add --no-cache python3 make g++
 COPY frontend/package.json frontend/package-lock.json ./
 
 # Installer les dépendances npm
-RUN npm ci
+RUN npm ci && npm install --no-save @rollup/rollup-linux-x64-musl
 
 # Copier le code source
 COPY frontend/ .
