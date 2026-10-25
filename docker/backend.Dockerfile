@@ -21,10 +21,10 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copier les fichiers de dépendances
-COPY backend/requirements.txt backend/requirements-dev.txt .
+COPY backend/requirements.txt .
 
 # Installer les dépendances Python dans un dossier dédié
-RUN pip install --user -r requirements.txt && \
+RUN pip install --user -r requirements.txt
     pip install --user -r requirements-dev.txt
 
 # Étape 2: Runtime (image finale optimisée)
