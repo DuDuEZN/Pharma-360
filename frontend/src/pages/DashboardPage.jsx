@@ -7,9 +7,9 @@ import { AlertSystem } from '../components/common'
 
 function DashboardPage() {
   const { user } = useAuth()
-  const { stats, isLoading } = useAlerts()
+  const { alertsStats, isLoading } = useAlerts()
 
-  const stats = [
+  const dashboardStats = [
     { 
       label: 'Produits en stock', 
       value: '1,234', 
@@ -33,10 +33,10 @@ function DashboardPage() {
     },
     { 
       label: 'Alertes actives', 
-      value: isLoading ? '...' : stats.total,
+      value: isLoading ? '...' : alertsStats.total,
       icon: AlertTriangle,
-      color: stats.critical > 0 ? 'danger' : stats.warning > 0 ? 'warning' : 'primary',
-      bgColor: stats.critical > 0 ? 'bg-danger-50' : stats.warning > 0 ? 'bg-warning-50' : 'bg-primary-50'
+      color: alertsStats.critical > 0 ? 'danger' : alertsStats.warning > 0 ? 'warning' : 'primary',
+      bgColor: alertsStats.critical > 0 ? 'bg-danger-50' : alertsStats.warning > 0 ? 'bg-warning-50' : 'bg-primary-50'
     },
   ]
 
@@ -81,7 +81,7 @@ function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
+        {dashboardStats.map((stat) => (
           <div
             key={stat.label}
             className="card"

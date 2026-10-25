@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Users, Search, Plus, Edit, Trash2, Building2, Mail, Phone, MapPin } from 'lucide-react'
 import api from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
-import { toast } from '../../components/common/Toast'
+import { ToastProvider } from '../../components/common/Toast'
 
 /**
  * Suppliers Management Page for Manager
@@ -38,7 +38,7 @@ function SuppliersPage() {
       setSuppliers(response.data.suppliers || [])
     } catch (err) {
       setError(err.message)
-      toast.error('Échec du chargement des fournisseurs')
+      window.toast.error('Échec du chargement des fournisseurs')
     } finally {
       setLoading(false)
     }
@@ -61,16 +61,16 @@ function SuppliersPage() {
     try {
       if (editingId) {
         await api.put(`/suppliers/${editingId}`, formData)
-        toast.success('Fournisseur modifié avec succès')
+        window.toast.success('Fournisseur modifié avec succès')
       } else {
         await api.post('/suppliers', formData)
-        toast.success('Fournisseur ajouté avec succès')
+        window.toast.success('Fournisseur ajouté avec succès')
       }
       setShowModal(false)
       setEditingId(null)
       fetchSuppliers()
     } catch (err) {
-      toast.error(`Échec ${editingId ? 'de la modification' : 'de l\'ajout'} du fournisseur`)
+      window.toast.error(`Échec ${editingId ? 'de la modification' : 'de l\'ajout'} du fournisseur`)
     }
   }
 
@@ -96,10 +96,10 @@ function SuppliersPage() {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce fournisseur ?')) {
       try {
         await api.delete(`/suppliers/${id}`)
-        toast.success('Fournisseur supprimé avec succès')
+        window.toast.success('Fournisseur supprimé avec succès')
         fetchSuppliers()
       } catch (err) {
-        toast.error('Échec de la suppression du fournisseur')
+        window.toast.error('Échec de la suppression du fournisseur')
       }
     }
   }

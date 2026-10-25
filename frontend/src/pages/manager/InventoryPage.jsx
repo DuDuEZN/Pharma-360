@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Package, Search, Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle, Filter } from 'lucide-react'
 import api from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
-import { toast } from '../../components/common/Toast'
 
 /**
  * Inventory Management Page for Manager
@@ -57,7 +56,7 @@ function InventoryPage() {
       
     } catch (err) {
       setError(err.message)
-      toast.error('Échec du chargement de l\'inventaire')
+      window.toast.error('Échec du chargement de l\'inventaire')
     } finally {
       setLoading(false)
     }
@@ -93,11 +92,11 @@ function InventoryPage() {
     e.preventDefault()
     try {
       await api.post('/batches', formData)
-      toast.success('Lot ajouté avec succès')
+      window.toast.success('Lot ajouté avec succès')
       setShowBatchModal(false)
       fetchInventory()
     } catch (err) {
-      toast.error('Échec de l\'ajout du lot')
+      window.toast.error('Échec de l\'ajout du lot')
     }
   }
 

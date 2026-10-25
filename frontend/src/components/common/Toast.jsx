@@ -5,7 +5,7 @@ import { clsx } from 'clsx'
 
 const ToastContext = createContext()
 
-export function ToastProvider({ children }) {
+function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
   
   const addToast = useCallback((toast) => {
@@ -91,7 +91,7 @@ function ToastItem({ toast, onRemove }) {
   )
 }
 
-export function useToast() {
+function useToast() {
   const context = useContext(ToastContext)
   if (!context) {
     throw new Error('useToast must be used within a ToastProvider')
@@ -116,4 +116,5 @@ function ToastConsumer() {
   return null
 }
 
-export { ToastProvider }
+export { ToastProvider, useToast }
+export default ToastProvider
