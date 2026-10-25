@@ -13,6 +13,7 @@ from .alerts import router as alerts_router
 from .returns import router as returns_router
 from .invoices import router as invoices_router
 from .suppliers import router as suppliers_router
+from .sale_history import router as sale_history_router
 
 # List of all routers to be included in main.py
 routers = [
@@ -26,4 +27,5 @@ routers = [
     returns_router,
     invoices_router,
     suppliers_router,
+    sale_history_router,
 ]
