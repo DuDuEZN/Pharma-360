@@ -24,7 +24,7 @@ import {
   SettingsPage,
   ReportsPage
 } from './pages/admin'
-import { ManagerPage } from './pages/manager'
+import { ManagerPage, InventoryPage, SuppliersPage } from './pages/manager'
 
 // Protected Route
 import ProtectedRoute from './components/common/ProtectedRoute'
@@ -57,7 +57,11 @@ function App() {
               </Route>
               
               {/* Manager Routes */}
-              <Route path="/manager" element={<ManagerPage />} />
+              <Route path="/manager" element={<ManagerPage />}>
+                <Route index element={<InventoryPage />} />
+                <Route path="inventory" element={<InventoryPage />} />
+                <Route path="suppliers" element={<SuppliersPage />} />
+              </Route>
               
             </Route>
             
