@@ -21,7 +21,6 @@ router = APIRouter(prefix="/barcode", tags=["barcode"])
 
 @router.post(
     "/scan",
-    response_model=BarcodeScanResponse,
     summary="Scan a barcode",
     description="Scan a barcode and get product with FEFO batch selection"
 )
@@ -29,7 +28,7 @@ async def scan_barcode(
     scan_data: BarcodeScanRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
-) -> BarcodeScanResponse:
+):
     """Scan barcode endpoint"""
     return await BarcodeService.scan_barcode(
         barcode=scan_data.barcode,
@@ -39,7 +38,6 @@ async def scan_barcode(
 
 @router.get(
     "/scan",
-    response_model=BarcodeScanResponse,
     summary="Scan a barcode via GET",
     description="Scan a barcode using GET request (for testing or direct links)"
 )
@@ -47,7 +45,7 @@ async def scan_barcode_get(
     barcode: Annotated[str, Query(min_length=1)] = "",
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
-) -> BarcodeScanResponse:
+):
     """Scan barcode via GET endpoint"""
     return await BarcodeService.scan_barcode(
         barcode=barcode,

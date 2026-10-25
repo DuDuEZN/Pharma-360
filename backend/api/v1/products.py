@@ -56,7 +56,6 @@ async def list_products(
 
 @router.get(
     "/{product_id}",
-    response_model=ProductDetailResponse,
     summary="Get a specific product",
     description="Get detailed product information including all batches"
 )
@@ -64,7 +63,7 @@ async def get_product(
     product_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
-) -> ProductDetailResponse:
+):
     """Get product endpoint"""
     product = await ProductService.get_product_by_id(product_id, db)
     
@@ -290,7 +289,6 @@ async def search_products(
 
 @router.post(
     "/scan",
-    response_model=BarcodeScanResponse,
     summary="Scan barcode",
     description="Scan a barcode and get product with FEFO batch selection"
 )
@@ -298,7 +296,7 @@ async def scan_barcode(
     scan_data: BarcodeScanRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
-) -> BarcodeScanResponse:
+):
     """Scan barcode endpoint"""
     return await ProductService.scan_barcode(
         barcode=scan_data.barcode,

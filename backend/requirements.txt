@@ -7,7 +7,8 @@ uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 
 # Database
-sqlalchemy==2.0.25
+sqlalchemy[asyncio]==2.0.25
+asyncpg==0.29.0
 psycopg2-binary==2.9.9
 alembic==1.13.1
 
@@ -19,6 +20,7 @@ oauth2==1.9.0.post1
 # Pydantic (already included with FastAPI, but explicit version)
 pydantic==2.5.3
 pydantic-settings==2.1.0
+email-validator==2.1.0
 
 # Async support
 httpx==0.26.0
@@ -44,3 +46,4 @@ python-decouple==3.8
 
 # Logging
 structlog==23.2.0
+greenlet==3.0.3

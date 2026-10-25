@@ -72,6 +72,8 @@ class ProductResponse(ProductBase):
 class ProductDetailResponse(ProductResponse):
     """Schema for detailed product response"""
     batches: list["BatchResponse"] = Field(default_factory=list, description="List of batches")
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={Decimal: float})
 
 
 # Product List Response Schema
@@ -113,3 +115,5 @@ class BarcodeScanResponse(BaseModel):
     product: Optional[ProductResponse] = Field(None, description="Found product")
     batch: Optional["BatchResponse"] = Field(None, description="Selected batch (FEFO)")
     error: Optional[str] = Field(None, description="Error message if not found")
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={Decimal: float})
