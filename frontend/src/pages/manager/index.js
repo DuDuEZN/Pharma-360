@@ -2,9 +2,11 @@
 import ManagerPage from './ManagerPage'
 import InventoryPage from './InventoryPage'
 import SuppliersPage from './SuppliersPage'
+import DashboardPage from './DashboardPage'
 
 export {
   ManagerPage,
   InventoryPage,
-  SuppliersPage
+  SuppliersPage,
+  DashboardPage
 }

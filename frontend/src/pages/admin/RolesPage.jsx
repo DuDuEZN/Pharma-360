@@ -6,7 +6,7 @@ import { useToast } from '../../components/common/Toast'
 import Button from '../../components/common/Button'
 import Input from '../../components/common/Input'
 import Modal, { ConfirmModal } from '../../components/common/Modal'
-import { Badge } from '../../components/common'
+import { AlertBadge as Badge } from '../../components/common'
 
 /**
  * Roles Management Page for Pharmacie 360

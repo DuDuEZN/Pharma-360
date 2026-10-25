@@ -12,7 +12,7 @@ import Layout from './components/layout/Layout'
 
 // Pages
 import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
+
 import ProductsPage from './pages/ProductsPage'
 import SalesPage from './pages/SalesPage'
 import CashierPage from './pages/CashierPage'
@@ -24,7 +24,7 @@ import {
   SettingsPage,
   ReportsPage
 } from './pages/admin'
-import { ManagerPage, InventoryPage, SuppliersPage } from './pages/manager'
+import { ManagerPage, InventoryPage, SuppliersPage, DashboardPage as ManagerDashboardPage } from './pages/manager'
 
 // Protected Route
 import ProtectedRoute from './components/common/ProtectedRoute'
@@ -41,7 +41,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route path="/" element={<DashboardPage />} />
+              <Route path="/" element={<ManagerDashboardPage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/sales" element={<SalesPage />} />
               <Route path="/cashier" element={<CashierPage />} />
@@ -61,6 +61,7 @@ function App() {
                 <Route index element={<InventoryPage />} />
                 <Route path="inventory" element={<InventoryPage />} />
                 <Route path="suppliers" element={<SuppliersPage />} />
+                <Route path="dashboard" element={<ManagerDashboardPage />} />
               </Route>
               
             </Route>
