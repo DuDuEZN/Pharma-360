@@ -13,6 +13,7 @@ from .invoice_service import invoice_service
 from .return_service import return_service
 from .alert_service import alert_service
 from .barcode_service import barcode_service
+from .report_service import report_service
 
 __all__ = [
     "auth_service",
@@ -26,4 +27,5 @@ __all__ = [
     "return_service",
     "alert_service",
     "barcode_service",
+    "report_service",
 ]

@@ -14,6 +14,7 @@ from .returns import router as returns_router
 from .invoices import router as invoices_router
 from .suppliers import router as suppliers_router
 from .sale_history import router as sale_history_router
+from .reports import router as reports_router
 
 # List of all routers to be included in main.py
 routers = [
@@ -28,4 +29,5 @@ routers = [
     invoices_router,
     suppliers_router,
     sale_history_router,
+    reports_router,
 ]
