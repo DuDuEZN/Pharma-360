@@ -108,7 +108,7 @@
 | **BKND-012** | API REST Facturation (PDF + statut) | Backend Lead | 3d | → BKND-008 | 56-58 | ✅ **TERMINÉ** J16 |
 | **BKND-013** | Gestion Factures Fournisseurs (OCR-ready) | Backend Lead | 2d | → BKND-012 | 59-60 | ✅ **TERMINÉ** J17 |
 | **BKND-014** | Module Historique Ventes (statistiques) | Backend Lead | 2d | → BKND-007 | 59-60 | ✅ **TERMINÉ** J17 |
-| **BKND-015** | Module Rapports (ventes, stocks, caisse) | Backend Lead | 3d | → BKND-014 | 61-63 | ⏳ À venir |
+| **BKND-015** | Module Rapports (ventes, stocks, caisse) | Backend Lead | 3d | → BKND-014 | 61-63 | ✅ **TERMINÉ** J17 |
 | **BKND-016** | Optimisation Requêtes FEFO/FIFO | Backend Lead | 2d | → BKND-006 | 61-62 | ✅ **TERMINÉ** J17 |
 | **BKND-017** | Cache Redis (pour performances) | Backend Lead | 2d | → BKND-015 | 64-65 | ⏳ À venir |
 | **BKND-018** | Logs Centralisés | Backend Lead | 1d | → BKND-015 | 66 | ⏳ À venir |
