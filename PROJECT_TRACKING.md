@@ -106,10 +106,10 @@
 |----|-------|-------------|-------|-------------|-------|--------|
 | **BKND-011** | API REST Retours (fournisseur/casse/péremption) | Backend Lead | 3d | → BKND-008 | 56-58 | ✅ **TERMINÉ** J16 |
 | **BKND-012** | API REST Facturation (PDF + statut) | Backend Lead | 3d | → BKND-008 | 56-58 | ✅ **TERMINÉ** J16 |
-| **BKND-013** | Gestion Factures Fournisseurs (OCR-ready) | Backend Lead | 2d | → BKND-012 | 59-60 | ⏳ À venir |
-| **BKND-014** | Module Historique Ventes (statistiques) | Backend Lead | 2d | → BKND-007 | 59-60 | ⏳ À venir |
+| **BKND-013** | Gestion Factures Fournisseurs (OCR-ready) | Backend Lead | 2d | → BKND-012 | 59-60 | ✅ **TERMINÉ** J17 |
+| **BKND-014** | Module Historique Ventes (statistiques) | Backend Lead | 2d | → BKND-007 | 59-60 | ✅ **TERMINÉ** J17 |
 | **BKND-015** | Module Rapports (ventes, stocks, caisse) | Backend Lead | 3d | → BKND-014 | 61-63 | ⏳ À venir |
-| **BKND-016** | Optimisation Requêtes FEFO/FIFO | Backend Lead | 2d | → BKND-006 | 61-62 | ⏳ À venir |
+| **BKND-016** | Optimisation Requêtes FEFO/FIFO | Backend Lead | 2d | → BKND-006 | 61-62 | ✅ **TERMINÉ** J17 |
 | **BKND-017** | Cache Redis (pour performances) | Backend Lead | 2d | → BKND-015 | 64-65 | ⏳ À venir |
 | **BKND-018** | Logs Centralisés | Backend Lead | 1d | → BKND-015 | 66 | ⏳ À venir |
 | **BKND-019** | Documentation API (Swagger/OpenAPI) | Backend Lead | 2d | → BKND-015 | 67-68 | ⏳ À venir |
@@ -133,12 +133,12 @@
 |----|-------|-------------|-------|-------------|-------|--------|
 | **IA-001** | Analyse Rotation Stocks (par catégorie/marque) | IA | 5d | → BKND-006 **&&** QA-004 | 56-60 | ✅ **TERMINÉ** J16 |
 | **IA-002** | Module OCR Factures (pytesseract) | IA | 4d | → BKND-013 **&&** QA-004 | 61-64 | ✅ **TERMINÉ** J15 |
-| **IA-003** | Modèle Prédiction Ruptures (ML) | IA | 4d | → IA-001 | 61-64 | ⏳ À venir |
+| **IA-003** | Modèle Prédiction Ruptures (ML) | IA | 4d | → IA-001 | 61-64 | ✅ **TERMINÉ** J17 |
 | **IA-004** | Intégration OCR avec Backend | IA | 3d | → IA-002 **&&** BKND-013 | 65-67 | ⏳ À venir |
 | **IA-005** | Génération KPIs Automatiques | IA | 2d | → IA-001 **&&** BKND-015 | 65-66 | ⏳ À venir |
 | **IA-006** | Tableaux de Bord IA (intégration frontend) | IA | 2d | → IA-005 **&&** FRNT-009 | 68-69 | ⏳ À venir |
 | **IA-007** | Alertes Intelligentes (ruptures/stocks) | IA | 2d | → IA-003 | 65-66 | ⏳ À venir |
-| **IA-008** | Optimisation FEFO/FIFO (algorithmes) | IA | 2d | → IA-001 | 63-64 | ⏳ À venir |
+| **IA-008** | Optimisation FEFO/FIFO (algorithmes) | IA | 2d | → IA-001 | 63-64 | ✅ **TERMINÉ** J17 |
 | **IA-009** | Documentation Module IA | IA | 1d | → IA-004 | 70 | ⏳ À venir |
 
 **✅ Livrables Phase 3 (32% complet)** : 
