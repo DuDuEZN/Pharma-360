@@ -206,12 +206,14 @@ def get_logger(name: str) -> logging.Logger:
 def log_api_request(method: str, path: str, status_code: int, duration_ms: float, **kwargs):
     """Log API request details"""
     get_logger("api").info(
-        f"{method} {path} - {status_code}",
-        method=method,
-        path=path,
-        status_code=status_code,
-        duration_ms=duration_ms,
-        **kwargs
+        f"{method} {path} - {status_code} - {kwargs.get('client', 'N/A')}",
+        extra={
+            "method": method,
+            "path": path,
+            "status_code": status_code,
+            "duration_ms": duration_ms,
+            **kwargs
+        }
     )
 
 
@@ -219,10 +221,12 @@ def log_database_query(query: str, duration_ms: float, row_count: int = 0, **kwa
     """Log database query details"""
     get_logger("database").debug(
         f"Query executed in {duration_ms:.2f}ms",
-        query=query[:200] + "..." if len(query) > 200 else query,
-        duration_ms=duration_ms,
-        row_count=row_count,
-        **kwargs
+        extra={
+            "query": query[:200] + "..." if len(query) > 200 else query,
+            "duration_ms": duration_ms,
+            "row_count": row_count,
+            **kwargs
+        }
     )
 
 
@@ -230,10 +234,12 @@ def log_cache_operation(operation: str, key: str, hit: bool = False, **kwargs):
     """Log cache operation details"""
     get_logger("cache").debug(
         f"Cache {operation}: {key}",
-        operation=operation,
-        key=key,
-        hit=hit,
-        **kwargs
+        extra={
+            "operation": operation,
+            "key": key,
+            "hit": hit,
+            **kwargs
+        }
     )
 
 
@@ -241,7 +247,9 @@ def log_business_event(event_type: str, details: Dict[str, Any], **kwargs):
     """Log business event for audit trail"""
     get_logger("business").info(
         f"Business event: {event_type}",
-        event_type=event_type,
-        details=details,
-        **kwargs
+        extra={
+            "event_type": event_type,
+            "details": details,
+            **kwargs
+        }
     )
