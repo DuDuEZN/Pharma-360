@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     )
     redis_db: int = Field(default=0, description="Redis Database Number")
     redis_cache_ttl: int = Field(default=3600, description="Default Cache TTL in seconds")
+    cache_enabled: bool = Field(default=True, description="Enable Redis caching")
+    cache_default_ttl: int = Field(default=3600, description="Default cache TTL in seconds")
+    cache_products_ttl: int = Field(default=1800, description="Products cache TTL in seconds")
+    cache_stock_ttl: int = Field(default=600, description="Stock cache TTL in seconds")
+    cache_kpis_ttl: int = Field(default=300, description="KPIs cache TTL in seconds")
     
     # File Uploads
     upload_dir: str = Field(default="./uploads", description="Upload Directory")
