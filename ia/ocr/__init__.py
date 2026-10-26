@@ -1,11 +1,8 @@
 """
 OCR Module for Pharmacie 360
-Handles Optical Character Recognition for invoice processing
+Handles invoice OCR processing and integration
 """
 
-from .invoice_ocr import extract_invoice_data, process_invoice_image
+from .invoice_ocr import InvoiceOCR
 
-__all__ = [
-    "extract_invoice_data",
-    "process_invoice_image",
-]
+__all__ = ["InvoiceOCR"]

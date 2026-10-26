@@ -16,6 +16,7 @@ from .suppliers import router as suppliers_router
 from .sale_history import router as sale_history_router
 from .reports import router as reports_router
 from .docs import router as docs_router
+from .ocr_integration import router as ocr_integration_router
 
 # List of all routers to be included in main.py
 routers = [
@@ -32,4 +33,5 @@ routers = [
     sale_history_router,
     reports_router,
     docs_router,
+    ocr_integration_router,
 ]
