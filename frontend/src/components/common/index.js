@@ -9,6 +9,7 @@ import ProtectedRoute from './ProtectedRoute'
 import Toast, { useToast, ToastProvider } from './Toast'
 import AlertSystem, { AlertBadge, AlertSummary } from './AlertSystem'
 import ChartComponent, { BarChart, LineChart, PieChart, DoughnutChart, PolarChart, SalesBarChart, TopProductsPieChart, CategoryDistributionChart, StockRotationLineChart } from './ChartComponent'
+import AdvancedSearch, { ProductAdvancedSearch, SalesAdvancedSearch, StockMovementAdvancedSearch } from './AdvancedSearch'
 
 export {
   Button,
@@ -39,4 +40,8 @@ export {
   TopProductsPieChart,
   CategoryDistributionChart,
   StockRotationLineChart,
+  AdvancedSearch,
+  ProductAdvancedSearch,
+  SalesAdvancedSearch,
+  StockMovementAdvancedSearch,
 }
