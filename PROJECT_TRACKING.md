@@ -141,12 +141,17 @@
 | **IA-008** | Optimisation FEFO/FIFO (algorithmes) | IA | 2d | → IA-001 | 63-64 | ✅ **TERMINÉ** J17 |
 | **IA-009** | Documentation Module IA | IA | 1d | → IA-004 | 70 | ⏳ À venir |
 
-**✅ Livrables Phase 3 (32% complet)** : 
+**✅ Livrables Phase 3 (40% complet)** : 
 - [x] **BKND-011** : API Retours implémentée
 - [x] **BKND-012** : API Facturation implémentée
+- [x] **BKND-013** : Gestion Factures Fournisseurs implémentée
+- [x] **BKND-014** : Module Historique Ventes implémenté
+- [x] **BKND-016** : Optimisation Requêtes FEFO/FIFO implémentée
 - [x] **FRNT-008** : Session Gestionnaire implémentée
 - [x] **IA-001** : Analyse Rotation Stocks implémentée
 - [x] **IA-002** : Module OCR Factures implémenté
+- [x] **IA-003** : Modèle Prédiction Ruptures implémenté
+- [x] **IA-008** : Optimisation FEFO/FIFO implémentée
 - [ ] Module Rapports
 - [ ] Tableaux de Bord
 - [ ] Intégration OCR Backend
