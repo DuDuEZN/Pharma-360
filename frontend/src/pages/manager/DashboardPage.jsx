@@ -1,409 +1,437 @@
-import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  Package, ShoppingCart, CreditCard, Users, BarChart3, Clock, 
-  AlertTriangle, TrendingUp, TrendingDown, ArrowRight, 
-  Calendar, DollarSign, Activity
-} from 'lucide-react'
-import api from '../../services/api'
-import { useAuth } from '../../hooks/useAuth'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement } from 'chart.js'
-import { Doughnut, Bar, Line } from 'react-chartjs-2'
+import React, { useState, useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement } from 'chart.js';
+import { Bar, Pie, Line } from 'react-chartjs-2';
+import { Calendar, DollarSign, Package, AlertTriangle, TrendingUp, TrendingDown, Users, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
+import { api } from '@/lib/api';
 
 // Register ChartJS components
 ChartJS.register(
-  ArcElement, Tooltip, Legend, CategoryScale, LinearScale, 
-  BarElement, PointElement, LineElement
-)
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  PointElement,
+  LineElement
+);
 
-function DashboardPage() {
-  const { user } = useAuth()
-  const [stats, setStats] = useState(null)
-  const [salesData, setSalesData] = useState(null)
-  const [topProducts, setTopProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [timeRange, setTimeRange] = useState('month')
-
-  useEffect(() => {
-    fetchDashboardData()
-  }, [timeRange])
+const DashboardPage = () => {
+  const [stats, setStats] = useState({
+    totalSales: 0,
+    totalRevenue: 0,
+    totalProducts: 0,
+    lowStock: 0,
+    expiringSoon: 0,
+    activeUsers: 0,
+    pendingInvoices: 0
+  });
+  
+  const [salesData, setSalesData] = useState({
+    labels: [],
+    data: []
+  });
+  
+  const [topProducts, setTopProducts] = useState({
+    labels: [],
+    data: []
+  });
+  
+  const [categoryDistribution, setCategoryDistribution] = useState({
+    labels: [],
+    data: []
+  });
+  
+  const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('month');
+  const [dateRange, setDateRange] = useState({
+    from: new Date(new Date().setDate(new Date().getDate() - 30)),
+    to: new Date()
+  });
 
   const fetchDashboardData = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
       
-      // Fetch stats
-      const [statsRes, salesRes, productsRes] = await Promise.all([
-        api.get('/api/v1/alerts/stats'),
-        api.get(`/api/v1/sale-history/analytics?period=${timeRange}`),
-        api.get('/api/v1/sale-history/products/top?limit=5')
-      ])
+      // Fetch statistics
+      const statsResponse = await api.get('/sale-history/stats', {
+        params: {
+          start_date: dateRange.from.toISOString(),
+          end_date: dateRange.to.toISOString()
+        }
+      });
       
-      setStats(statsRes.data)
-      setSalesData(salesRes.data)
-      setTopProducts(productsRes.data.top_products || [])
+      if (statsResponse.data) {
+        setStats({
+          totalSales: statsResponse.data.total_sales || 0,
+          totalRevenue: statsResponse.data.total_revenue || 0,
+          totalProducts: statsResponse.data.total_products || 0,
+          lowStock: statsResponse.data.low_stock_count || 0,
+          expiringSoon: statsResponse.data.expiring_soon_count || 0,
+          activeUsers: statsResponse.data.active_users || 0,
+          pendingInvoices: statsResponse.data.pending_invoices || 0
+        });
+      }
+      
+      // Fetch sales data
+      const salesResponse = await api.get('/sale-history/daily', {
+        params: {
+          start_date: dateRange.from.toISOString(),
+          end_date: dateRange.to.toISOString()
+        }
+      });
+      
+      if (salesResponse.data) {
+        const labels = salesResponse.data.map(item => new Date(item.date).toLocaleDateString());
+        const data = salesResponse.data.map(item => item.total_sales);
+        setSalesData({ labels, data });
+      }
+      
+      // Fetch top products
+      const productsResponse = await api.get('/sale-history/top-products', {
+        params: { limit: 5 }
+      });
+      
+      if (productsResponse.data) {
+        const labels = productsResponse.data.map(item => item.product_name);
+        const data = productsResponse.data.map(item => item.quantity_sold);
+        setTopProducts({ labels, data });
+      }
+      
+      // Fetch category distribution
+      const categoryResponse = await api.get('/products/categories/stats');
+      
+      if (categoryResponse.data) {
+        const labels = categoryResponse.data.map(item => item.category_name);
+        const data = categoryResponse.data.map(item => item.product_count);
+        setCategoryDistribution({ labels, data });
+      }
       
     } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-      window.toast.error('Échec du chargement des données du tableau de bord')
+      console.error('Error fetching dashboard data:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  // Chart data for sales by category
-  const categoryChartData = {
-    labels: salesData?.sales_by_category?.map(c => c.category_name) || [],
+  useEffect(() => {
+    fetchDashboardData();
+  }, [dateRange, timeRange]);
+
+  const handleTimeRangeChange = (value) => {
+    setTimeRange(value);
+    const now = new Date();
+    
+    if (value === 'week') {
+      setDateRange({
+        from: new Date(now.setDate(now.getDate() - 7)),
+        to: new Date()
+      });
+    } else if (value === 'month') {
+      setDateRange({
+        from: new Date(now.setDate(now.getDate() - 30)),
+        to: new Date()
+      });
+    } else if (value === 'quarter') {
+      setDateRange({
+        from: new Date(now.setDate(now.getDate() - 90)),
+        to: new Date()
+      });
+    } else if (value === 'year') {
+      setDateRange({
+        from: new Date(now.setDate(now.getDate() - 365)),
+        to: new Date()
+      });
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'XOF'
+    }).format(amount);
+  };
+
+  // Bar chart data for sales
+  const salesChartData = {
+    labels: salesData.labels,
     datasets: [
       {
-        label: 'Ventes par catégorie',
-        data: salesData?.sales_by_category?.map(c => c.revenue) || [],
-        backgroundColor: [
-          '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'
-        ],
-        borderWidth: 0
+        label: 'Ventes par jour',
+        data: salesData.data,
+        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+        borderColor: 'rgba(59, 130, 246, 1)',
+        borderWidth: 1
       }
     ]
-  }
+  };
 
-  // Chart data for sales by day
-  const dailyChartData = {
-    labels: salesData?.sales_by_day?.map(d => new Date(d.date).toLocaleDateString('fr-FR')) || [],
-    datasets: [
-      {
-        label: 'Chiffre d\'affaires',
-        data: salesData?.sales_by_day?.map(d => d.revenue) || [],
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.4,
-        fill: true
-      }
-    ]
-  }
-
-  // Chart data for top products
+  // Pie chart data for top products
   const productsChartData = {
-    labels: topProducts.map(p => p.product_name),
+    labels: topProducts.labels,
     datasets: [
       {
-        label: 'Quantité vendue',
-        data: topProducts.map(p => p.quantity),
-        backgroundColor: '#10b981',
-        borderRadius: 4
+        label: 'Top Produits',
+        data: topProducts.data,
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.5)',
+          'rgba(16, 185, 129, 0.5)',
+          'rgba(245, 158, 11, 0.5)',
+          'rgba(239, 68, 68, 0.5)',
+          'rgba(139, 92, 246, 0.5)'
+        ],
+        borderColor: [
+          'rgba(59, 130, 246, 1)',
+          'rgba(16, 185, 129, 1)',
+          'rgba(245, 158, 11, 1)',
+          'rgba(239, 68, 68, 1)',
+          'rgba(139, 92, 246, 1)'
+        ],
+        borderWidth: 1
       }
     ]
-  }
+  };
 
-  // Stats cards
+  // Pie chart data for category distribution
+  const categoryChartData = {
+    labels: categoryDistribution.labels,
+    datasets: [
+      {
+        label: 'Répartition par catégorie',
+        data: categoryDistribution.data,
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.5)',
+          'rgba(16, 185, 129, 0.5)',
+          'rgba(245, 158, 11, 0.5)',
+          'rgba(239, 68, 68, 0.5)',
+          'rgba(139, 92, 246, 0.5)'
+        ],
+        borderColor: [
+          'rgba(59, 130, 246, 1)',
+          'rgba(16, 185, 129, 1)',
+          'rgba(245, 158, 11, 1)',
+          'rgba(239, 68, 68, 1)',
+          'rgba(139, 92, 246, 1)'
+        ],
+        borderWidth: 1
+      }
+    ]
+  };
+
   const statCards = [
     {
-      label: 'Ventes totales',
-      value: salesData?.total_sales || 0,
-      icon: ShoppingCart,
-      color: 'primary',
-      bgColor: 'bg-primary-50',
-      trend: 'up',
-      trendValue: '+12%'
+      title: 'Ventes Totales',
+      value: stats.totalSales,
+      icon: <TrendingUp className="h-6 w-6 text-blue-500" />,
+      color: 'blue',
+      subtitle: 'Nombre de ventes'
     },
     {
-      label: 'Chiffre d\'affaires',
-      value: salesData ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(salesData.total_revenue) : '0 XOF',
-      icon: DollarSign,
-      color: 'success',
-      bgColor: 'bg-success-50',
-      trend: 'up',
-      trendValue: '+8%'
+      title: 'Chiffre d\'affaires',
+      value: formatCurrency(stats.totalRevenue),
+      icon: <DollarSign className="h-6 w-6 text-green-500" />,
+      color: 'green',
+      subtitle: 'Revenu total'
     },
     {
-      label: 'Quantité totale',
-      value: salesData?.total_quantity || 0,
-      icon: Package,
-      color: 'warning',
-      bgColor: 'bg-warning-50',
-      trend: 'down',
-      trendValue: '-2%'
+      title: 'Produits',
+      value: stats.totalProducts,
+      icon: <Package className="h-6 w-6 text-orange-500" />,
+      color: 'orange',
+      subtitle: 'Produits en stock'
     },
     {
-      label: 'Alertes actives',
-      value: stats?.total || 0,
-      icon: AlertTriangle,
-      color: stats?.critical > 0 ? 'danger' : 'warning',
-      bgColor: stats?.critical > 0 ? 'bg-danger-50' : 'bg-warning-50',
-      trend: stats?.critical > 0 ? 'up' : 'stable',
-      trendValue: stats?.critical > 0 ? `+${stats.critical}` : '0'
+      title: 'Stock Faible',
+      value: stats.lowStock,
+      icon: <AlertTriangle className="h-6 w-6 text-red-500" />,
+      color: 'red',
+      subtitle: 'Produits en rupture'
+    },
+    {
+      title: 'Péremption Proche',
+      value: stats.expiringSoon,
+      icon: <Calendar className="h-6 w-6 text-yellow-500" />,
+      color: 'yellow',
+      subtitle: 'Lots expirant bientôt'
+    },
+    {
+      title: 'Utilisateurs Actifs',
+      value: stats.activeUsers,
+      icon: <Users className="h-6 w-6 text-purple-500" />,
+      color: 'purple',
+      subtitle: 'Utilisateurs connectés'
+    },
+    {
+      title: 'Factures en attente',
+      value: stats.pendingInvoices,
+      icon: <FileText className="h-6 w-6 text-indigo-500" />,
+      color: 'indigo',
+      subtitle: 'Factures à traiter'
     }
-  ]
-
-  // Quick actions
-  const quickActions = [
-    {
-      label: 'Nouveau produit',
-      href: '/products/new',
-      icon: Package,
-      color: 'primary'
-    },
-    {
-      label: 'Nouvelle vente',
-      href: '/sales/new',
-      icon: ShoppingCart,
-      color: 'success'
-    },
-    {
-      label: 'Approvisionnement',
-      href: '/manager/inventory',
-      icon: BarChart3,
-      color: 'warning'
-    },
-    {
-      label: 'Fournisseurs',
-      href: '/manager/suppliers',
-      icon: Users,
-      color: 'secondary'
-    }
-  ]
-
-  if (loading) {
-    return (
-      <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-            <p className="text-gray-500 mt-1">Chargement en cours...</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
+  ];
 
   return (
-    <div className="space-y-8">
+    <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-          <p className="text-gray-500 mt-1">
-            Bonjour, {user?.username} ! Voici l'aperçu de votre pharmacie.
-          </p>
+          <h1 className="text-3xl font-bold">Tableau de Bord</h1>
+          <p className="text-muted-foreground">Vue d'ensemble de la pharmacie</p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-          >
-            <option value="day">Aujourd'hui</option>
-            <option value="week">Cette semaine</option>
-            <option value="month">Ce mois</option>
-            <option value="year">Cette année</option>
-          </select>
+        <div className="flex items-center gap-4">
+          <DatePickerWithRange
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+          />
+          <Select value={timeRange} onValueChange={handleTimeRangeChange}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Période" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="week">7 jours</SelectItem>
+              <SelectItem value="month">30 jours</SelectItem>
+              <SelectItem value="quarter">90 jours</SelectItem>
+              <SelectItem value="year">1 an</SelectItem>
+              <SelectItem value="custom">Personnalisé</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={fetchDashboardData} disabled={loading}>
+            {loading ? 'Chargement...' : 'Rafraîchir'}
+          </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, index) => (
-          <div
-            key={index}
-            className={`bg-white rounded-xl shadow p-6 border border-gray-100 ${stat.bgColor}`}
-          >
-            <div className="flex justify-between items-start">
-              <div className={`p-3 rounded-lg bg-${stat.color}-100`}>
-                <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        {statCards.map((card, index) => (
+          <Card key={index} className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+              {card.icon}
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" style={{ color: `var(--${card.color}-500)` }}>
+                {card.value}
               </div>
-              <div className="flex gap-1">
-                <span className={`text-xs px-2 py-1 rounded-full bg-${stat.color}-100 text-${stat.color}-700`}>
-                  {stat.trend === 'up' ? '↑' : stat.trend === 'down' ? '↓' : '→'}
-                </span>
-                <span className="text-xs text-gray-500">{stat.trendValue}</span>
-              </div>
-            </div>
-            <p className="text-sm text-gray-500 mt-4">{stat.label}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-          </div>
+              <p className="text-xs text-muted-foreground">{card.subtitle}</p>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sales by Category */}
-        <div className="bg-white rounded-xl shadow p-6 border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Ventes par catégorie</h3>
-            <Doughnut
-              data={categoryChartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    position: 'right',
-                    labels: {
-                      padding: 15,
-                      usePointStyle: true
+      {/* Charts Row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Ventes Quotidiennes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <Bar
+                data={salesChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'top'
+                    },
+                    title: {
+                      display: false
                     }
                   }
-                }
-              }}
-              width={300}
-              height={250}
-            />
-          </div>
-        </div>
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Daily Sales */}
-        <div className="bg-white rounded-xl shadow p-6 border border-gray-100 lg:col-span-2">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Chiffre d'affaires par jour
-          </h3>
-          <div className="h-64">
-            <Line
-              data={dailyChartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    display: false
-                  },
-                  tooltip: {
-                    callbacks: {
-                      label: (context) => {
-                        return new Intl.NumberFormat('fr-FR', { 
-                          style: 'currency', 
-                          currency: 'XOF' 
-                        }).format(context.parsed.y)
-                      }
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Top 5 Produits Vendus</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <Pie
+                data={productsChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'right'
+                    },
+                    title: {
+                      display: false
                     }
                   }
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      callback: (value) => new Intl.NumberFormat('fr-FR', { 
-                        style: 'currency', 
-                        currency: 'XOF',
-                        notation: 'compact'
-                      }).format(value)
-                    }
-                  }
-                }
-              }}
-            />
-          </div>
-        </div>
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Top Products */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl shadow p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Produits les plus vendus
-          </h3>
-          <div className="space-y-4">
-            {topProducts.map((product, index) => (
-              <div
-                key={product.product_id}
-                className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold">
-                  {index + 1}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{product.product_name}</p>
-                  <p className="text-sm text-gray-500">{product.quantity} unités</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-green-600">
-                    {new Intl.NumberFormat('fr-FR', { 
-                      style: 'currency', 
-                      currency: 'XOF' 
-                    }).format(product.revenue)}
-                  </p>
-                </div>
+      {/* Charts Row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Répartition par Catégorie</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <Pie
+                data={categoryChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'right'
+                    },
+                    title: {
+                      display: false
+                    }
+                  }
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Statistiques Supplémentaires</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span>Ventes ce mois</span>
+                <span className="font-semibold">{stats.totalSales}</span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white rounded-xl shadow p-6 border border-gray-100 lg:col-span-2">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Actions rapides
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => (
-              <Link
-                key={index}
-                to={action.href}
-                className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50 transition-colors text-center"
-              >
-                <div className={`w-12 h-12 rounded-xl bg-${action.color}-100 flex items-center justify-center`}>
-                  <action.icon className={`w-6 h-6 text-${action.color}-600`} />
-                </div>
-                <span className="text-sm font-medium text-gray-700">{action.label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Sales */}
-      <div className="bg-white rounded-xl shadow p-6 border border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Ventes récentes
-          </h3>
-          <Link to="/sales" className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1">
-            Voir tout <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 text-sm font-medium text-gray-500">N° Vente</th>
-                <th className="text-left py-3 text-sm font-medium text-gray-500">Date</th>
-                <th className="text-left py-3 text-sm font-medium text-gray-500">Client</th>
-                <th className="text-right py-3 text-sm font-medium text-gray-500">Montant</th>
-                <th className="text-left py-3 text-sm font-medium text-gray-500">Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-4 text-sm">VE-{1000 + i}</td>
-                  <td className="py-4 text-sm text-gray-500">
-                    {new Date().toLocaleDateString('fr-FR')}
-                  </td>
-                  <td className="py-4 text-sm">Client {i + 1}</td>
-                  <td className="py-4 text-sm text-right">
-                    {new Intl.NumberFormat('fr-FR', { 
-                      style: 'currency', 
-                      currency: 'XOF' 
-                    }).format(Math.random() * 50000 + 1000)}
-                  </td>
-                  <td className="py-4">
-                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                      Terminé
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              <div className="flex justify-between items-center">
+                <span>Revenu ce mois</span>
+                <span className="font-semibold">{formatCurrency(stats.totalRevenue)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Produits en stock</span>
+                <span className="font-semibold">{stats.totalProducts}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Alertes actives</span>
+                <span className="font-semibold text-red-500">{stats.lowStock + stats.expiringSoon}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default DashboardPage
+export default DashboardPage;
