@@ -10,6 +10,7 @@ import Toast, { useToast, ToastProvider } from './Toast'
 import AlertSystem, { AlertBadge, AlertSummary } from './AlertSystem'
 import ChartComponent, { BarChart, LineChart, PieChart, DoughnutChart, PolarChart, SalesBarChart, TopProductsPieChart, CategoryDistributionChart, StockRotationLineChart } from './ChartComponent'
 import AdvancedSearch, { ProductAdvancedSearch, SalesAdvancedSearch, StockMovementAdvancedSearch } from './AdvancedSearch'
+import NotificationCenter, { NotificationBadge, NotificationToast, useNotification } from './NotificationCenter'
 
 export {
   Button,
@@ -44,4 +45,8 @@ export {
   ProductAdvancedSearch,
   SalesAdvancedSearch,
   StockMovementAdvancedSearch,
+  NotificationCenter,
+  NotificationBadge,
+  NotificationToast,
+  useNotification,
 }
