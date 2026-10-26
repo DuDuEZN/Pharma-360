@@ -8,7 +8,6 @@ from fastapi.responses import JSONResponse
 from typing import Optional, List
 from backend.core.config import settings
 from ia.services.ocr_service import ocr_service
-from ...core.logging import get_logger, log_business_event
 
 router = APIRouter(prefix="/invoices", tags=["OCR"])
 

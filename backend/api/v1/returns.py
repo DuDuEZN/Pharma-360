@@ -17,7 +17,6 @@ from ...models.return_ import Return
 from ...models.product import Product
 from ...models.batch import Batch
 from ...schemas.return_ import (
-from ...core.logging import get_logger, log_business_event
     ReturnCreate,
     ReturnUpdate,
     ReturnResponse,

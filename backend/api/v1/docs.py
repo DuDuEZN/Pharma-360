@@ -7,8 +7,10 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from typing import Dict, Any
 from backend.core.config import settings
+from backend.core.logging import get_logger
 
 router = APIRouter(prefix="/docs", tags=["Documentation"])
+logger = get_logger("docs")
 
 
 def custom_openapi() -> Dict[str, Any]:
@@ -65,7 +67,8 @@ def custom_openapi() -> Dict[str, Any]:
 @router.get("/", response_class=HTMLResponse, summary="Swagger UI")
 async def get_swagger_documentation():
     """Redirect to Swagger UI documentation"""
-    return HTMLResponse(content="""
+    logger.info("Swagger UI documentation requested")
+    return HTMLResponse(content=""""
     <!DOCTYPE html>
     <html>
     <head>
@@ -100,12 +103,14 @@ async def get_swagger_documentation():
 @router.get("/openapi.json", response_class=JSONResponse, summary="OpenAPI Schema")
 async def get_openapi_json():
     """Return OpenAPI schema in JSON format"""
+    logger.info("OpenAPI schema requested")
     return JSONResponse(content=custom_openapi())
 
 
 @router.get("/redoc", response_class=HTMLResponse, summary="ReDoc")
 async def get_redoc_documentation():
     """Alternative documentation with ReDoc"""
+    logger.info("ReDoc documentation requested")
     return HTMLResponse(content="""
     <!DOCTYPE html>
     <html>
@@ -198,6 +203,7 @@ Systeme implemente FEFO (First Expired, First Out) avec index PostgreSQL.
 ## Version
 API Version: 5.1.0
 """
+    logger.info("API documentation markdown requested")
     return JSONResponse(content={"documentation": markdown})
 
 

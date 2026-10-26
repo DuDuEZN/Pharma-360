@@ -13,7 +13,6 @@ from ...core.security import get_current_user, get_current_user_with_role, RBACU
 from ...models.user import User
 from ...models.supplier import Supplier
 from ...schemas.supplier import (
-from ...core.logging import get_logger, log_business_event
     SupplierCreate,
     SupplierUpdate,
     SupplierResponse,

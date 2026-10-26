@@ -12,7 +12,6 @@ from ...core.database import get_db
 from ...core.security import get_current_user, RBACUtils
 from ...models.user import User
 from ...schemas.alert import (
-from ...core.logging import get_logger, log_business_event
     AlertListResponse,
     AlertStatsResponse,
     AlertResponse,

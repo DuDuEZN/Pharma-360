@@ -16,7 +16,6 @@ from ...models.user import User
 from ...models.batch import Batch
 from ...models.product import Product
 from ...schemas.batch import (
-from ...core.logging import get_logger, log_business_event
     BatchCreate,
     BatchUpdate,
     BatchResponse,
