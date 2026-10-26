@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     redis_host: Optional[str] = Field(default=None, description="Redis Host")
     redis_port: Optional[int] = Field(default=None, description="Redis Port")
     redis_password: Optional[SecretStr] = Field(default=None, description="Redis Password")
+    redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis Connection URL"
+    )
+    redis_db: int = Field(default=0, description="Redis Database Number")
+    redis_cache_ttl: int = Field(default=3600, description="Default Cache TTL in seconds")
     
     # File Uploads
     upload_dir: str = Field(default="./uploads", description="Upload Directory")

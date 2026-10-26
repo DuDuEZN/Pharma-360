@@ -14,6 +14,7 @@ from .return_service import return_service
 from .alert_service import alert_service
 from .barcode_service import barcode_service
 from .report_service import report_service
+from .cache_service import cache_service
 
 __all__ = [
     "auth_service",
@@ -28,4 +29,5 @@ __all__ = [
     "alert_service",
     "barcode_service",
     "report_service",
+    "cache_service",
 ]
