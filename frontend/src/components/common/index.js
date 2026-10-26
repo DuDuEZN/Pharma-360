@@ -8,6 +8,9 @@ import Modal, { ConfirmModal } from './Modal'
 import ProtectedRoute from './ProtectedRoute'
 import Toast, { useToast, ToastProvider } from './Toast'
 import AlertSystem, { AlertBadge, AlertSummary } from './AlertSystem'
+import ChartComponent, { BarChart, LineChart, PieChart, DoughnutChart, PolarChart, SalesBarChart, TopProductsPieChart, CategoryDistributionChart, StockRotationLineChart } from './ChartComponent'
+import AdvancedSearch, { ProductAdvancedSearch, SalesAdvancedSearch, StockMovementAdvancedSearch } from './AdvancedSearch'
+import NotificationCenter, { NotificationBadge, NotificationToast, useNotification } from './NotificationCenter'
 
 export {
   Button,
@@ -28,4 +31,22 @@ export {
   AlertSystem,
   AlertBadge,
   AlertSummary,
+  ChartComponent,
+  BarChart,
+  LineChart,
+  PieChart,
+  DoughnutChart,
+  PolarChart,
+  SalesBarChart,
+  TopProductsPieChart,
+  CategoryDistributionChart,
+  StockRotationLineChart,
+  AdvancedSearch,
+  ProductAdvancedSearch,
+  SalesAdvancedSearch,
+  StockMovementAdvancedSearch,
+  NotificationCenter,
+  NotificationBadge,
+  NotificationToast,
+  useNotification,
 }
