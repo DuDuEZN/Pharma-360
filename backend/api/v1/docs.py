@@ -210,6 +210,7 @@ API Version: 5.1.0
 @router.get("/health", summary="Health Check")
 async def health_check():
     """Check API health status"""
+    logger.info("Docs health check requested")
     return {
         "status": "healthy",
         "version": "5.1.0",
