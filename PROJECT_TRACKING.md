@@ -432,7 +432,7 @@ graph TD
 
 ---
 
-**Dernière mise à jour** : 2025-01-17 10:00  
+**Dernière mise à jour** : 2025-01-17 11:00  
 **Prochaine mise à jour** : 2025-01-17 18:00 (Bilan de journée)
 
 ---
