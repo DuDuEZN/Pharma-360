@@ -18,7 +18,6 @@ from ..models.product import Product
 from ..models.batch import Batch
 from ..models.category import Category
 from ..models.user import User
-from ..models.cash_register import CashRegister
 from ..schemas.report import (
     ReportCreate,
     ReportResponse,

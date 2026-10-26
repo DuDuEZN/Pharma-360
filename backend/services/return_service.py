@@ -333,3 +333,7 @@ class ReturnService:
             returns_by_period=returns_by_period,
             most_returned_products=sorted_products
         )
+
+
+# Singleton instance
+return_service = ReturnService()

@@ -3,15 +3,23 @@ Barcode API Endpoints for Pharmacie 360 Backend
 FastAPI endpoints for barcode scanning and processing (BKND-010)
 """
 
+from ...core.logging import get_logger
 from typing import Annotated
 
+from ...core.logging import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from ...core.logging import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...core.logging import get_logger
 from ...core.database import get_db
+from ...core.logging import get_logger
 from ...core.security import get_current_user
+from ...core.logging import get_logger
 from ...models.user import User
+from ...core.logging import get_logger
 from ...schemas.product import BarcodeScanRequest, BarcodeScanResponse
+from ...core.logging import get_logger
 from ...services.barcode_service import BarcodeService
 
 

@@ -3,16 +3,25 @@ Sales API Endpoints for Pharmacie 360 Backend
 FastAPI endpoints for sale management with FEFO batch selection
 """
 
+from ...core.logging import get_logger
 from typing import Annotated, Optional
+from ...core.logging import get_logger
 from datetime import date
 
+from ...core.logging import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from ...core.logging import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...core.logging import get_logger
 from ...core.database import get_db
+from ...core.logging import get_logger
 from ...core.security import get_current_user, get_current_user_with_role, RBACUtils
+from ...core.logging import get_logger
 from ...models.user import User
+from ...core.logging import get_logger
 from ...models.sale import Sale
+from ...core.logging import get_logger
 from ...schemas.sale import (
     SaleCreate,
     SaleResponse,
@@ -23,6 +32,7 @@ from ...schemas.sale import (
     SalePaymentResponse,
     QueueItem,
 )
+from ...core.logging import get_logger
 from ...services.sale_service import SaleService
 
 

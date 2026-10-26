@@ -483,3 +483,7 @@ class SaleHistoryService:
             sales_by_day=sales_by_day,
             sales_by_category=sales_by_category
         )
+
+
+# Create service instance
+sale_history_service = SaleHistoryService()

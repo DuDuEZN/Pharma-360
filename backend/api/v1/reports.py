@@ -3,15 +3,23 @@ Reports API Endpoints for Pharmacie 360 Backend
 FastAPI endpoints for report generation and management (BKND-015)
 """
 
+from ...core.logging import get_logger
 from datetime import date
+from ...core.logging import get_logger
 from typing import Annotated, Optional
 
+from ...core.logging import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from ...core.logging import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...core.logging import get_logger
 from ...core.database import get_db
+from ...core.logging import get_logger
 from ...core.security import get_current_user, get_current_user_with_role, RBACUtils
+from ...core.logging import get_logger
 from ...models.user import User
+from ...core.logging import get_logger
 from ...schemas.report import (
     ReportResponse,
     ReportListResponse,
@@ -21,6 +29,7 @@ from ...schemas.report import (
     CashReportRequest,
     ReportStatsResponse,
 )
+from ...core.logging import get_logger
 from ...services.report_service import ReportService
 
 

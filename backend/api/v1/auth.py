@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db
 from ...core.security import get_current_user, RBACUtils
+from ...core.logging import get_logger
 from ...models.user import User
 from ...schemas.user import (
     LoginRequest,

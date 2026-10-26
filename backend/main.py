@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .core.config import settings
-from .core.database import lifespan
+from .core.database import engine
 from .core.security import add_security_headers, oauth2_scheme
 from .core.logging import setup_logging, get_logger
 
@@ -33,9 +33,22 @@ app = FastAPI(
     description="Pharmacie 360 - Plateforme de Gestion de Pharmacie",
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json",
-    lifespan=lifespan,
+    openapi_url="/openapi.json"
 )
+
+
+# Startup and shutdown events
+@app.on_event("startup")
+async def startup_event():
+    """Startup event handler"""
+    logger.info("Application starting up")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Shutdown event handler"""
+    logger.info("Application shutting down")
+    await engine.dispose()
 
 
 # Add middleware

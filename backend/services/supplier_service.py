@@ -337,3 +337,7 @@ class SupplierService:
             "total_purchases": total_purchases,
             "top_suppliers": top_suppliers
         }
+
+
+# Create service instance
+supplier_service = SupplierService()
