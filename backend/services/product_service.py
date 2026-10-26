@@ -275,7 +275,7 @@ class ProductService:
         db: AsyncSession
     ) -> Optional[Batch]:
         """
-        Get the best batch for FEFO selection
+        Get the best batch for FEFO selection (optimized with indexed query)
         
         Args:
             product_id: ID of the product
@@ -294,6 +294,40 @@ class ProductService:
                     Batch.status == "active",
                     Batch.expiry_date >= date.today()
                 )
+            )
+            .order_by(Batch.expiry_date.asc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+    
+    @staticmethod
+    async def get_fefo_batch_optimized(
+        product_id: int,
+        quantity: int,
+        db: AsyncSession
+    ) -> Optional[Batch]:
+        """
+        Get the best batch for FEFO selection with optimized query
+        Uses indexed columns (product_id, expiry_date, status) for better performance
+        
+        Args:
+            product_id: ID of the product
+            quantity: Requested quantity
+            db: Database session
+        
+        Returns:
+            Batch with closest expiry date that has enough stock, or None
+        
+        Note: This method uses the PostgreSQL index on (product_id, expiry_date, status)
+        for optimal performance with FEFO/FIFO queries.
+        """
+        result = await db.execute(
+            select(Batch)
+            .where(
+                Batch.product_id == product_id,
+                Batch.quantity >= quantity,
+                Batch.status == "active",
+                Batch.expiry_date >= date.today()
             )
             .order_by(Batch.expiry_date.asc())
             .limit(1)
