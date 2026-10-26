@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.database import get_db
 from ...core.security import get_current_user, get_current_user_with_role, RBACUtils
 from ...models.user import User
+from ...core.logging import get_logger, log_business_event
 from ...schemas.product import (
     ProductCreate,
     ProductUpdate,
@@ -26,6 +27,7 @@ from ...services.product_service import ProductService
 
 # Create router
 router = APIRouter(prefix="/products", tags=["products"])
+logger = get_logger("products")
 
 
 @router.get(
@@ -44,6 +46,9 @@ async def list_products(
     current_user: User = Depends(get_current_user)
 ) -> ProductListResponse:
     """List products endpoint"""
+    logger.info(f"Listing products - page: {page}, page_size: {page_size}", 
+                user_id=current_user.id, category_id=category_id, search=search[:50] if search else None)
+    
     return await ProductService.list_products(
         page=page,
         page_size=page_size,
@@ -65,9 +70,12 @@ async def get_product(
     current_user: User = Depends(get_current_user)
 ):
     """Get product endpoint"""
+    logger.info(f"Getting product details - product_id: {product_id}", user_id=current_user.id)
+    
     product = await ProductService.get_product_by_id(product_id, db)
     
     if not product:
+        logger.warning(f"Product not found - product_id: {product_id}", user_id=current_user.id)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found"

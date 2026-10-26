@@ -14,6 +14,7 @@ from ...core.security import get_current_user, get_current_user_with_role, RBACU
 from ...models.user import User
 from ...models.sale import Sale
 from ...schemas.sale import (
+from ...core.logging import get_logger, log_business_event
     SaleCreate,
     SaleResponse,
     SaleDetailResponse,
@@ -28,6 +29,8 @@ from ...services.sale_service import SaleService
 
 # Create router
 router = APIRouter(prefix="/sales", tags=["sales"])
+
+logger = get_logger(__name__)
 
 
 @router.get(

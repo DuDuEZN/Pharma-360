@@ -13,6 +13,7 @@ from ...core.database import get_db
 from ...core.security import get_current_user, get_current_user_with_role, RBACUtils
 from ...models.user import User
 from ...schemas.report import (
+from ...core.logging import get_logger, log_business_event
     ReportResponse,
     ReportListResponse,
     ReportGenerationRequest,
@@ -26,6 +27,8 @@ from ...services.report_service import ReportService
 
 # Create router
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+logger = get_logger(__name__)
 
 
 @router.post(

@@ -13,6 +13,7 @@ from ...core.database import get_db
 from ...core.security import get_current_user, get_current_user_with_role, RBACUtils
 from ...models.user import User
 from ...schemas.user import (
+from ...core.logging import get_logger, log_business_event
     UserCreate,
     UserListResponse,
     UserResponse,
@@ -24,6 +25,8 @@ from ...services.auth_service import AuthService
 
 # Create router
 router = APIRouter(prefix="/users", tags=["users"])
+
+logger = get_logger(__name__)
 
 
 @router.get(

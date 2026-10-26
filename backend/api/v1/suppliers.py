@@ -13,6 +13,7 @@ from ...core.security import get_current_user, get_current_user_with_role, RBACU
 from ...models.user import User
 from ...models.supplier import Supplier
 from ...schemas.supplier import (
+from ...core.logging import get_logger, log_business_event
     SupplierCreate,
     SupplierUpdate,
     SupplierResponse,
@@ -24,6 +25,8 @@ from ...services.supplier_service import SupplierService
 
 # Create router
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
+
+logger = get_logger(__name__)
 
 
 @router.get(

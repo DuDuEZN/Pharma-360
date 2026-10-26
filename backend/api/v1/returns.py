@@ -17,6 +17,7 @@ from ...models.return_ import Return
 from ...models.product import Product
 from ...models.batch import Batch
 from ...schemas.return_ import (
+from ...core.logging import get_logger, log_business_event
     ReturnCreate,
     ReturnUpdate,
     ReturnResponse,
@@ -28,6 +29,8 @@ from ...schemas.return_ import (
 
 # Create router
 router = APIRouter(prefix="/returns", tags=["returns"])
+
+logger = get_logger(__name__)
 
 
 @router.get(

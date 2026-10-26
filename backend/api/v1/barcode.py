@@ -13,10 +13,13 @@ from ...core.security import get_current_user
 from ...models.user import User
 from ...schemas.product import BarcodeScanRequest, BarcodeScanResponse
 from ...services.barcode_service import BarcodeService
+from ...core.logging import get_logger, log_business_event
 
 
 # Create router
 router = APIRouter(prefix="/barcode", tags=["barcode"])
+
+logger = get_logger(__name__)
 
 
 @router.post(

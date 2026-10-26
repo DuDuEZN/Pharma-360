@@ -10,6 +10,7 @@ from ...core.database import get_db
 from ...core.security import get_current_user, RBACUtils
 from ...models.user import User
 from ...schemas.user import (
+from ...core.logging import get_logger, log_business_event
     LoginRequest,
     LoginResponse,
     TokenRefreshResponse,
@@ -21,6 +22,8 @@ from ...services.auth_service import AuthService
 
 # Create router
 router = APIRouter(prefix="/auth", tags=["authentication"])
+
+logger = get_logger(__name__)
 
 
 auth_service = AuthService()

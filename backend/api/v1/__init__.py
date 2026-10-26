@@ -35,3 +35,7 @@ routers = [
     docs_router,
     ocr_integration_router,
 ]
+
+# Initialize centralized logging for all API endpoints
+from backend.core.logging import setup_logging
+logger = setup_logging()

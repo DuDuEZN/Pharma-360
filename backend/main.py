@@ -5,6 +5,7 @@ FastAPI application entry point
 
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+import logging
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,15 @@ from fastapi.staticfiles import StaticFiles
 from .core.config import settings
 from .core.database import lifespan
 from .core.security import add_security_headers, oauth2_scheme
+from .core.logging import setup_logging, get_logger
+
+# Initialize centralized logging system
+logging_service = setup_logging({
+    "logs_dir": "./logs",
+    "console_level": logging.INFO,
+    "file_level": logging.DEBUG
+})
+logger = get_logger("main")
 
 
 # Create FastAPI application
@@ -57,6 +67,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 @app.get("/api/health", tags=["health"])
 async def health_check():
     """Health check endpoint"""
+    logger.info("Health check requested")
     return JSONResponse(
         content={
             "status": "healthy",
@@ -90,6 +101,31 @@ for router in v1_routers:
 
 # Include WebSocket router
 app.include_router(websocket_router, prefix="/api")
+
+# Add logging middleware
+@app.middleware("http")
+async def logging_middleware(request: Request, call_next):
+    """Middleware for logging all HTTP requests"""
+    import time
+    start_time = time.time()
+    
+    response = await call_next(request)
+    
+    process_time = (time.time() - start_time) * 1000
+    logger = get_logger("http")
+    
+    # Log API requests
+    if request.url.path.startswith("/api"):
+        from .core.logging import log_api_request
+        log_api_request(
+            method=request.method,
+            path=str(request.url),
+            status_code=response.status_code,
+            duration_ms=process_time,
+            client=request.client.host if request.client else None
+        )
+    
+    return response
 
 
 # Error handlers

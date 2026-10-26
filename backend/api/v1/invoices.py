@@ -18,6 +18,7 @@ from ...models.invoice import Invoice
 from ...models.supplier import Supplier
 from ...models.batch import Batch
 from ...schemas.invoice import (
+from ...core.logging import get_logger, log_business_event
     InvoiceCreate,
     InvoiceUpdate,
     InvoiceResponse,
@@ -30,6 +31,8 @@ from ...schemas.invoice import (
 
 # Create router
 router = APIRouter(prefix="/invoices", tags=["invoices"])
+
+logger = get_logger(__name__)
 
 
 @router.get(
