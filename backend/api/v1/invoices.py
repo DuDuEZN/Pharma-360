@@ -33,6 +33,52 @@ router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 
 @router.get(
+    "/supplier/{supplier_id}",
+    response_model=InvoiceListResponse,
+    summary="List invoices by supplier",
+    description="Get a paginated list of all invoices for a specific supplier"
+)
+async def get_supplier_invoices(
+    supplier_id: int,
+    page: int = 1,
+    page_size: int = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user_with_role(["admin", "manager"]))
+) -> InvoiceListResponse:
+    """Get invoices for a specific supplier"""
+    return await InvoiceService.get_invoices_by_supplier(
+        supplier_id=supplier_id,
+        page=page,
+        page_size=page_size,
+        db=db
+    )
+
+
+
+@router.get(
+    "/supplier/{supplier_id}",
+    response_model=InvoiceListResponse,
+    summary="List invoices by supplier",
+    description="Get a paginated list of all invoices for a specific supplier"
+)
+async def get_supplier_invoices(
+    supplier_id: int,
+    page: int = 1,
+    page_size: int = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user_with_role(["admin", "manager"]))
+) -> InvoiceListResponse:
+    """Get invoices for a specific supplier"""
+    return await InvoiceService.get_invoices_by_supplier(
+        supplier_id=supplier_id,
+        page=page,
+        page_size=page_size,
+        db=db
+    )
+
+
+
+@router.get(
     "/",
     response_model=InvoiceListResponse,
     summary="List all invoices",
