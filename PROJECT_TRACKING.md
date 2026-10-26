@@ -152,9 +152,9 @@
 - [x] **IA-002** : Module OCR Factures implémenté
 - [x] **IA-003** : Modèle Prédiction Ruptures implémenté
 - [x] **IA-008** : Optimisation FEFO/FIFO implémentée
-- [ ] Module Rapports
 - [ ] Tableaux de Bord
 - [ ] Intégration OCR Backend
+- [ ] Génération KPIs Automatiques
 
 ---
 
