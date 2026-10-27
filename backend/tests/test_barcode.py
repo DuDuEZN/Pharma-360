@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch, AsyncMock
 
-from ..main import app
+# from ..main import app
 from ..core.security import get_current_user
 
 
@@ -16,6 +16,7 @@ def client():
     """Create a test client"""
     return TestClient(app)
 
+from ..main import app
 
 @pytest.fixture
 def mock_db_session():

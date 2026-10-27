@@ -27,6 +27,7 @@ from ...schemas.sale import (
     SaleResponse,
     SaleDetailResponse,
     SaleListResponse,
+    SaleItemResponse,
     SaleValidationResponse,
     SalePayment,
     SalePaymentResponse,
@@ -114,7 +115,7 @@ async def get_sale(
     detail_response.item_count = sale.item_count
     detail_response.total_items = sale.total_items
     
-    # Add items
+
     from ...schemas.sale import SaleItemResponse
     detail_response.items = []
     for item in sale.items:

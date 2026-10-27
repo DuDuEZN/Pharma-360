@@ -26,10 +26,37 @@ class SaleBase(BaseModel):
     notes: Optional[str] = Field(None, description="Additional notes")
 
 
+# Sale Item Create Schema
+class SaleItemCreate(BaseModel):
+    """Schema for creating a sale item"""
+    batch_id: int = Field(..., description="Batch ID (for FEFO tracking)")
+    product_id: int = Field(..., description="Product ID")
+    quantity: int = Field(..., ge=1, description="Quantity")
+    unit_price: Decimal = Field(..., ge=0, description="Unit price")
+
+
+# Sale Item Response Schema
+class SaleItemResponse(BaseModel):
+    """Schema for sale item response"""
+    id: int = Field(..., description="Sale item ID")
+    sale_id: int = Field(..., description="Sale ID")
+    batch_id: int = Field(..., description="Batch ID")
+    product_id: int = Field(..., description="Product ID")
+    product_name: str = Field(..., description="Product name")
+    batch_number: str = Field(..., description="Batch number")
+    quantity: int = Field(..., description="Quantity")
+    unit_price: Decimal = Field(..., description="Unit price")
+    total_price: Decimal = Field(..., description="Total price")
+    expiry_date: Optional[str] = Field(None, description="Expiry date at time of sale")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={Decimal: float})
+
+
 # Sale Create Schema
 class SaleCreate(SaleBase):
     """Schema for creating a new sale"""
-    items: list["SaleItemCreate"] = Field(..., description="List of sale items")
+    items: list[SaleItemCreate] = Field(..., description="List of sale items")
 
 
 # Sale Update Schema
@@ -68,7 +95,7 @@ class SaleResponse(SaleBase):
 # Sale Detail Response Schema
 class SaleDetailResponse(SaleResponse):
     """Schema for detailed sale response"""
-    items: list["SaleItemResponse"] = Field(..., description="List of sale items")
+    items: list[SaleItemResponse] = Field(..., description="List of sale items")
 
 
 # Sale List Response Schema
@@ -79,33 +106,6 @@ class SaleListResponse(BaseModel):
     page: int = Field(..., description="Current page")
     page_size: int = Field(..., description="Number of items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
-
-# Sale Item Create Schema
-class SaleItemCreate(BaseModel):
-    """Schema for creating a sale item"""
-    batch_id: int = Field(..., description="Batch ID (for FEFO tracking)")
-    product_id: int = Field(..., description="Product ID")
-    quantity: int = Field(..., ge=1, description="Quantity")
-    unit_price: Decimal = Field(..., ge=0, description="Unit price")
-
-
-# Sale Item Response Schema
-class SaleItemResponse(BaseModel):
-    """Schema for sale item response"""
-    id: int = Field(..., description="Sale item ID")
-    sale_id: int = Field(..., description="Sale ID")
-    batch_id: int = Field(..., description="Batch ID")
-    product_id: int = Field(..., description="Product ID")
-    product_name: str = Field(..., description="Product name")
-    batch_number: str = Field(..., description="Batch number")
-    quantity: int = Field(..., description="Quantity")
-    unit_price: Decimal = Field(..., description="Unit price")
-    total_price: Decimal = Field(..., description="Total price")
-    expiry_date: Optional[str] = Field(None, description="Expiry date at time of sale")
-    created_at: datetime = Field(..., description="Creation timestamp")
-    
-    model_config = ConfigDict(from_attributes=True, json_encoders={Decimal: float})
 
 
 # Sale Validation Response Schema

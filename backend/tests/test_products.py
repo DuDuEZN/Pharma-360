@@ -15,6 +15,7 @@ from backend.models.product import Product
 from backend.models.category import Category
 from backend.models.batch import Batch
 from backend.models.supplier import Supplier
+# from backend.main import app
 from backend.main import app
 
 # Test database setup
