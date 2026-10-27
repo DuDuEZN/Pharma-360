@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import settings
@@ -32,7 +33,7 @@ class AuthService:
         """Create a new user"""
         # Check if username already exists
         result = await db.execute(
-            "SELECT 1 FROM users WHERE username = :username",
+            text("SELECT 1 FROM users WHERE username = :username"),
             {"username": user_data.username}
         )
         if result.scalar():
@@ -43,7 +44,7 @@ class AuthService:
         
         # Check if email already exists
         result = await db.execute(
-            "SELECT 1 FROM users WHERE email = :email",
+            text("SELECT 1 FROM users WHERE email = :email"),
             {"email": user_data.email}
         )
         if result.scalar():
@@ -79,7 +80,7 @@ class AuthService:
         """Authenticate a user"""
         # Find user by username or email
         result = await db.execute(
-            "SELECT * FROM users WHERE username = :identifier OR email = :identifier",
+            text("SELECT * FROM users WHERE username = :identifier OR email = :identifier"),
             {"identifier": login_data.username}
         )
         user = result.scalar_one_or_none()
@@ -206,7 +207,7 @@ class AuthService:
             
             # Fetch user from database
             result = await db.execute(
-                "SELECT * FROM users WHERE id = :user_id",
+                text("SELECT * FROM users WHERE id = :user_id"),
                 {"user_id": user_id}
             )
             user = result.scalar_one_or_none()

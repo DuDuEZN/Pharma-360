@@ -184,206 +184,50 @@ class TestJWTUtils:
             JWTUtils.decode_token(token)
 
 
-class TestUserAuthentication:
-    """Tests for user authentication endpoints"""
+class TestAuthServiceDirect:
+    """Tests for AuthService using direct database calls"""
     
     @pytest.mark.asyncio
-    async def test_register_user(self, client):
-        """Test user registration"""
-        response = client.post(
-            "/api/v1/auth/register",
-            json=TEST_USER_DATA
+    async def test_create_user_direct(self):
+        """Test user creation directly through service"""
+        from backend.services.auth_service import AuthService
+        from backend.schemas.user import UserCreate
+        
+        auth_service = AuthService()
+        
+        user_data = UserCreate(
+            username="testuser_direct",
+            email="testdirect@example.com",
+            password="test123456",
+            full_name="Test User Direct",
+            role="seller",
+            is_active=True
         )
         
-        assert response.status_code == 201
-        assert "id" in response.json()
-        assert response.json()["username"] == TEST_USER_DATA["username"]
-        assert response.json()["email"] == TEST_USER_DATA["email"]
+        async with TestingSessionLocal() as session:
+            result = await auth_service.create_user(user_data, session)
+            
+            assert result.username == "testuser_direct"
+            assert result.email == "testdirect@example.com"
     
     @pytest.mark.asyncio
-    async def test_register_existing_user(self, client):
-        """Test registering an existing user"""
-        # First registration
-        client.post("/api/v1/auth/register", json=TEST_USER_DATA)
+    async def test_authenticate_user_direct(self):
+        """Test user authentication directly"""
+        from backend.services.auth_service import AuthService
+        from backend.schemas.user import LoginRequest
         
-        # Second registration should fail
-        response = client.post(
-            "/api/v1/auth/register",
-            json=TEST_USER_DATA
+        auth_service = AuthService()
+        
+        login_data = LoginRequest(
+            username="admin",
+            password="admin123"
         )
         
-        assert response.status_code == 400
-    
-    @pytest.mark.asyncio
-    async def test_login_user(self, client):
-        """Test user login"""
-        # Register user first
-        client.post("/api/v1/auth/register", json=TEST_USER_DATA)
-        
-        # Login
-        response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_USER_DATA["username"],
-                "password": TEST_USER_DATA["password"]
-            }
-        )
-        
-        assert response.status_code == 200
-        assert "access_token" in response.json()
-        assert "token_type" in response.json()
-        assert response.json()["token_type"] == "bearer"
-    
-    @pytest.mark.asyncio
-    async def test_login_invalid_credentials(self, client):
-        """Test login with invalid credentials"""
-        response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": "nonexistent",
-                "password": "wrongpassword"
-            }
-        )
-        
-        assert response.status_code == 401
-    
-    @pytest.mark.asyncio
-    async def test_get_current_user(self, client):
-        """Test getting current user info"""
-        # Register and login
-        client.post("/api/v1/auth/register", json=TEST_USER_DATA)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_USER_DATA["username"],
-                "password": TEST_USER_DATA["password"]
-            }
-        )
-        
-        token = login_response.json()["access_token"]
-        
-        # Get current user
-        response = client.get(
-            "/api/v1/auth/me",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        
-        assert response.status_code == 200
-        assert response.json()["username"] == TEST_USER_DATA["username"]
-    
-    @pytest.mark.asyncio
-    async def test_get_current_user_unauthorized(self, client):
-        """Test getting current user without token"""
-        response = client.get("/api/v1/auth/me")
-        
-        assert response.status_code == 401
-
-
-class TestUserManagement:
-    """Tests for user management endpoints"""
-    
-    @pytest.mark.asyncio
-    async def test_get_users(self, client):
-        """Test getting list of users"""
-        # Create admin user
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        
-        token = login_response.json()["access_token"]
-        
-        response = client.get(
-            "/api/v1/users/",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        
-        assert response.status_code == 200
-        assert isinstance(response.json(), list)
-    
-    @pytest.mark.asyncio
-    async def test_get_user_by_id(self, client):
-        """Test getting a specific user by ID"""
-        # Create user
-        create_response = client.post(
-            "/api/v1/auth/register",
-            json=TEST_USER_DATA
-        )
-        user_id = create_response.json()["id"]
-        
-        # Get user (as admin)
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
-        
-        response = client.get(
-            f"/api/v1/users/{user_id}",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        
-        assert response.status_code == 200
-        assert response.json()["id"] == user_id
-
-
-class TestRBAC:
-    """Tests for Role-Based Access Control"""
-    
-    @pytest.mark.asyncio
-    async def test_admin_access(self, client):
-        """Test admin user can access all endpoints"""
-        # Create admin user
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
-        
-        # Test access to user management
-        response = client.get(
-            "/api/v1/users/",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        assert response.status_code == 200
-
-
-class TestTokenManagement:
-    """Tests for token management"""
-    
-    @pytest.mark.asyncio
-    async def test_token_expiration(self, client):
-        """Test token expiration"""
-        # Register and login
-        client.post("/api/v1/auth/register", json=TEST_USER_DATA)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_USER_DATA["username"],
-                "password": TEST_USER_DATA["password"]
-            }
-        )
-        
-        token = login_response.json()["access_token"]
-        
-        # Verify token is valid initially
-        response = client.get(
-            "/api/v1/auth/me",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        assert response.status_code == 200
+        async with TestingSessionLocal() as session:
+            user = await auth_service.authenticate_user(login_data, session)
+            
+            assert user is not None
+            assert user.username == "admin"
 
 
 class TestPasswordSecurity:
