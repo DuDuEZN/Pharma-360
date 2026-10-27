@@ -1,7 +1,7 @@
 # 📊 **Suivi du Projet - Pharmacie 360°**
 
 **Version** : 5.2.0  
-Dernière mise à jour : 2025-01-17 (J17 - 18:00)  
+Dernière mise à jour : 2025-01-17 (J17 - 20:00)  
 **Statut** : 🚀 **EN COURS (Phase 2 - 100% complet, Phase 3 - 100% complet, Phase 4 - 33% complet)
 
 ---
@@ -178,6 +178,7 @@ Dernière mise à jour : 2025-01-17 (J17 - 18:00)
 | **QA-016** | Déploiement Production | QA/DevOps | 2d | → QA-015 | 98-99 | ⏳ À venir |
 
 **✅ Livrables Phase 4 (17% complet)** : 
+- [x] **QA-005** : Tests Unitaires Backend implémentés
 - [x] **QA-010** : Tests Barcode Scanner implémentés
 - [x] **QA-012** : Système de sauvegardes implémenté
 - [ ] Tests unitaires Backend
@@ -362,7 +363,7 @@ graph TD
 1. **Backend Lead** : Démarrer BKND-015 (Module Rapports)
 2. **Frontend** : Démarrer FRNT-009 (Tableaux de Bord) + FRNT-013 (Recherche Avancée)
 3. **IA Specialist** : Démarrer IA-004 (Intégration OCR Backend) + IA-007 (Alertes Intelligentes)
-4. **QA/DevOps** : Démarrer QA-005 (Tests Unitaires Backend)
+4. **QA/DevOps** : ✅ QA-005 TERMINÉ - Démarrer QA-006
 
 ### **Objectif J17-J20**
 - Compléter 100% de la Phase 3
