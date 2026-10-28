@@ -6,16 +6,30 @@ QA-006: Tests d'Intégration (APIs + DB)
 """
 
 import pytest
-from backend.services.product_service import ProductService
-from backend.services.auth_service import AuthService
-from backend.services.sale_service import SaleService
-from backend.models.user import User
-from backend.models.role import Role
-from backend.models.product import Product
-from backend.models.category import Category
-from backend.models.batch import Batch
-from backend.models.sale import Sale
-from backend.core.security import PasswordUtils, RBACUtils
+from fastapi.testclient import TestClient
+from backend.main import app
+
+
+@pytest.fixture
+def client():
+    """Create a test client"""
+    return TestClient(app)
+
+
+class TestAPIEndpointsIntegration:
+    """Tests for API endpoints integration"""
+    
+    def test_health_endpoint(self, client):
+        """Test health endpoint is working"""
+        response = client.get("/api/health")
+        assert response.status_code == 200
+        assert response.json()["status"] == "healthy"
+    
+    def test_docs_endpoint(self, client):
+        """Test API documentation endpoint"""
+        response = client.get("/api/v1/docs/openapi.json")
+        assert response.status_code == 200
+        assert "openapi" in response.json()
 
 
 class TestServiceIntegration:
@@ -23,6 +37,10 @@ class TestServiceIntegration:
     
     def test_services_can_be_instantiated(self):
         """Test that all services can be instantiated"""
+        from backend.services.product_service import ProductService
+        from backend.services.auth_service import AuthService
+        from backend.services.sale_service import SaleService
+        
         product_service = ProductService()
         auth_service = AuthService()
         sale_service = SaleService()
@@ -33,6 +51,10 @@ class TestServiceIntegration:
     
     def test_services_have_required_methods(self):
         """Test that services have required methods"""
+        from backend.services.product_service import ProductService
+        from backend.services.auth_service import AuthService
+        from backend.services.sale_service import SaleService
+        
         product_service = ProductService()
         auth_service = AuthService()
         sale_service = SaleService()
@@ -57,6 +79,13 @@ class TestModelIntegration:
     
     def test_models_exist(self):
         """Test that all models exist"""
+        from backend.models.user import User
+        from backend.models.role import Role
+        from backend.models.product import Product
+        from backend.models.category import Category
+        from backend.models.batch import Batch
+        from backend.models.sale import Sale
+        
         assert User is not None
         assert Role is not None
         assert Product is not None
@@ -66,6 +95,10 @@ class TestModelIntegration:
     
     def test_models_have_required_fields(self):
         """Test that models have required fields"""
+        from backend.models.user import User
+        from backend.models.product import Product
+        from backend.models.sale import Sale
+        
         # User model
         user_fields = ['id', 'username', 'email', 'password_hash', 'role', 'is_active']
         for field in user_fields:
@@ -87,6 +120,8 @@ class TestRBACIntegration:
     
     def test_rbac_hierarchy(self):
         """Test RBAC hierarchy"""
+        from backend.core.security import RBACUtils
+        
         assert RBACUtils.ROLE_HIERARCHY["admin"] == 4
         assert RBACUtils.ROLE_HIERARCHY["manager"] == 3
         assert RBACUtils.ROLE_HIERARCHY["seller"] == 2
@@ -94,6 +129,8 @@ class TestRBACIntegration:
     
     def test_rbac_permissions(self):
         """Test RBAC permissions"""
+        from backend.core.security import RBACUtils
+        
         # Admin has all permissions
         assert RBACUtils.has_permission("admin", "admin") is True
         assert RBACUtils.has_permission("admin", "manager") is True
@@ -124,6 +161,8 @@ class TestSecurityIntegration:
     
     def test_password_utils(self):
         """Test password utilities"""
+        from backend.core.security import PasswordUtils
+        
         password = "test123"
         hashed = PasswordUtils.hash_password(password)
         
@@ -177,6 +216,25 @@ class TestSchemaIntegration:
         assert SaleBase is not None
         assert SaleCreate is not None
         assert SaleResponse is not None
+
+
+class TestDatabaseIntegration:
+    """Tests for database integration"""
+    
+    def test_database_models_import(self):
+        """Test that database models can be imported"""
+        from backend.core.database import Base, engine, async_session_maker
+        assert Base is not None
+        assert engine is not None
+        assert async_session_maker is not None
+    
+    def test_database_config(self):
+        """Test database configuration"""
+        from backend.core.config import settings
+        assert hasattr(settings, 'postgres_host')
+        assert hasattr(settings, 'postgres_port')
+        assert hasattr(settings, 'postgres_db')
+        assert hasattr(settings, 'postgres_user')
 
 
 if __name__ == '__main__':
