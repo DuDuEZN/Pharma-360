@@ -197,9 +197,9 @@ Dernière mise à jour : 2025-01-17 (J17 - 20:00)
 | Phase 1 | 11 | 11 | 100% | ✅ **TERMINÉE** |
 | Phase 2 | 17 | 17 | 100% | ✅ **TERMINÉE** |
 | Phase 3 | 25 | 25 | 100% | ✅ **TERMINÉE** |
-| Phase 4 | 12 | 3 | 33% | 🟡 **EN COURS** |
+| Phase 4 | 12 | 4 | 33% | \ud83d\udfe1 **EN COURS** |
 | **Total** | **65** | **56** | **86.2%** | 🟢 **EN PROGRÈS** |
-
+| **Total** | **65** | **57** | **87.7%** | \ud83d\udfe2 **EN PROGR\u00c8S** |
 ### **Par Agent**
 
 | Agent | Tâches Assignées | Tâches Terminées | % Complet | Statut |
@@ -207,7 +207,7 @@ Dernière mise à jour : 2025-01-17 (J17 - 20:00)
 | Superviseur | 4 | 4 | 100% | ✅ |
 | Backend Lead | 19 | 15 | 78% | 🟡 |
 | Frontend | 15 | 11 | 73% | 🟡 |
-| IA | 9 | 2 | 22% | 🟡 |
+| QA/DevOps | 20 | 15 | 75% | \ud83d\udfe2 |
 | QA/DevOps | 20 | 14 | 70% | 🟢 |
 
 ---
@@ -274,6 +274,10 @@ Dernière mise à jour : 2025-01-17 (J17 - 20:00)
 | 2025-01-16 | 18:30 | **Démarrage Phase 3** | Vibe Code | BKND-011, BKND-012, FRNT-008, IA-001, QA-010, QA-012 |
 | 2025-01-16 | 19:00 | **BKND-011, BKND-012 TERMINÉS** | Backend Lead | APIs Retours et Facturation |
 | 2025-01-16 | 19:30 | **FRNT-008 TERMINÉ** | Frontend | Session Gestionnaire |
+| 2025-01-17 | 10:30 | **QA-005 TERMINÉ** | QA/DevOps | Tests Unitaires Backend |
+| 2025-01-17 | 10:45 | **Fix bcrypt** | Backend Lead | sha256_crypt implémenté |
+| 2025-01-17 | 11:00 | **Modèle Role ajouté** | Backend Lead | backend/models/role.py |
+| 2025-01-17 | 11:15 | **Imports corrigés** | Backend Lead | Category, StockAnalysisService |
 | 2025-01-16 | 21:30 | **IA-001, QA-010, QA-012 TERMINÉS** | IA + QA | Analyse + Tests + Sauvegardes |
 | 2025-01-16 | 20:30 | **Fix SQLAlchemy dict type** | Backend Lead | Correction du bug JSON dans invoice.py |
 | 2025-01-16 | 21:00 | **Backend testé avec succès** | Tous | API health endpoint fonctionnel |
@@ -351,9 +355,11 @@ graph TD
    - [x] Tester avec des données réelles
 
 4. **QA/DevOps**
-   - [x] Implémenter QA-025 | 100%(Tests Barcode Scanner)
+   - [x] Implémenter QA-005 (Tests Unitaires Backend)
+   - [x] Implémenter QA-010 (Tests Barcode Scanner)
    - [x] Implémenter QA-012 (Sauvegardes Automatiques)
    - [x] Configurer les scripts de sauvegarde
+   - [x] Résoudre problème bcrypt (sha256_crypt)
 
 ---
 
@@ -363,12 +369,12 @@ graph TD
 1. **Backend Lead** : Démarrer BKND-015 (Module Rapports)
 2. **Frontend** : Démarrer FRNT-009 (Tableaux de Bord) + FRNT-013 (Recherche Avancée)
 3. **IA Specialist** : Démarrer IA-004 (Intégration OCR Backend) + IA-007 (Alertes Intelligentes)
-4. **QA/DevOps** : ✅ QA-005 TERMINÉ - Démarrer QA-006
+4. **QA/DevOps** : Démarrer QA-006
 
 ### **Objectif J17-J20**
-- Compléter 100% de la Phase 3
+- Compléter 100% de la Phase 4 (Tests)
 - Valider les tâches terminées
-- Préparer les tests d'intégration
+- Préparer le déploiement final
 
 ---
 
@@ -420,7 +426,8 @@ graph TD
 ### **Phase 4** : 🟡 **EN COURS (17%)**
 - ✅ **QA-010** : Tests Barcode Scanner implémentés
 - ✅ **QA-012** : Système de sauvegardes implémenté
-- ⏳ **25 | 100%tâches restantes**
+- ✅ **QA-005** : Tests Unitaires Backend implémentés
+- ⏳ **8 tâches restantes**
 
 ---
 
@@ -429,11 +436,11 @@ graph TD
 - **Phase 2 terminée 8 jours avant la date prévue**
 - **16 tâches de Phase 3 terminées dès le J17**
 - **3 tâches de Phase 4 terminées dès le J17**
-- **Progression globale : 86.2%** (contre 40.01% prévu)
+- **Progression globale : 87.7%** (contre 40.01% prévu)
 
 ---
 
-**Dernière mise à jour** : 2025-01-17 12:00  
+**Dernière mise à jour** : 2025-01-17 12:15  
 **Prochaine mise à jour** : 2025-01-17 18:00 (Bilan de journée)
 
 ---
