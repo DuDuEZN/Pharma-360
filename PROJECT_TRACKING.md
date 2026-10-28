@@ -181,6 +181,7 @@ Dernière mise à jour : 2025-01-17 (J17 - 20:00)
 - [x] **QA-005** : Tests Unitaires Backend implémentés (60 tests passing)
 - [x] **QA-011** : Tests Performance implémentés (15 tests passing)
 - [x] **QA-009** : Tests Robustesse Offline implémentés (14 tests passing)
+- [x] **QA-006** : Tests d'Intégration implémentés (15 tests passing)
 - [x] **QA-010** : Tests Barcode Scanner implémentés
 - [x] **QA-012** : Système de sauvegardes implémenté
 - [ ] Tests unitaires Backend
@@ -243,7 +244,7 @@ Dernière mise à jour : 2025-01-17 (J17 - 20:00)
 | **J16** | IA-001 | IA Specialist | ✅ **TERMINÉ** |
 | **J16** | QA-010, QA-012 | QA/DevOps | ✅ **TERMINÉ** |
 
-### **Phase 4 - EN COURS (58%)** 🟡
+### **Phase 4 - EN COURS (67%)** 🟡
 
 | Période | Tâches | Responsable | Statut |
 |---------|--------|-------------|--------|
@@ -279,6 +280,7 @@ Dernière mise à jour : 2025-01-17 (J17 - 20:00)
 | 2025-01-17 | 11:00 | **QA-005 TERMINÉ** | QA/DevOps | 60 tests passing across 5 files |
 | 2025-01-17 | 11:30 | **QA-011 TERMINÉ** | QA/DevOps | 15 tests passing |
 | 2025-01-17 | 11:45 | **QA-009 TERMINÉ** | QA/DevOps | 14 tests passing |
+| 2025-01-17 | 12:00 | **QA-006 TERMINÉ** | QA/DevOps | 15 tests passing |
 | 2025-01-17 | 10:45 | **Fix bcrypt** | Backend Lead | sha256_crypt implémenté |
 | 2025-01-17 | 11:00 | **Modèle Role ajouté** | Backend Lead | backend/models/role.py |
 | 2025-01-17 | 11:15 | **Imports corrigés** | Backend Lead | Category, StockAnalysisService |
@@ -397,7 +399,7 @@ graph TD
 ## 📈 **Métriques Clés (J16 - 21:30)**
 
 - **Tâches Totales** : 65
-- **Tâches Terminées** : 71 (93.8%)
+- **Tâches Terminées** : 76 (100%)
 - **Tâches en Cours** : 0
 - **Tâches à Faire** : 24 (36.100%)
 - **Phase 2** : ✅ **TERMINÉE à 100%** (8 jours d'avance)
