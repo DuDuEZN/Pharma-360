@@ -15,9 +15,6 @@ logger = get_logger("docs")
 
 def custom_openapi() -> Dict[str, Any]:
     """Custom OpenAPI schema with Pharmacie 360 specific information"""
-    if settings.openapi_schema:
-        return settings.openapi_schema
-    
     return {
         "openapi": "3.0.2",
         "info": {
