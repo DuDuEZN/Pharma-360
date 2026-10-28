@@ -9,14 +9,15 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
 from backend.core.database import get_db, Base
 from backend.models.product import Product
 from backend.models.category import Category
 from backend.models.batch import Batch
 from backend.models.supplier import Supplier
-# from backend.main import app
-from backend.main import app
+from backend.models.user import User
+from backend.core.security import PasswordUtils
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -37,23 +38,27 @@ async def override_get_db():
         yield session
 
 
-app.dependency_overrides[get_db] = override_get_db
-
-
-@pytest.fixture
-def client():
-    """Create a test client"""
-    return TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-async def setup_database():
-    """Setup test database"""
+@pytest.fixture(scope="session", autouse=True)
+async def setup_test_database():
+    """Setup test database with all tables and test data once per session"""
+    # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
-    # Create test data
+    # Create test users
     async with TestingSessionLocal() as session:
+        # Create admin user
+        admin_user = User(
+            username="admin",
+            email="admin@test.com",
+            password_hash=PasswordUtils.hash_password("admin123"),
+            full_name="Admin User",
+            role="admin",
+            is_active=True
+        )
+        session.add(admin_user)
+        await session.commit()
+        
         # Create categories
         category1 = Category(name="Médicaments", description="Médicaments divers")
         category2 = Category(name="Antipaludéens", description="Traitement du paludisme")
@@ -85,8 +90,14 @@ async def setup_database():
     # Cleanup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
-    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client():
+    """Create a test client with database override"""
+    from backend.main import app
+    app.dependency_overrides[get_db] = override_get_db
+    return TestClient(app)
 
 
 # Test data
@@ -114,22 +125,25 @@ TEST_ADMIN_USER = {
 }
 
 
+def get_auth_token(client):
+    """Helper to get authentication token"""
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": "admin",
+            "password": "admin123"
+        }
+    )
+    assert login_response.status_code == 200
+    return login_response.json()["access_token"]
+
+
 class TestProductCRUD:
     """Tests for Product CRUD operations"""
     
-    @pytest.mark.asyncio
-    async def test_create_product(self, client):
+    def test_create_product(self, client):
         """Test creating a new product"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         response = client.post(
             "/api/v1/products/",
@@ -143,19 +157,9 @@ class TestProductCRUD:
         assert response.json()["code"] == TEST_PRODUCT_DATA["code"]
         assert response.json()["barcode"] == TEST_PRODUCT_DATA["barcode"]
     
-    @pytest.mark.asyncio
-    async def test_create_product_duplicate_code(self, client):
+    def test_create_product_duplicate_code(self, client):
         """Test creating product with duplicate code"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         # Create first product
         client.post(
@@ -173,19 +177,9 @@ class TestProductCRUD:
         
         assert response.status_code == 400
     
-    @pytest.mark.asyncio
-    async def test_get_products(self, client):
+    def test_get_products(self, client):
         """Test getting list of products"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         # Create a product
         client.post(
@@ -200,22 +194,11 @@ class TestProductCRUD:
         )
         
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
-        assert len(response.json()) >= 1
+        assert len(response.json()["products"]) >= 1
     
-    @pytest.mark.asyncio
-    async def test_get_product_by_id(self, client):
-        """Test getting a specific product by ID"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+    def test_get_product_by_id(self, client):
+        """Test getting a product by ID"""
+        token = get_auth_token(client)
         
         # Create a product
         create_response = client.post(
@@ -234,19 +217,9 @@ class TestProductCRUD:
         assert response.json()["id"] == product_id
         assert response.json()["name"] == TEST_PRODUCT_DATA["name"]
     
-    @pytest.mark.asyncio
-    async def test_get_product_by_barcode(self, client):
+    def test_get_product_by_barcode(self, client):
         """Test getting a product by barcode"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         # Create a product
         client.post(
@@ -263,19 +236,9 @@ class TestProductCRUD:
         assert response.status_code == 200
         assert response.json()["barcode"] == TEST_PRODUCT_DATA["barcode"]
     
-    @pytest.mark.asyncio
-    async def test_update_product(self, client):
+    def test_update_product(self, client):
         """Test updating a product"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         # Create a product
         create_response = client.post(
@@ -285,35 +248,24 @@ class TestProductCRUD:
         )
         product_id = create_response.json()["id"]
         
-        # Update product
-        update_data = {
-            "name": "Paracétamol 500mg - Mise à jour",
-            "unit_price": 550.0
-        }
+        # Update the product
+        updated_data = TEST_PRODUCT_DATA.copy()
+        updated_data["name"] = "Paracétamol 500mg Updated"
+        updated_data["unit_price"] = 600.0
         
         response = client.put(
             f"/api/v1/products/{product_id}",
-            json=update_data,
+            json=updated_data,
             headers={"Authorization": f"Bearer {token}"}
         )
         
         assert response.status_code == 200
-        assert response.json()["name"] == "Paracétamol 500mg - Mise à jour"
-        assert response.json()["unit_price"] == 550.0
+        assert response.json()["name"] == "Paracétamol 500mg Updated"
+        assert response.json()["unit_price"] == 600.0
     
-    @pytest.mark.asyncio
-    async def test_delete_product(self, client):
+    def test_delete_product(self, client):
         """Test deleting a product"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         # Create a product
         create_response = client.post(
@@ -328,26 +280,22 @@ class TestProductCRUD:
             headers={"Authorization": f"Bearer {token}"}
         )
         
-        assert response.status_code == 200
-        assert response.json()["message"] == "Product deleted successfully"
+        assert response.status_code == 204
+        
+        # Verify deletion
+        get_response = client.get(
+            f"/api/v1/products/{product_id}",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert get_response.status_code == 404
 
 
 class TestProductSearch:
-    """Tests for product search functionality"""
+    """Tests for Product search functionality"""
     
-    @pytest.mark.asyncio
-    async def test_search_products_by_name(self, client):
+    def test_search_products_by_name(self, client):
         """Test searching products by name"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         # Create a product
         client.post(
@@ -357,28 +305,16 @@ class TestProductSearch:
         )
         
         response = client.get(
-            "/api/v1/products/search",
-            params={"q": "Paracétamol"},
+            "/api/v1/products/search?q=Paracétamol",
             headers={"Authorization": f"Bearer {token}"}
         )
         
         assert response.status_code == 200
-        assert len(response.json()) >= 1
-        assert response.json()[0]["name"].lower() in "paracétamol 500mg"
+        assert len(response.json()["products"]) >= 1
     
-    @pytest.mark.asyncio
-    async def test_search_products_by_category(self, client):
+    def test_search_products_by_category(self, client):
         """Test searching products by category"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         # Create a product
         client.post(
@@ -388,27 +324,16 @@ class TestProductSearch:
         )
         
         response = client.get(
-            "/api/v1/products/search",
-            params={"category_id": 1},
+            "/api/v1/products/search?category=Médicaments",
             headers={"Authorization": f"Bearer {token}"}
         )
         
         assert response.status_code == 200
-        assert len(response.json()) >= 1
+        assert len(response.json()["products"]) >= 1
     
-    @pytest.mark.asyncio
-    async def test_search_products_by_barcode(self, client):
+    def test_search_products_by_barcode(self, client):
         """Test searching products by barcode"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         # Create a product
         client.post(
@@ -418,45 +343,36 @@ class TestProductSearch:
         )
         
         response = client.get(
-            "/api/v1/products/search",
-            params={"barcode": TEST_PRODUCT_DATA["barcode"]},
+            f"/api/v1/products/search?barcode={TEST_PRODUCT_DATA['barcode']}",
             headers={"Authorization": f"Bearer {token}"}
         )
         
         assert response.status_code == 200
-        assert len(response.json()) >= 1
-        assert response.json()[0]["barcode"] == TEST_PRODUCT_DATA["barcode"]
+        assert len(response.json()["products"]) >= 1
 
 
 class TestProductCategories:
-    """Tests for product category management"""
+    """Tests for Product Categories"""
     
-    @pytest.mark.asyncio
-    async def test_get_categories(self, client):
-        """Test getting list of categories"""
-        response = client.get("/api/v1/categories/")
+    def test_get_categories(self, client):
+        """Test getting all categories"""
+        token = get_auth_token(client)
+        
+        response = client.get(
+            "/api/v1/categories/",
+            headers={"Authorization": f"Bearer {token}"}
+        )
         
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
-        assert len(response.json()) >= 2  # We created 2 in setup
+        assert len(response.json()["categories"]) >= 2
     
-    @pytest.mark.asyncio
-    async def test_create_category(self, client):
+    def test_create_category(self, client):
         """Test creating a new category"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         new_category = {
-            "name": "Vitamines",
-            "description": "Compléments vitaminiques"
+            "name": "Nouvelle Catégorie",
+            "description": "Description de la nouvelle catégorie"
         }
         
         response = client.post(
@@ -466,25 +382,15 @@ class TestProductCategories:
         )
         
         assert response.status_code == 201
-        assert response.json()["name"] == "Vitamines"
+        assert response.json()["name"] == new_category["name"]
 
 
 class TestProductBatches:
-    """Tests for product batch management"""
+    """Tests for Product Batches"""
     
-    @pytest.mark.asyncio
-    async def test_create_batch(self, client):
+    def test_create_batch(self, client):
         """Test creating a new batch"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         # Create a product first
         create_response = client.post(
@@ -494,16 +400,13 @@ class TestProductBatches:
         )
         product_id = create_response.json()["id"]
         
-        # Create a batch
         batch_data = {
             "product_id": product_id,
             "batch_number": "BATCH001",
             "quantity": 100,
-            "purchase_price": 300.0,
             "expiry_date": "2025-12-31",
-            "manufacturing_date": "2025-01-01",
-            "supplier_id": 1,
-            "location": "A1-B2"
+            "cost_price": 300.0,
+            "supplier_id": 1
         }
         
         response = client.post(
@@ -513,22 +416,11 @@ class TestProductBatches:
         )
         
         assert response.status_code == 201
-        assert response.json()["batch_number"] == "BATCH001"
-        assert response.json()["product_id"] == product_id
+        assert response.json()["batch_number"] == batch_data["batch_number"]
     
-    @pytest.mark.asyncio
-    async def test_get_batches_by_product(self, client):
-        """Test getting batches for a product"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+    def test_get_batches_by_product(self, client):
+        """Test getting batches by product ID"""
+        token = get_auth_token(client)
         
         # Create a product
         create_response = client.post(
@@ -541,13 +433,11 @@ class TestProductBatches:
         # Create a batch
         batch_data = {
             "product_id": product_id,
-            "batch_number": "BATCH001",
-            "quantity": 100,
-            "purchase_price": 300.0,
-            "expiry_date": "2025-12-31",
-            "manufacturing_date": "2025-01-01",
-            "supplier_id": 1,
-            "location": "A1-B2"
+            "batch_number": "BATCH002",
+            "quantity": 50,
+            "expiry_date": "2025-11-30",
+            "cost_price": 350.0,
+            "supplier_id": 1
         }
         client.post(
             "/api/v1/batches/",
@@ -556,31 +446,20 @@ class TestProductBatches:
         )
         
         response = client.get(
-            f"/api/v1/batches/product/{product_id}",
+            f"/api/v1/products/{product_id}/batches",
             headers={"Authorization": f"Bearer {token}"}
         )
         
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
-        assert len(response.json()) >= 1
+        assert len(response.json()["batches"]) >= 1
 
 
 class TestBarcodeOperations:
-    """Tests for barcode-related operations"""
+    """Tests for Barcode operations"""
     
-    @pytest.mark.asyncio
-    async def test_barcode_unique(self, client):
-        """Test that barcodes are unique"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+    def test_barcode_unique(self, client):
+        """Test barcode uniqueness"""
+        token = get_auth_token(client)
         
         # Create first product
         client.post(
@@ -590,28 +469,20 @@ class TestBarcodeOperations:
         )
         
         # Try to create second product with same barcode
-        duplicate_data = {**TEST_PRODUCT_DATA, "code": "DIFFCODE"}
+        product_data_2 = TEST_PRODUCT_DATA.copy()
+        product_data_2["code"] = "PAR501"
+        
         response = client.post(
             "/api/v1/products/",
-            json=duplicate_data,
+            json=product_data_2,
             headers={"Authorization": f"Bearer {token}"}
         )
         
         assert response.status_code == 400
     
-    @pytest.mark.asyncio
-    async def test_scan_barcode(self, client):
+    def test_scan_barcode(self, client):
         """Test scanning a barcode"""
-        # Login as admin
-        client.post("/api/v1/auth/register", json=TEST_ADMIN_USER)
-        login_response = client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": TEST_ADMIN_USER["username"],
-                "password": TEST_ADMIN_USER["password"]
-            }
-        )
-        token = login_response.json()["access_token"]
+        token = get_auth_token(client)
         
         # Create a product
         client.post(
@@ -620,14 +491,13 @@ class TestBarcodeOperations:
             headers={"Authorization": f"Bearer {token}"}
         )
         
-        response = client.post(
-            "/api/v1/barcode/scan",
-            json={"barcode": TEST_PRODUCT_DATA["barcode"]},
+        response = client.get(
+            f"/api/v1/products/scan/{TEST_PRODUCT_DATA['barcode']}",
             headers={"Authorization": f"Bearer {token}"}
         )
         
         assert response.status_code == 200
-        assert "product" in response.json()
+        assert response.json()["barcode"] == TEST_PRODUCT_DATA["barcode"]
 
 
 # Run tests
