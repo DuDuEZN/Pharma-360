@@ -13,7 +13,7 @@ from PIL import Image
 import numpy as np
 
 from ia.services.ocr_service import OCRService
-from ia.services.stock_analysis import StockAnalysisService
+from ia.analytics.stock_analysis import StockAnalyzer
 from ia.services.alert_service import AlertService
 from ia.services.kpi_service import KPIService
 
