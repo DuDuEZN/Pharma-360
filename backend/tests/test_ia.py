@@ -88,13 +88,13 @@ class TestOCRService:
         assert isinstance(result, dict)
 
 
-class TestStockAnalysisService:
+class TestStockAnalyzer:
     """Tests for stock analysis service"""
     
     @pytest.fixture
     def stock_analysis_service(self):
         """Create stock analysis service instance"""
-        return StockAnalysisService()
+        return StockAnalyzer()
     
     @pytest.fixture
     def sample_sales_data(self):
