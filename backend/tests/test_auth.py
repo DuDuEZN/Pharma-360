@@ -47,12 +47,24 @@ def client():
 
 @pytest.fixture(autouse=True)
 async def setup_database():
-    """Setup test database"""
+    """Setup test database with all tables"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
-    # Create test users with different roles
+    # Create test roles first
     async with TestingSessionLocal() as session:
+        from backend.models.role import Role
+        roles = await session.run_sync(lambda: session.query(Role).all())
+        if not roles:
+            roles_to_create = [
+                Role(name="admin", description="Administrator"),
+                Role(name="seller", description="Seller"),
+                Role(name="cashier", description="Cashier"),
+                Role(name="manager", description="Manager")
+            ]
+            session.add_all(roles_to_create)
+            await session.commit()
+        
         from backend.models.user import User
         
         # Create users with different roles

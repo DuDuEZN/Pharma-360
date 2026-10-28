@@ -17,7 +17,8 @@ from .config import settings
 
 
 # Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Utiliser sha256_crypt au lieu de bcrypt pour éviter la limite de 72 bytes
+pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 # OAuth2 scheme for token authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
@@ -36,6 +37,10 @@ class PasswordUtils:
     @staticmethod
     def hash_password(password: str) -> str:
         """Hash a password using bcrypt"""
+        # Tronquer à 72 bytes pour bcrypt (limite de bcrypt)
+        password_bytes = password.encode('utf-8')
+        if len(password_bytes) > 72:
+            password = password[:72]
         return pwd_context.hash(password)
     
     @staticmethod
