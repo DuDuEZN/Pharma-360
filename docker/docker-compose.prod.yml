@@ -1,0 +1,216 @@
+# ===========================================
+# Docker Compose Production - Pharma 360
+# ===========================================
+# ID Tâche: QA-016
+# Responsable: QA/DevOps
+# Statut: EN COURS
+# Description: Configuration de production avec optimisations
+# ===========================================
+
+version: '3.8'
+
+# Configuration des services pour la production
+services:
+  # Base de données PostgreSQL - Production
+  pharma360-db:
+    image: postgres:15-alpine
+    container_name: pharma360-db-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pharma360_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-pharma_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Pharma360_Prod_Pass_2025_Secure_Key}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+      TZ: Africa/Porto-Novo
+      # Optimisations pour la production
+      POSTGRES_MAX_CONNECTIONS: ${POSTGRES_MAX_CONNECTIONS:-200}
+      POSTGRES_SHARED_BUFFERS: ${POSTGRES_SHARED_BUFFERS:-2GB}
+      POSTGRES_EFFECTIVE_CACHE_SIZE: ${POSTGRES_EFFECTIVE_CACHE_SIZE:-6GB}
+      POSTGRES_WORK_MEM: ${POSTGRES_WORK_MEM:-32MB}
+      POSTGRES_MAINTENANCE_WORK_MEM: ${POSTGRES_MAINTENANCE_WORK_MEM:-1GB}
+    volumes:
+      - pharma360-db-prod-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./backups:/backups
+    ports:
+      - "5432:5432"
+    networks:
+      - pharma360-prod-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pharma_admin} -d ${POSTGRES_DB:-pharma360_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      sh -c '
+        docker-entrypoint.sh postgres &
+        sleep 5
+        psql -U $$POSTGRES_USER -d $$POSTGRES_DB -f /docker-entrypoint-initdb.d/init-db.sql
+      '
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  # Service Backend (FastAPI) - Production
+  pharma360-backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: pharma360-backend-prod
+    restart: unless-stopped
+    environment:
+      APP_NAME: ${APP_NAME:-Pharma-360}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-pharma360_prod_secret_key_2025_64chars}
+      POSTGRES_HOST: pharma360-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-pharma360_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-pharma_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Pharma360_Prod_Pass_2025_Secure_Key}
+      JWT_SECRET: ${JWT_SECRET:-pharma360_jwt_secret_prod_2025_64chars}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-480}
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 8000
+      CORS_ORIGINS: ${CORS_ORIGINS:-"http://localhost,http://pharma360-frontend"}
+      BACKEND_WORKERS: ${BACKEND_WORKERS:-8}
+      BACKEND_MAX_REQUESTS: ${BACKEND_MAX_REQUESTS:-5000}
+      BACKEND_TIMEOUT: ${BACKEND_TIMEOUT:-60}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FILE: /app/logs/app.log
+    depends_on:
+      pharma360-db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    networks:
+      - pharma360-prod-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/health', timeout=5).raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    volumes:
+      - ./backend:/app:ro
+      - ./backend/logs:/app/logs
+      - ./backend/uploads:/app/uploads
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  # Service Frontend (React + Nginx) - Production
+  pharma360-frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: pharma360-frontend-prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      FRONTEND_PORT: 80
+      BACKEND_URL: http://pharma360-backend:8000
+      IA_URL: http://pharma360-ia:8001
+    depends_on:
+      pharma360-backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+    networks:
+      - pharma360-prod-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+
+  # Service IA (OCR + Analytics) - Production
+  pharma360-ia:
+    build:
+      context: .
+      dockerfile: docker/ia.Dockerfile
+    container_name: pharma360-ia-prod
+    restart: unless-stopped
+    environment:
+      IA_HOST: 0.0.0.0
+      IA_PORT: 8001
+      POSTGRES_HOST: pharma360-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-pharma360_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-pharma_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Pharma360_Prod_Pass_2025_Secure_Key}
+      TESSDATA_PREFIX: /usr/share/tesseract-ocr/4.00/tessdata
+    depends_on:
+      pharma360-db:
+        condition: service_healthy
+      pharma360-backend:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    networks:
+      - pharma360-prod-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8001/api/health', timeout=5).raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - ./ia:/app:ro
+      - ./ia/logs:/app/logs
+      - ./ia/models:/app/models
+      - ./ia/uploads:/app/uploads
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  # Reverse Proxy Nginx - Production
+  pharma360-nginx:
+    image: nginx:alpine
+    container_name: pharma360-nginx-prod
+    restart: unless-stopped
+    depends_on:
+      pharma360-backend:
+        condition: service_healthy
+      pharma360-frontend:
+        condition: service_healthy
+      pharma360-ia:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - pharma360-prod-network
+    volumes:
+      - ./docker/nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 25s
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+# Volumes pour la persistance des données
+volumes:
+  pharma360-db-prod-data:
+    driver: local
+    name: pharma360-db-prod-data
+
+# Réseau dédié pour le projet en production
+networks:
+  pharma360-prod-network:
+    driver: bridge
+    name: pharma360-prod-network
