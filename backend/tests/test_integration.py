@@ -14,7 +14,8 @@ from backend.core.config import settings
 from backend.core.database import get_db, Base
 from backend.models.user import User
 from backend.models.role import Role
-from backend.models.product import Product, Category
+from backend.models.product import Product
+from backend.models.category import Category
 from backend.models.batch import Batch
 from backend.models.sale import Sale
 from backend.main import app
