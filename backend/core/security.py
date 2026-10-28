@@ -46,6 +46,10 @@ class PasswordUtils:
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash"""
+        # Tronquer à 72 bytes pour correspondre au hash
+        plain_password_bytes = plain_password.encode('utf-8')
+        if len(plain_password_bytes) > 72:
+            plain_password = plain_password[:72]
         return pwd_context.verify(plain_password, hashed_password)
     
     @staticmethod
