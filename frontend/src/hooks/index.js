@@ -1,21 +1,6 @@
-// Export all hooks
-import { useAuth, AuthProvider } from './useAuth'
-import { useBarcodeScanner, BarcodeScannerProvider } from './useBarcodeScanner'
-import { useCart, CartProvider } from './useCart'
-import { useWebSocket, WebSocketProvider, withWebSocket } from './useWebSocket'
-import { useAlerts, AlertsProvider, withAlerts } from './useAlerts'
-
-export {
-  useAuth,
-  AuthProvider,
-  useBarcodeScanner,
-  BarcodeScannerProvider,
-  useCart,
-  CartProvider,
-  useWebSocket,
-  WebSocketProvider,
-  withWebSocket,
-  useAlerts,
-  AlertsProvider,
-  withAlerts,
-}
+// hooks/index.js - Centralized exports for hooks module
+export { useAuth, AuthProvider } from './useAuth';
+export { useBarcodeScanner, BarcodeScannerProvider } from './useBarcodeScanner';
+export { useCart, CartProvider } from './useCart';
+export { useWebSocket, WebSocketProvider, withWebSocket } from './useWebSocket';
+export { useAlerts, AlertsProvider, withAlerts } from './useAlerts';

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { format } from 'date-fns'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/utils.js'
 
 const toInput = (d) => (d ? format(d, 'yyyy-MM-dd') : '')
 const fromInput = (s) => (s ? new Date(`${s}T00:00:00`) : undefined)
