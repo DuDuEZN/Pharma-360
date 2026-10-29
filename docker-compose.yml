@@ -100,7 +100,7 @@ services:
       pharma360-backend:
         condition: service_healthy
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_PORT:-3000}:8080"
     networks:
       - pharma360-network
     healthcheck:

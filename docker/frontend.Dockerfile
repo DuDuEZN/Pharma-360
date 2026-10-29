@@ -1,5 +1,5 @@
 # ===========================================
-# Frontend Dockerfile - Pharma 360°
+# Frontend Dockerfile - Pharma 360
 # ===========================================
 # ID Tâche: QA-002
 # Responsable: QA/DevOps
@@ -29,37 +29,26 @@ COPY frontend/ .
 # Builder l'application
 RUN npm run build
 
-# Étape 2: Runtime (Nginx pour servir l'application compilée)
-FROM nginx:alpine
-
-# Configuration de l'image finale
-WORKDIR /usr/share/nginx/html
-
-# Copier la configuration Nginx personnalisée (HTTP only, no SSL)
-COPY docker/nginx/frontend.conf /etc/nginx/nginx.conf
+# Étape 2: Runtime (nginx-unprivileged pour éviter les problèmes de permissions)
+FROM nginxinc/nginx-unprivileged:alpine
 
 # Copier les fichiers de build depuis le builder
-COPY --from=builder /app/dist/ .
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Créer un utilisateur non-root pour la sécurité
-RUN adduser -D appuser && \
-    mkdir -p /var/log/nginx /var/cache/nginx && \
-    chown -R appuser:appuser /usr/share/nginx/html && \
-    chown -R appuser:appuser /var/log/nginx && \
-    chown -R appuser:appuser /var/cache/nginx
+# Copier la configuration Nginx personnalisée
+COPY docker/nginx/frontend.conf /etc/nginx/conf.d/default.conf
 
-# Basculer vers l'utilisateur non-root
-USER appuser
-
-# Variables d'environnement
-ENV NODE_ENV=production
+# Créer les répertoires nécessaires et régler les permissions
+RUN mkdir -p /var/cache/nginx /var/log/nginx /etc/nginx/conf.d && \
+    chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
 
 # Port d'écoute
-EXPOSE 80
+EXPOSE 8080
 
 # Healthcheck pour vérifier que Nginx est en bonne santé
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
 
 # Commande de démarrage
-CMD ["nginx", "-g", "daemon off; pid off;"]
+CMD ["nginx", "-g", "daemon off;"]
