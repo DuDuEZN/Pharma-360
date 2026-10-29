@@ -28,7 +28,7 @@ services:
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
       - ./scripts/backup-db.sh:/docker-entrypoint-initdb.d/backup-db.sh
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "${POSTGRES_PORT:-5433}:5434"
     networks:
       - pharma360-network
     healthcheck:
