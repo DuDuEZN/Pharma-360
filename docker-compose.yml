@@ -18,9 +18,9 @@ services:
     container_name: pharma360-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-pharma360_dev}
-      POSTGRES_USER: ${POSTGRES_USER:-pharma_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pharma_pass_2025}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "--data-checksums"
       TZ: Africa/Porto-Novo
     volumes:
@@ -32,7 +32,7 @@ services:
     networks:
       - pharma360-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pharma_user} -d ${POSTGRES_DB:-pharma360_dev}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
