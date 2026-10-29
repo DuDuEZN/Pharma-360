@@ -9,7 +9,7 @@
 # ===========================================
 
 # Étape 1: Build (pour installer Tesseract et les dépendances ML)
-FROM python:3.11-slim as builder
+FROM python:3.11-slim-bookworm as builder
 
 # Configuration du builder
 WORKDIR /app
@@ -42,7 +42,7 @@ COPY ia/requirements.txt .
 RUN pip install --user -r requirements.txt
 
 # Étape 2: Runtime (image finale optimisée)
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 # Configuration de l'image finale
 WORKDIR /app
