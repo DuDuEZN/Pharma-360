@@ -106,10 +106,10 @@ services:
       - pharma360-network
     healthcheck:
       test: ["CMD", "wget -q --spider http://127.0.0.1:8080/ || exit 1"]
-      interval: 10s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 5
-      start_period: 10s
+      start_period: 15s
 
   # Service IA (OCR + Analytics)
   pharma360-ia:
