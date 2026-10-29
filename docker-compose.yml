@@ -80,9 +80,9 @@ services:
       retries: 3
       start_period: 10s
     volumes:
-      - ./backend:/app:ro
-      - ./backend/logs:/app/logs
-      - ./backend/uploads:/app/uploads
+      - ./backend:/app/backend:ro
+      - ./backend/logs:/app/backend/logs
+      - ./backend/uploads:/app/backend/uploads
 
   # Service Frontend (React + Nginx)
   pharma360-frontend:

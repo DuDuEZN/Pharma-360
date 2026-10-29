@@ -12,10 +12,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .core.config import settings
-from .core.database import engine
-from .core.security import add_security_headers, oauth2_scheme
-from .core.logging import setup_logging, get_logger
+from backend.core.config import settings
+from backend.core.database import engine
+from backend.core.security import add_security_headers, oauth2_scheme
+from backend.core.logging import setup_logging, get_logger
 
 # Initialize centralized logging system
 logging_service = setup_logging({
@@ -105,8 +105,8 @@ async def root():
 
 
 # Import and include API routers
-from .api.v1 import routers as v1_routers
-from .api.websocket import router as websocket_router
+from backend.api.v1 import routers as v1_routers
+from backend.api.websocket import router as websocket_router
 
 # Include v1 REST API routers
 for router in v1_routers:
@@ -129,7 +129,7 @@ async def logging_middleware(request: Request, call_next):
     
     # Log API requests
     if request.url.path.startswith("/api"):
-        from .core.logging import log_api_request
+        from backend.core.logging import log_api_request
         log_api_request(
             method=request.method,
             path=str(request.url),
