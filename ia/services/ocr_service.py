@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from fastapi import UploadFile, File, HTTPException
-from backend.core.config import settings
+from ia.core.config import settings
 from ia.ocr.invoice_ocr import InvoiceOCR, extract_invoice_data
 
 
@@ -43,8 +43,9 @@ class OCRService:
             file_path = self._save_uploaded_file(file)
             ocr_data = self._process_file(file_path)
             
-            if not supplier_id and ocr_data.get('supplier'):
-                supplier_id = await self._match_supplier(ocr_data['supplier'])
+            # supplier matching disabled in standalone IA service
+            # if not supplier_id and ocr_data.get('supplier'):
+            #     supplier_id = await self._match_supplier(ocr_data['supplier'])
             
             result = {
                 'status': 'success',
@@ -123,22 +124,10 @@ class OCRService:
             return {'status': 'error', 'error': str(e)}
     
     async def _match_supplier(self, supplier_name: str) -> Optional[str]:
-        """Match supplier name with existing suppliers"""
-        try:
-            from backend.services.supplier_service import supplier_service
-            
-            suppliers = await supplier_service.get_all_suppliers()
-            supplier_name_lower = supplier_name.lower()
-            
-            for supplier in suppliers:
-                if supplier_name_lower in supplier.name.lower() or \
-                   supplier.name.lower() in supplier_name_lower:
-                    return supplier.id
-            
-            return None
-            
-        except Exception:
-            return None
+        """Match supplier name with existing suppliers - Disabled in standalone mode"""
+        # Supplier matching requires backend integration
+        # In standalone IA service, this is disabled
+        return None
     
     async def extract_from_image_path(self, image_path: str) -> Dict[str, Any]:
         """Extract data from image file path"""

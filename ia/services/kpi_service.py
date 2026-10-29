@@ -6,11 +6,7 @@ Automatic KPI generation and analytics
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
-from backend.core.config import settings
-from backend.services.sale_service import sale_service
-from backend.services.product_service import product_service
-from backend.services.batch_service import batch_service
-from backend.services.supplier_service import supplier_service
+from ia.core.config import settings
 
 
 class KPIService:
@@ -20,7 +16,7 @@ class KPIService:
     """
     
     def __init__(self):
-        self.cache_ttl = settings.redis_cache_ttl if hasattr(settings, 'redis_cache_ttl') else 3600
+        self.cache_ttl = 3600  # Default cache TTL in seconds
     
     async def generate_daily_kpis(self, date: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -121,25 +117,21 @@ class KPIService:
             Dictionary with monthly KPIs
         """
         try:
-            # Get all sales for the month
+            # Mock monthly data for standalone IA service
             start_date = f"{year}-{month:02d}-01"
             end_date = (datetime(year, month, 1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
             end_date_str = end_date.strftime('%Y-%m-%d')
             
-            sales_data = await sale_service.get_sales_by_date_range(
-                start_date, end_date_str
-            )
-            
-            # Calculate monthly metrics
-            total_sales = len(sales_data)
-            total_revenue = sum(sale.total_amount for sale in sales_data)
-            avg_sale_value = total_revenue / total_sales if total_sales > 0 else 0
+            # Mock data
+            total_sales = 0
+            total_revenue = 0.0
+            avg_sale_value = 0.0
             
             # Get stock metrics
             stock_stats = await self._get_stock_stats()
             
-            # Get top products
-            top_products = await self._get_top_products(start_date, end_date_str)
+            # Mock top products
+            top_products = []
             
             return {
                 'year': year,
@@ -173,21 +165,14 @@ class KPIService:
     async def _get_sales_stats(self, date: str) -> Dict[str, Any]:
         """Get sales statistics for a specific date"""
         try:
-            # Get sales for the day
-            start_date = date
-            end_date = (datetime.strptime(date, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
+            # Mock sales data for standalone IA service
+            # In production, this would fetch from backend
+            total_sales = 0
+            total_revenue = 0.0
+            avg_sale_value = 0.0
             
-            sales = await sale_service.get_sales_by_date_range(start_date, end_date)
-            
-            total_sales = len(sales)
-            total_revenue = sum(sale.total_amount for sale in sales)
-            avg_sale_value = total_sales / total_sales if total_sales > 0 else 0
-            
-            # Get sales by hour
+            # Mock hourly distribution
             hourly_sales = {}
-            for sale in sales:
-                hour = datetime.strptime(sale.created_at, '%Y-%m-%d %H:%M:%S').hour
-                hourly_sales[hour] = hourly_sales.get(hour, 0) + 1
             
             return {
                 'date': date,
@@ -195,7 +180,7 @@ class KPIService:
                 'total_revenue': total_revenue,
                 'average_sale_value': avg_sale_value,
                 'hourly_distribution': hourly_sales,
-                'peak_hour': max(hourly_sales.items(), key=lambda x: x[1])[0] if hourly_sales else None
+                'peak_hour': None
             }
             
         except Exception as e:
@@ -205,42 +190,15 @@ class KPIService:
             }
     
     async def _get_stock_stats(self) -> Dict[str, Any]:
-        """Get stock statistics"""
+        """Get stock statistics - Mock data for standalone IA service"""
         try:
-            # Get all batches
-            batches = await batch_service.get_all_batches()
-            
-            total_batches = len(batches)
-            total_quantity = sum(batch.quantity for batch in batches)
-            
-            # Count expiring soon (within 30 days)
-            expiring_soon = 0
-            low_stock = 0
-            today = datetime.now().date()
-            
-            for batch in batches:
-                if batch.expiry_date:
-                    expiry_date = datetime.strptime(batch.expiry_date, '%Y-%m-%d').date()
-                    days_until_expiry = (expiry_date - today).days
-                    if 0 <= days_until_expiry <= 30:
-                        expiring_soon += 1
-                
-                if batch.quantity <= batch.min_stock_threshold:
-                    low_stock += 1
-            
-            # Get products by category
-            products = await product_service.get_all_products()
-            category_distribution = {}
-            for product in products:
-                category = product.category or 'Autre'
-                category_distribution[category] = category_distribution.get(category, 0) + 1
-            
+            # Mock data - In production, this would fetch from backend
             return {
-                'total_batches': total_batches,
-                'total_quantity': total_quantity,
-                'expiring_soon': expiring_soon,
-                'low_stock': low_stock,
-                'category_distribution': category_distribution
+                'total_batches': 0,
+                'total_quantity': 0,
+                'expiring_soon': 0,
+                'low_stock': 0,
+                'category_distribution': {}
             }
             
         except Exception as e:
@@ -249,23 +207,14 @@ class KPIService:
             }
     
     async def _get_supplier_stats(self, date: str) -> Dict[str, Any]:
-        """Get supplier statistics"""
+        """Get supplier statistics - Mock data for standalone IA service"""
         try:
-            suppliers = await supplier_service.get_all_suppliers()
-            
-            total_suppliers = len(suppliers)
-            active_suppliers = sum(1 for s in suppliers if s.is_active)
-            
-            # Get invoices for the day
-            start_date = date
-            end_date = (datetime.strptime(date, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
-            invoices = await supplier_service.get_invoices_by_date_range(start_date, end_date)
-            
+            # Mock data - In production, this would fetch from backend
             return {
-                'total_suppliers': total_suppliers,
-                'active_suppliers': active_suppliers,
-                'invoices_received': len(invoices),
-                'total_invoice_value': sum(inv.total_amount for inv in invoices)
+                'total_suppliers': 0,
+                'active_suppliers': 0,
+                'invoices_received': 0,
+                'total_invoice_value': 0.0
             }
             
         except Exception as e:
@@ -274,36 +223,10 @@ class KPIService:
             }
     
     async def _get_top_products(self, start_date: str, end_date: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """Get top selling products"""
+        """Get top selling products - Mock data for standalone IA service"""
         try:
-            sales = await sale_service.get_sales_by_date_range(start_date, end_date)
-            
-            # Aggregate by product
-            product_sales = {}
-            for sale in sales:
-                for item in sale.items:
-                    product_id = item.product_id
-                    product_sales[product_id] = product_sales.get(product_id, 0) + item.quantity
-            
-            # Sort by quantity
-            sorted_products = sorted(
-                product_sales.items(),
-                key=lambda x: x[1],
-                reverse=True
-            )[:limit]
-            
-            # Get product details
-            top_products = []
-            for product_id, quantity in sorted_products:
-                product = await product_service.get_product_by_id(product_id)
-                if product:
-                    top_products.append({
-                        'product_id': product_id,
-                        'name': product.name,
-                        'quantity_sold': quantity
-                    })
-            
-            return top_products
+            # Mock data - In production, this would fetch from backend
+            return []
             
         except Exception as e:
             return []
