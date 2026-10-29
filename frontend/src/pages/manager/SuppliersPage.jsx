@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, FileText, Eye, Edit, Trash2, Plus, Search, Download, Camera } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 import { toast } from 'sonner';
 
 const SuppliersPage = () => {

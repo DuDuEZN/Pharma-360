@@ -6,7 +6,7 @@ import { Calendar, DollarSign, Package, AlertTriangle, TrendingUp, TrendingDown,
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 
 // Register ChartJS components
 ChartJS.register(
