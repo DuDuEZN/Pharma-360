@@ -12,10 +12,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .core.config import settings
-from .core.database import engine
-from .core.security import add_security_headers, oauth2_scheme
-from .core.logging import setup_logging, get_logger
+from core.config import settings
+from core.database import engine
+from core.security import add_security_headers, oauth2_scheme
+from core.logging import setup_logging, get_logger
 
 # Initialize centralized logging system
 logging_service = setup_logging({
