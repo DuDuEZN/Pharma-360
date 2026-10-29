@@ -33,8 +33,9 @@ class IASettings(BaseSettings):
     app_debug: bool = True
     
     class Config:
-        env_file = ".env"
+        env_file = ".env.ia"
         env_file_encoding = 'utf-8'
+        extra = "ignore"
 
 
 # Create settings instance
