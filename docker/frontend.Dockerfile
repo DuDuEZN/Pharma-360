@@ -35,8 +35,8 @@ FROM nginx:alpine
 # Configuration de l'image finale
 WORKDIR /usr/share/nginx/html
 
-# Copier la configuration Nginx personnalisée
-COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+# Copier la configuration Nginx personnalisée (HTTP only, no SSL)
+COPY docker/nginx/frontend.conf /etc/nginx/nginx.conf
 
 # Copier les fichiers de build depuis le builder
 COPY --from=builder /app/dist/ .
