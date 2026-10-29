@@ -473,7 +473,7 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO suppliers (name, contact, email, phone, address, city, country) VALUES 
     ('Fournisseur Générique', 'Jean Dupont', 'contact@fournisseur.com', '+229 12 34 56 78', 
      '123 Rue de la Santé', 'Cotonou', 'Bénin')
-ON CONFLICT (name) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Utilisateur admin par défaut (à utiliser pour la première connexion)
 -- NOTE: Le mot de passe doit être hashé avant insertion
