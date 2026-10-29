@@ -372,6 +372,7 @@ $$ language 'plpgsql';
 CREATE TRIGGER IF NOT EXISTS update_sale_item_expiry_date
     BEFORE INSERT ON sale_items
     FOR EACH ROW
+    EXECUTE FUNCTION set_sale_item_expiry_date();
 
 -- REC-002: Ajouter trigger pour sale_items.expiry_date sur UPDATE
 CREATE OR REPLACE FUNCTION update_sale_item_expiry_date()
@@ -393,7 +394,6 @@ CREATE TRIGGER update_sale_item_expiry_date_on_update
     BEFORE UPDATE ON sale_items
     FOR EACH ROW
     EXECUTE FUNCTION update_sale_item_expiry_date();
-    EXECUTE FUNCTION set_sale_item_expiry_date();
 
 -- Trigger pour valider que quantity <= initial_quantity dans batches
 CREATE OR REPLACE FUNCTION IF NOT EXISTS check_batch_quantity()
@@ -451,7 +451,7 @@ CREATE TRIGGER IF NOT EXISTS log_batch_quantity_change_trigger
     AFTER UPDATE ON batches
     FOR EACH ROW
     WHEN (OLD.quantity IS DISTINCT FROM NEW.quantity)
-    EXECUTE FUNCTION log_batch_quantity_change();
+    EXECUTE PROCEDURE log_batch_quantity_change();
 
 -- =============================================================================
 -- 6. DONNÉES INITIALES (Optionnel - pour démonstration)

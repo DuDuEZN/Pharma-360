@@ -12,6 +12,8 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Dict, Any
 
 from .config import settings
 
@@ -161,16 +163,31 @@ class RBACUtils:
 # Dependency for getting current user
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)]
-) -> dict:
+) -> Dict[str, Any]:
     """
-    Dependency that provides the current authenticated user
+    Dependency that provides the current authenticated user from JWT payload
     """
     try:
         payload = JWTUtils.decode_token(token)
+        user_id = payload.get("sub")
         
-        # In production, you would fetch user from database
-        # For now, we return the payload which should contain user info
-        return payload
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Return user data from JWT
+        # In production, you would fetch from database
+        return {
+            "id": int(user_id),
+            "username": payload.get("username", "unknown"),
+            "email": payload.get("email", "unknown@example.com"),
+            "full_name": payload.get("full_name", ""),
+            "role": payload.get("role", "seller"),
+            "is_active": True
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -189,9 +206,9 @@ def get_current_user_with_role(
     Factory for creating role-based access dependencies
     """
     async def dependency(
-        current_user: Annotated[dict, Depends(get_current_user)]
-    ) -> dict:
-        user_role = current_user.get("role")
+        current_user: Annotated[Dict[str, Any], Depends(get_current_user)]
+    ) -> Dict[str, Any]:
+        user_role = current_user.get("role", "seller")
         
         if required_role and not RBACUtils.has_permission(user_role, required_role):
             raise HTTPException(

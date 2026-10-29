@@ -1,277 +1,327 @@
-# 🏥 Pharmacie 360° - Plateforme de Gestion ERP
+# Pharma 360 - Plateforme de Gestion de Pharmacie
 
-**Version** : 1.0.0  
-**Statut** : 🚀 **DÉMARRAGE** (J1 - Phase 1: Fondations & Architecture)  
-**Date de début** : 2025-01-05  
-**Durée estimée** : 93 jours (13,3 semaines)  
+## 📋 Description
 
----
+Pharma 360 est une plateforme complète de gestion de pharmacie (ERP-style) conçue pour le marché béninois. Elle offre des fonctionnalités de gestion des ventes, des stocks, des fournisseurs, et de l'intelligence artificielle pour l'analyse prédictive.
 
-## 📋 **Description du Projet**
+## 🚀 Déploiement Rapide
 
-**Pharmacie 360°** est une **plateforme web locale (offline-first)** de gestion de pharmacie conçue pour le marché béninois. Elle intègre :
+### Prérequis
 
-- **Gestion des ventes et caisse** (avec sélection FEFO/FIFO automatique)
-- **Gestion des stocks et péremptions** (traçabilité complète des lots)
-- **Intelligence artificielle locale** (analyse prédictive, OCR pour factures)
-- **Administration et sécurité** (RBAC, sauvegardes automatiques)
-- **Architecture modulaire** (type ERP) pour une extensibilité future
+- **Docker** et **Docker Compose** installés
+- **WSL** (pour Windows) ou Linux/macOS
+- **Git** pour cloner le dépôt
 
----
+### Étapes de déploiement
 
-## 🎯 **Architecture Globale**
+#### 1. Cloner le dépôt
 
-```
-Pharmacie-360/
-├── backend/                  # API FastAPI (Python 3.11+)
-│   ├── core/                # Modèles SQLAlchemy + Logique métier
-│   ├── api/                 # Endpoints RESTful
-│   ├── schemas/             # Pydantic Models
-│   ├── services/            # Services métiers
-│   ├── config/              # Configuration (Docker, .env)
-│   └── tests/               # Tests unitaires (pytest)
-│
-├── frontend/                # React.js + Vite + Tailwind CSS
-│   ├── public/              # Assets statiques
-│   ├── src/
-│   │   ├── components/      # Composants réutilisables
-│   │   ├── pages/           # Pages par session (Admin, Vente, Caisse, Gestionnaire)
-│   │   ├── hooks/           # Custom Hooks
-│   │   ├── services/        # Appels API
-│   │   ├── context/         # React Context (Auth, WebSocket)
-│   │   └── utils/           # Fonctions utilitaires
-│   └── tests/               # Tests frontend (Jest)
-│
-├── ia/                      # Module IA (Python 3.11+)
-│   ├── ocr/                 # OCR Factures (pytesseract)
-│   ├── analytics/           # Analyse prédictive (Pandas, Scikit-Learn)
-│   ├── models/              # Modèles ML (Stock Rotation, Rupture Prediction)
-│   └── tests/               # Tests IA
-│
-├── docker/                  # Configuration Docker
-│   ├── backend.Dockerfile
-│   ├── frontend.Dockerfile
-│   ├── ia.Dockerfile
-│   ├── docker-compose.yml
-│   └── nginx.conf
-│
-├── scripts/                 # Scripts utilitaires
-│   ├── backup_db.sh         # Sauvegarde PostgreSQL
-│   ├── restore_db.sh        # Restauration
-│   └── start.sh             # Lancement complet
-│
-├── docs/                    # Documentation
-│   ├── ARCHITECTURE.md      # Schéma d'architecture (Mermaid)
-│   ├── API_DOCS.md          # Documentation Swagger/OpenAPI
-│   ├── DEV_GUIDE.md         # Guide de développement
-│   └── DEPLOYMENT.md        # Guide de déploiement
-│
-├── .github/                 # GitHub Configuration
-│   ├── workflows/           # GitHub Actions (CI/CD)
-│   └── PULL_REQUEST_TEMPLATE.md
-│
-└── README.md                # Ce fichier
-```
-
----
-
-## 🛠 **Stack Technique**
-
-| Composant          | Technologie                          | Version       |
-|--------------------|--------------------------------------|---------------|
-| **Backend**        | Python (FastAPI)                     | 3.11+         |
-| **Frontend**       | React.js + Vite + Tailwind CSS        | Node 18+      |
-| **Base de Données**| PostgreSQL                           | 15+           |
-| **IA/OCR**         | Python (pytesseract, Pandas, Scikit-Learn) | 3.11+     |
-| **Conteneurisation**| Docker + Docker Compose              | Latest        |
-| **WebServer**      | Nginx                                | Latest        |
-| **Tests**          | pytest (Backend), Jest (Frontend)     | Latest        |
-
----
-
-## 📅 **Calendrier du Projet**
-
-### **Phases et Jalons**
-
-| Phase | Durée | Début | Fin | Livrables |
-|-------|-------|-------|-----|-----------|
-| **Phase 1** | 20j | J1 | J20 | Architecture validée, Docker fonctionnel |
-| **Phase 2** | 35j | J21 | J55 | Backend Base + Frontend Base |
-| **Phase 3** | 18j | J56 | J73 | Modules complémentaires + IA |
-| **Phase 4** | 20j | J74 | J93 | Tests + Déploiement |
-
-### **Jalons Clés**
-
-| Jalon | Date | Description |
-|-------|------|-------------|
-| **M0** | J1 | Début du Projet |
-| **M1** | J20 | **Architecture Validée** |
-| **M2** | J55 | **Backend Base Prêt** |
-| **M3** | J73 | **Frontend Base Prêt** |
-| **M4** | J88 | **Tous Modules Intégrés** |
-| **M5** | J93 | **Application Déployée** |
-
----
-
-## 👥 **Équipe et Rôles**
-
-| Rôle | Agent | Responsabilités |
-|------|-------|------------------|
-| **Superviseur** | `agent-superviseur-de-projet` | Coordination, validation des tâches, suivi global |
-| **Architecte** | `agent-superviseur-de-projet` | ARCH-001 à ARCH-004, VALID-001 |
-| **Backend Lead** | `agent-d-veloppeur-backend-lead` | BKND-001 à BKND-019 |
-| **Frontend** | `agent-d-veloppeur-frontend` | FRNT-001 à FRNT-015 |
-| **IA** | `agent-data-scientist-expert-ia` | IA-001 à IA-009 |
-| **QA/DevOps** | `agent-qa-quality-assurance-devops-engineer` | QA-001 à QA-016 |
-
----
-
-## 🚀 **Démarrage Rapide**
-
-### **Prérequis**
-- Docker + Docker Compose
-- Git
-- Python 3.11+ (pour développement local)
-- Node.js 18+ (pour développement frontend local)
-
-### **Installation**
 ```bash
-# Cloner le dépôt
 git clone https://github.com/DuDuEZN/Pharma-360.git
 cd Pharma-360
-
-# Lancer l'application complète (via Docker)
-./scripts/start.sh
 ```
 
-### **Accès aux Services**
-| Service | URL | Port |
-|---------|-----|------|
-| Frontend | `http://localhost:3000` | 3000 |
-| Backend API | `http://localhost:8000` | 8000 |
-| API Docs (Swagger) | `http://localhost:8000/docs` | 8000 |
-| PostgreSQL | `localhost:5432` | 5432 |
+#### 2. Configurer l'environnement
 
----
+Copier le fichier d'exemple et le personnaliser :
 
-## 📂 **Structure des Tâches**
-
-### **Phase 1: Fondations & Architecture (J1-J20)**
-- ✅ **ARCH-001** : Schéma d'Architecture Globale (Mermaid, modules, flux) - *5j*
-- ⏳ **ARCH-002** : Modèle de Données PostgreSQL (toutes tables + index FEFO/FIFO) - *3j*
-- ⏳ **QA-001** : Dockerfile Backend (Python 3.11 + FastAPI) - *2j*
-- ⏳ **QA-002** : Dockerfile Frontend (Node 18 + Nginx) - *2j*
-- ⏳ **QA-003** : Dockerfile IA (Python 3.11 + Tesseract OCR) - *2j*
-- ⏳ **QA-004** : docker-compose.yml + nginx.conf + .env - *1j*
-- ⏳ **ARCH-003** : Spécifications API Inter-Modules - *2j*
-- ⏳ **ARCH-004** : Guide de Développement - *2j*
-- ⏳ **VALID-001** : Validation ARCH-001 par tous les agents - *1j*
-- ⏳ **TEST-001** : Test Configuration Docker (start.sh) - *1j*
-
-### **Phase 2: Développement Backend & Frontend Base (J21-J55)**
-- **Backend** : BKND-001 à BKND-010 (Authentification, Produits, Stocks FEFO, Ventes, Caisse, WebSockets, Barcode)
-- **Frontend** : FRNT-001 à FRNT-007 (Structure React, Composants, BarcodeInput, Sessions Admin/Vente/Caisse)
-
-### **Phase 3: Modules Complémentaires (J56-J73)**
-- **Backend** : BKND-011 à BKND-019 (Retours, Facturation, Historique, Rapports, Optimisation, Cache Redis, Logs, Docs)
-- **Frontend** : FRNT-008 à FRNT-015 (Session Gestionnaire, Tableaux de Bord, OCR, Export PDF, Recherche Avancée, Notifications)
-- **IA** : IA-001 à IA-009 (Analyse Rotation, OCR Factures, Prédiction Ruptures, Intégration, KPIs, Alertes, Optimisation FEFO, Docs)
-
-### **Phase 4: Tests & Déploiement (J74-J93)**
-- **Tests** : QA-005 à QA-016 (Unitaires, Intégration, Frontend, IA, Robustesse Offline, Barcode, Performance, Sauvegardes, Docs, Corrections, Finaux, Déploiement)
-
----
-
-## 🔗 **Dépendances Critiques**
-
-```
-ARCH-001 
-  ├─→ ARCH-002 
-  │    └─→ ARCH-003 
-  │         └─→ ARCH-004 
-  │
-  ├─→ QA-001 (Backend Docker)
-  ├─→ QA-002 (Frontend Docker)
-  └─→ QA-003 (IA Docker)
-       └─→ QA-004 (docker-compose)
-            └─→ BKND-001 (Authentification)
-                 └─→ BKND-002, BKND-003
-                      └─→ BKND-004 (Stocks FEFO)
-                           └─→ BKND-006 → BKND-007 → BKND-008/BKND-009
+```bash
+cp .env.example .env
 ```
 
----
+Éditer le fichier `.env` pour configurer :
+- Les identifiants de la base de données
+- Les secrets JWT et de l'application
+- Les ports des services
 
-## 📊 **Suivi du Projet**
+#### 3. Construire et démarrer les conteneurs
 
-### **Outils**
-- **Suivi** : [GitHub Projects](https://github.com/DuDuEZN/Pharma-360/projects) (Tableau Kanban)
-- **Communication** : Slack (canaux : `#architecture`, `#backend`, `#frontend`, `#ia`, `#qa`)
-- **Documentation** : `/docs/` (Notion/Confluence pour les spécifications détaillées)
-- **Code** : GitHub (branches par feature)
-- **CI/CD** : GitHub Actions
+```bash
+# Méthode 1: Utiliser docker-compose
+docker-compose up -d --build
 
-### **Réunions**
-- **Stand-up quotidiens** : 15 min/jour à 9h00 (heure locale)
-- **Réunions hebdomadaires** : 1h/semaine (vendredi après-midi)
-- **Revue de phase** : À chaque jalon (M1, M2, M3, M4, M5)
+# Méthode 2: Utiliser make (si disponible)
+make deploy
+```
 
----
+#### 4. Initialiser la base de données
 
-## 📌 **Conventions et Bonnes Pratiques**
+La base de données est initialisée automatiquement au premier démarrage. Cependant, vous pouvez créer des données de test :
 
-### **Git**
-- **Branching** : `feature/<ID_TACHE>` (ex: `feature/ARCH-001`)
-- **Commits** : Messages clairs et atomiques
-- **Pull Requests** : 1 PR par tâche, validation par le responsable du module + QA
+```bash
+# Attendre que les services soient prêts (environ 30 secondes)
+sleep 30
 
-### **Code**
-- **Backend** : Respect des conventions PEP 8, typage strict avec Pydantic
-- **Frontend** : Components modulaires, props typées (TypeScript si possible)
-- **IA** : Code documenté, modèles versionnés
-- **Tests** : Couverture > 90% pour le backend
+# Créer des données de test (utilisateurs, catégories, produits, etc.)
+python scripts/create_test_data.py
+```
 
-### **Sécurité**
-- **RBAC** : Contrôle d'accès strict selon les rôles
-- **Données** : Pas de stockage de données sensibles en clair
-- **Sauvegardes** : Automatiques et quotidiennes (script `backup_db.sh`)
+#### 5. Accéder à l'application
 
----
+- **Application Frontend** : http://localhost:3000
+- **API Backend** : http://localhost:8000
+- **Documentation API** : http://localhost:8000/docs
+- **Service IA** : http://localhost:8001
+- **IA Documentation** : http://localhost:8001/docs
 
-## ⚠️ **Risques et Mitigation**
+## 📊 Services Disponibles
 
-| Risque | Probabilité | Impact | Mitigation |
-|-------|-------------|--------|------------|
-| Retard ARCH-001 | Moyenne | Critique | Réaffecter ressources, simplifier scope |
-| Problème Docker | Faible | Élevé | Configuration alternative, support QA |
-| Backend en retard | Moyenne | Élevé | Prioriser BKND-001 à BKND-007 |
-| Frontend bloqué | Moyenne | Élevé | Commencer par FRNT-001 à FRNT-007 |
-| IA non fonctionnelle | Faible | Moyen | Règles métiers simples en fallback |
-| Tests échouent | Moyenne | Élevé | Session de debug collective |
+| Service | Port | Description |
+|---------|------|-------------|
+| pharma360-db | 5432 | Base de données PostgreSQL |
+| pharma360-backend | 8000 | API Backend (FastAPI) |
+| pharma360-frontend | 3000 | Interface utilisateur (React) |
+| pharma360-ia | 8001 | Service IA (OCR, Analytics, Alertes) |
+| pharma360-nginx | 80 | Reverse Proxy Nginx |
 
----
+## 🔐 Authentification
 
-## 🎉 **Livrables Finaux**
+### Compte par défaut
 
-- ✅ Application **100% locale** (offline-first)
-- ✅ **Modulaire** (intégration future de nouveaux modules)
-- ✅ **Gestion des stocks FEFO/FIFO** automatique
-- ✅ **Ventes et caisse** avec sélection intelligente des lots
-- ✅ **IA intégrée** (analyse prédictive, OCR factures)
-- ✅ **Sécurisée** (RBAC, sauvegardes automatiques)
-- ✅ **Documentée** (API, développement, déploiement)
-- ✅ **Testée** (couverture > 90%, robustesse offline)
+Après avoir exécuté `scripts/create_test_data.py`, les comptes suivants sont créés :
 
----
+| Utilisateur | Mot de passe | Rôle |
+|-------------|--------------|------|
+| admin | admin123 | admin |
+| seller1 | seller123 | seller |
+| cashier1 | cashier123 | cashier |
+| manager1 | manager123 | manager |
 
-## 📞 **Contact et Support**
+### Endpoints d'authentification
 
-- **Superviseur** : `agent-superviseur-de-projet`
-- **Backend Lead** : `agent-d-veloppeur-backend-lead`
-- **Frontend** : `agent-d-veloppeur-frontend`
-- **IA** : `agent-data-scientist-expert-ia`
-- **QA/DevOps** : `agent-qa-quality-assurance-devops-engineer`
+- **POST /api/auth/login** - Connexion
+- **POST /api/auth/refresh** - Rafraîchir le token
+- **POST /api/auth/register** - Créer un nouvel utilisateur (admin seulement)
+- **GET /api/auth/me** - Obtenir l'utilisateur actuel
 
----
+Exemple de requête de connexion :
 
-**© 2025 Pharmacie 360° - Tous droits réservés**
+```bash
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin123"}'
+```
+
+## 📦 Architecture du Projet
+
+```
+Pharma-360/
+├── backend/           # API Backend (FastAPI)
+│   ├── api/v1/        # Endpoints API
+│   ├── core/          # Configuration, sécurité, base de données
+│   ├── models/        # Modèles de données
+│   ├── schemas/       # Schémas Pydantic
+│   ├── services/      # Services métier
+│   └── main.py        # Point d'entrée
+├── frontend/          # Interface utilisateur (React)
+│   ├── src/           # Code source
+│   └── public/        # Assets statiques
+├── ia/               # Module IA
+│   ├── api/v1/        # Endpoints IA
+│   ├── core/          # Configuration IA
+│   ├── services/      # Services IA (OCR, KPIs, Alertes)
+│   └── main.py        # Point d'entrée IA
+├── docker/            # Configuration Docker
+│   ├── backend.Dockerfile
+│   ├── frontend.Dockerfile
+│   └── ia.Dockerfile
+├── scripts/           # Scripts utilitaires
+│   ├── init-db.sql    # Initialisation de la base de données
+│   ├── create_test_data.py  # Création des données de test
+│   └── test_deployment.py    # Tests de déploiement
+├── docker-compose.yml # Orchestration des services
+├── Makefile           # Commandes utiles
+└── README.md          # Documentation
+```
+
+## 🎯 Fonctionnalités Principales
+
+### 1. Gestion des Ventes et Caisse
+- Interface de recherche rapide des médicaments
+- Sélection par nom, DCI, catégorie ou emplacement
+- Gestion des files d'attente
+- Encaissements et rendu de monnaie
+
+### 2. Gestion des Stocks
+- Suivi des lots avec principe FEFO (First Expired, First Out)
+- Alertes de péremption proche
+- Alertes de rupture de stock
+- Traçabilité complète des mouvements
+
+### 3. Intelligence Artificielle
+- **OCR** : Reconnaissance optique des factures fournisseurs
+- **Analytics** : Analyse prédictive des stocks
+- **KPIs** : Indicateurs clés de performance
+- **Alertes** : Système d'alertes intelligentes
+
+### 4. Administration
+- Gestion des utilisateurs avec RBAC (rôles : admin, seller, cashier, manager)
+- Configuration des catégories et fournisseurs
+- Sauvegardes automatiques de la base de données
+
+## 📊 Endpoints API Principaux
+
+### Authentification
+- `POST /api/auth/login` - Connexion
+- `POST /api/auth/refresh` - Rafraîchir le token
+- `GET /api/auth/me` - Utilisateur actuel
+
+### Utilisateurs
+- `GET /api/v1/users/` - Lister les utilisateurs (admin)
+- `POST /api/v1/users/` - Créer un utilisateur (admin)
+- `GET /api/v1/users/{id}` - Détails d'un utilisateur
+- `PUT /api/v1/users/{id}` - Mettre à jour un utilisateur
+
+### Produits
+- `GET /api/v1/products/` - Lister les produits
+- `POST /api/v1/products/` - Créer un produit
+- `GET /api/v1/products/{id}` - Détails d'un produit
+- `PUT /api/v1/products/{id}` - Mettre à jour un produit
+- `DELETE /api/v1/products/{id}` - Supprimer un produit
+
+### Lots (Batches)
+- `GET /api/v1/batches/` - Lister les lots
+- `POST /api/v1/batches/` - Créer un lot
+- `GET /api/v1/batches/{id}` - Détails d'un lot
+- `PUT /api/v1/batches/{id}` - Mettre à jour un lot
+
+### Ventes
+- `GET /api/v1/sales/` - Lister les ventes
+- `POST /api/v1/sales/` - Créer une vente
+- `GET /api/v1/sales/{id}` - Détails d'une vente
+
+### Fournisseurs
+- `GET /api/v1/suppliers/` - Lister les fournisseurs
+- `POST /api/v1/suppliers/` - Créer un fournisseur
+- `GET /api/v1/suppliers/{id}` - Détails d'un fournisseur
+
+### Module IA
+- `POST /api/v1/ocr/invoices` - Traiter une facture avec OCR
+- `GET /api/v1/kpis` - Obtenir les KPIs
+- `GET /api/v1/alerts/` - Lister les alertes
+- `GET /api/v1/dashboard/` - Tableau de bord IA
+
+## 🔧 Commandes Utiles
+
+### Démarrage
+```bash
+# Démarrer tous les services
+docker-compose up -d
+
+# Démarrer avec reconstruction
+docker-compose up -d --build
+
+# Démarrer un service spécifique
+docker-compose up -d pharma360-backend
+```
+
+### Arrêt
+```bash
+# Arrêter tous les services
+docker-compose down
+
+# Arrêter et supprimer les volumes
+docker-compose down -v
+```
+
+### Logs
+```bash
+# Voir les logs de tous les services
+docker-compose logs -f
+
+# Voir les logs d'un service spécifique
+docker-compose logs -f pharma360-backend
+```
+
+### Base de données
+```bash
+# Accéder à la base de données
+psql -U pharma_user -d pharma360_dev -h localhost -p 5432
+
+# Sauvegarder la base de données
+pg_dump -U pharma_user -d pharma360_dev > backup.sql
+```
+
+### Tests
+```bash
+# Exécuter les tests de déploiement
+python scripts/test_deployment.py
+
+# Créer des données de test
+python scripts/create_test_data.py
+```
+
+## 📝 Résolution des Problèmes
+
+### Problème : Les conteneurs ne démarrent pas
+
+Vérifiez que Docker est en cours d'exécution :
+```bash
+docker info
+```
+
+Vérifiez les logs des conteneurs :
+```bash
+docker-compose logs
+```
+
+### Problème : La base de données n'est pas accessible
+
+Attendez que le conteneur PostgreSQL soit prêt (environ 10-15 secondes) :
+```bash
+docker-compose logs pharma360-db
+```
+
+### Problème : Erreur de connexion à la base de données
+
+Vérifiez que les identifiants dans `.env` correspondent à ceux du docker-compose.yml.
+
+### Problème : Le service IA ne démarre pas
+
+Assurez-vous que Tesseract OCR est installé dans le conteneur. Le Dockerfile IA l'installe automatiquement.
+
+### Problème : Erreur de port déjà utilisé
+
+Changez les ports dans le fichier `.env` ou arrêtez les services qui utilisent les mêmes ports.
+
+## 🎓 Guide de Développement
+
+### Configuration du développement
+
+1. Cloner le dépôt
+2. Créer un environnement virtuel :
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Linux/macOS
+   venv\Scripts\activate   # Windows
+   ```
+3. Installer les dépendances :
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   ```
+
+### Exécuter le backend en développement
+
+```bash
+cd backend
+uvicorn main:app --reload --port 8000
+```
+
+### Exécuter le service IA en développement
+
+```bash
+cd ia
+uvicorn main:app --reload --port 8001
+```
+
+## 📞 Support
+
+Pour toute question ou problème :
+- Vérifiez la section **Résolution des Problèmes** ci-dessus
+- Consultez les logs des conteneurs
+- Vérifiez que tous les services sont en cours d'exécution : `docker-compose ps`
+
+## 📜 Licence
+
+Tous droits réservés - Pharmacie 360 - 2025
