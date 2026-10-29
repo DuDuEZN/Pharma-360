@@ -36,7 +36,7 @@ FROM nginx:alpine
 WORKDIR /usr/share/nginx/html
 
 # Copier la configuration Nginx personnalisée
-COPY docker/nginx/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 
 # Copier les fichiers de build depuis le builder
 COPY --from=builder /app/dist/ .
