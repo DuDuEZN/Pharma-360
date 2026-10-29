@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card.jsx';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement } from 'chart.js';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import { Calendar, DollarSign, Package, AlertTriangle, TrendingUp, TrendingDown, Users, FileText } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DatePickerWithRange } from '@/components/ui/date-range-picker';
-import { api } from '@/services/api';
+import { Button } from '@/components/ui/button.jsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker.jsx';
+import { api } from '@/services/api.js';
 
 // Register ChartJS components
 ChartJS.register(

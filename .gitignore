@@ -155,6 +155,12 @@ dist/
 
 ---
 
+## 📁 **Frontend lib directory**
+!frontend/src/lib/
+!frontend/src/lib/*.js
+
+---
+
 ## 🗃️ **Base de Données (PostgreSQL)**
 # PostgreSQL
 # Exclure les fichiers SQL temporaires, mais PAS ceux dans scripts/

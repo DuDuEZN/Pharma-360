@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Bell, X, CheckCircle, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from './Button';
-import { Badge } from '@/components/ui/badge';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import { Badge } from '@/components/ui/badge.jsx';
+import { useWebSocket } from '@/hooks/useWebSocket.jsx';
 
 /**
  * NotificationCenter Component for Pharma-360
