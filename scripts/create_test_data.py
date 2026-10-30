@@ -36,7 +36,7 @@ async def create_test_data():
         from backend.core.security import PasswordUtils, JWTUtils
         
         # Create database connection
-        DATABASE_URL = f"postgresql+asyncpg://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:{os.environ['POSTGRES_PORT']}/{os.environ['POSTGRES_DB']}"
+        DATABASE_URL = f"postgresql+asyncpg://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:{os.environ['POSTGRES_PORT']}/{os.environ['POSTGRES_DB']}?ssl=disable"
         engine = create_async_engine(DATABASE_URL)
         
         async with engine.begin() as conn:
