@@ -7,6 +7,10 @@
 -- Tâche: ARCH-002 (Modèle de Données PostgreSQL)
 -- =============================================================================
 
+-- Créer la base de données si elle n'existe pas
+CREATE DATABASE pharma360_dev;
+\c pharma360_dev
+
 -- Ce script crée toutes les tables, index et triggers nécessaires pour
 -- la plateforme Pharmacie 360°. Il est exécuté automatiquement au
 -- premier démarrage de PostgreSQL via docker-compose.
