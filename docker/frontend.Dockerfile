@@ -14,9 +14,6 @@ FROM node:18-alpine as builder
 # Configuration du builder
 WORKDIR /app
 
-# Installer les dépendances nécessaires
-RUN apk add --no-cache python3 make g++
-
 # Copier les fichiers de dépendances
 COPY frontend/package.json frontend/package-lock.json ./
 
