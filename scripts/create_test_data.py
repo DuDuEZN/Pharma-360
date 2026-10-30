@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 # Add the backend directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # Set environment variables for testing
 os.environ['POSTGRES_HOST'] = 'localhost'
