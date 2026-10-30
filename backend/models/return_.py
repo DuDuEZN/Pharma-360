@@ -80,9 +80,10 @@ class Return(Base):
         "Batch",
         back_populates="returns"
     )
+    # Relation à sens unique : Product.sale_items référence SaleItem, pas Return
+    # (back_populates="sale_items" faisait échouer la configuration des mappers).
     product: Mapped["Product"] = relationship(
         "Product",
-        back_populates="sale_items",
         foreign_keys=[product_id]
     )
     user: Mapped["User"] = relationship(
