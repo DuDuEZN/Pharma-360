@@ -14,8 +14,8 @@ from typing import Optional
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # Set environment variables for testing
-os.environ['POSTGRES_HOST'] = 'localhost'
-os.environ['POSTGRES_PORT'] = '5432'
+os.environ['POSTGRES_HOST'] = '127.0.0.1'
+os.environ['POSTGRES_PORT'] = '5433'
 os.environ['POSTGRES_DB'] = 'pharma360_dev'
 os.environ['POSTGRES_USER'] = 'pharma_user'
 os.environ['POSTGRES_PASSWORD'] = 'pharma_pass_2025'
