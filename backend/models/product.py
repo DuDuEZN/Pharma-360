@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from .supplier import Supplier
     from .batch import Batch
     from .sale_item import SaleItem
+    from .movement import Movement
 
 
 class Product(Base):
@@ -96,6 +97,11 @@ class Product(Base):
         "Supplier",
         back_populates="products",
         foreign_keys="Product.supplier_id"
+    )
+    movements: Mapped[list["Movement"]] = relationship(
+        "Movement",
+        back_populates="product",
+        foreign_keys="Movement.product_id"
     )
     batches: Mapped[list["Batch"]] = relationship(
         "Batch",
