@@ -14,6 +14,7 @@ from .base import Base
 if TYPE_CHECKING:
     from .sale import Sale
     from .return_ import Return
+    from .report import Report
 
 
 class User(Base):
@@ -70,6 +71,11 @@ class User(Base):
         "Movement",
         back_populates="user",
         foreign_keys="Movement.user_id"
+    )
+    generated_reports: Mapped[list["Report"]] = relationship(
+        "Report",
+        back_populates="generated_by_user",
+        foreign_keys="Report.generated_by"
     )
     
     # Constraints
