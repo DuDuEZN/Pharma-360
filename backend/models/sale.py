@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from .user import User
     from .customer import Customer
     from .sale_item import SaleItem
+    from .sale_history import SaleHistory
 
 
 class Sale(Base):
@@ -114,7 +115,12 @@ class Sale(Base):
         foreign_keys="SaleItem.sale_id",
         cascade="all, delete-orphan"
     )
-    
+    history_records: Mapped[list["SaleHistory"]] = relationship(
+        "SaleHistory",
+        back_populates="sale",
+        foreign_keys="SaleHistory.sale_id"
+    )
+
     # Constraints
     __table_args__ = (
         {
