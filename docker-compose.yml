@@ -27,7 +27,7 @@ services:
       - pharma360-db-data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     networks:
       - pharma360-network
     healthcheck:
