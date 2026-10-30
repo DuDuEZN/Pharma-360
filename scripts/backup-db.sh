@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # =============================================================================
 # PHARMACIE 360 - Script de Sauvegarde Automatique de la Base de Données
