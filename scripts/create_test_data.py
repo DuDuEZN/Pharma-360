@@ -7,7 +7,7 @@ Creates initial users, products, categories, and test data
 import asyncio
 import sys
 import os
-from datetime import datetime, timedelta
+from datetime import date, timedelta
 from typing import Optional
 
 # Add the backend directory to the path
@@ -319,11 +319,11 @@ async def create_test_data():
             {
                 'product_id': product_map.get('Paracétamol 500mg', 1),
                 'batch_number': 'PAR500-2025-001',
-                'expiry_date': (datetime.now() + timedelta(days=365*2)).strftime('%Y-%m-%d'),  # 2 years
+                'expiry_date': (date.today() + timedelta(days=365*2)),  # 2 years
                 'quantity': 100,
                 'initial_quantity': 100,
                 'location': 'A-01-01',
-                'received_date': datetime.now().strftime('%Y-%m-%d'),
+                'received_date': date.today(),
                 'supplier_id': supplier_map.get('Pharma Benin', 1),
                 'cost_price': 100.00,
                 'selling_price': 150.00,
@@ -332,11 +332,11 @@ async def create_test_data():
             {
                 'product_id': product_map.get('Amoxicilline 500mg', 1),
                 'batch_number': 'AMOX500-2025-001',
-                'expiry_date': (datetime.now() + timedelta(days=365*2)).strftime('%Y-%m-%d'),
+                'expiry_date': (date.today() + timedelta(days=365*2)),  # 2 years
                 'quantity': 50,
                 'initial_quantity': 50,
                 'location': 'B-02-01',
-                'received_date': datetime.now().strftime('%Y-%m-%d'),
+                'received_date': date.today(),
                 'supplier_id': supplier_map.get('Médicaments SA', 1),
                 'cost_price': 200.00,
                 'selling_price': 300.00,
@@ -345,11 +345,11 @@ async def create_test_data():
             {
                 'product_id': product_map.get('Artesunate 100mg', 1),
                 'batch_number': 'ART100-2025-001',
-                'expiry_date': (datetime.now() + timedelta(days=365*2)).strftime('%Y-%m-%d'),
+                'expiry_date': (date.today() + timedelta(days=365*2)),  # 2 years
                 'quantity': 200,
                 'initial_quantity': 200,
                 'location': 'C-03-01',
-                'received_date': datetime.now().strftime('%Y-%m-%d'),
+                'received_date': date.today(),
                 'supplier_id': supplier_map.get('Pharma Benin', 1),
                 'cost_price': 350.00,
                 'selling_price': 500.00,
@@ -358,11 +358,11 @@ async def create_test_data():
             {
                 'product_id': product_map.get('Vitamine C 500mg', 1),
                 'batch_number': 'VITC500-2025-001',
-                'expiry_date': (datetime.now() + timedelta(days=365*3)).strftime('%Y-%m-%d'),  # 3 years
+                'expiry_date': (date.today() + timedelta(days=365*3)),  # 3 years
                 'quantity': 500,
                 'initial_quantity': 500,
                 'location': 'D-04-01',
-                'received_date': datetime.now().strftime('%Y-%m-%d'),
+                'received_date': date.today(),
                 'supplier_id': supplier_map.get('Médicaments SA', 1),
                 'cost_price': 120.00,
                 'selling_price': 200.00,
