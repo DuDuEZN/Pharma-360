@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import text
+from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import settings
@@ -79,11 +79,17 @@ class AuthService:
     ) -> User:
         """Authenticate a user"""
         # Find user by username or email
+        # Requête ORM : renvoie une instance User (un SELECT * en SQL brut combiné à
+        # scalar_one_or_none() ne renvoyait que la 1re colonne, donc un int).
         result = await db.execute(
-            text("SELECT * FROM users WHERE username = :identifier OR email = :identifier"),
-            {"identifier": login_data.username}
+            select(User).where(
+                or_(
+                    User.username == login_data.username,
+                    User.email == login_data.username,
+                )
+            )
         )
-        user = result.scalar_one_or_none()
+        user = result.scalars().first()
         
         if not user:
             raise HTTPException(
@@ -138,8 +144,13 @@ class AuthService:
         )
         
         # Update last login
-        user.last_login = datetime.now(timezone.utc)
+        # La colonne users.last_login est TIMESTAMP WITHOUT TIME ZONE : asyncpg refuse un
+        # datetime avec fuseau, on stocke donc l'heure UTC "naive".
+        user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)
         await db.flush()
+        # updated_at est recalculé côté serveur (onupdate=func.now()) : on recharge l'objet
+        # pour éviter un lazy-load interdit en async (MissingGreenlet) dans model_validate.
+        await db.refresh(user)
         
         return LoginResponse(
             access_token=access_token,
@@ -207,10 +218,9 @@ class AuthService:
             
             # Fetch user from database
             result = await db.execute(
-                text("SELECT * FROM users WHERE id = :user_id"),
-                {"user_id": user_id}
+                select(User).where(User.id == int(user_id))
             )
-            user = result.scalar_one_or_none()
+            user = result.scalars().first()
             
             if not user:
                 raise HTTPException(
