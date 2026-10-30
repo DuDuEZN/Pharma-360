@@ -44,12 +44,10 @@ class Role(Base):
         nullable=False
     )
     
-    # Relationships
-    users: Mapped[list["User"]] = relationship(
-        "User",
-        back_populates="role_obj",
-        foreign_keys="User.role_id"
-    )
+# NOTE: pas de relation vers User. Dans le schéma actuel (init-db.sql), le rôle est
+# stocké dans la colonne texte users.role : il n'existe ni table "roles" ni colonne
+# users.role_id. L'ancienne relation (foreign_keys="User.role_id") faisait échouer la
+# configuration des mappers SQLAlchemy dès la première requête ORM.
     
     # Constraints
     __table_args__ = (
