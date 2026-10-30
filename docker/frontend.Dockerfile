@@ -32,9 +32,6 @@ RUN npm run build
 # Étape 2: Runtime (nginx-unprivileged)
 FROM nginxinc/nginx-unprivileged:alpine
 
-# Installer wget pour le healthcheck
-RUN apk add --no-cache wget
-
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY docker/nginx/frontend.conf /etc/nginx/conf.d/default.conf
 
