@@ -117,17 +117,17 @@ build_images() {
     
     # Backend
     log_info "Construction de l'image Backend..."
-    docker-compose -f docker/docker-compose.prod.yml build pharma360-backend || \
+    docker-compose --project-directory . -f docker/docker-compose.prod.yml build pharma360-backend || \
         log_error "Échec de la construction de l'image Backend"
     
     # Frontend
     log_info "Construction de l'image Frontend..."
-    docker-compose -f docker/docker-compose.prod.yml build pharma360-frontend || \
+    docker-compose --project-directory . -f docker/docker-compose.prod.yml build pharma360-frontend || \
         log_error "Échec de la construction de l'image Frontend"
     
     # IA
     log_info "Construction de l'image IA..."
-    docker-compose -f docker/docker-compose.prod.yml build pharma360-ia || \
+    docker-compose --project-directory . -f docker/docker-compose.prod.yml build pharma360-ia || \
         log_error "Échec de la construction de l'image IA"
     
     log_info "Toutes les images Docker construites avec succès."
@@ -141,11 +141,11 @@ start_containers() {
     
     # Arrêter les conteneurs existants
     log_info "Arrêt des conteneurs existants..."
-    docker-compose -f docker/docker-compose.prod.yml down || true
+    docker-compose --project-directory . -f docker/docker-compose.prod.yml down || true
     
     # Démarrer les conteneurs
     log_info "Démarrage des conteneurs..."
-    docker-compose -f docker/docker-compose.prod.yml up -d || \
+    docker-compose --project-directory . -f docker/docker-compose.prod.yml up -d || \
         log_error "Échec du démarrage des conteneurs"
     
     log_info "Conteneurs démarrés avec succès."
