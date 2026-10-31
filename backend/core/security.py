@@ -165,8 +165,7 @@ class RBACUtils:
 # Dependency for getting current user
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-+):
+    db: Annotated[AsyncSession, Depends(get_db)]):
     """
     Dependency that provides the current authenticated user (instance de models.User)
     chargée depuis la base à partir du JWT.
