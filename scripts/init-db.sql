@@ -7,9 +7,9 @@
 -- Tâche: ARCH-002 (Modèle de Données PostgreSQL)
 -- =============================================================================
 
--- Créer la base de données si elle n'existe pas
-CREATE DATABASE pharma360_dev;
-\c pharma360_dev
+-- NOTE: la base de données est créée par l'image postgres via POSTGRES_DB.
+-- Ce script s'exécute donc directement dedans (pas de CREATE DATABASE / \c ici :
+-- avec ON_ERROR_STOP=1 de l'entrypoint, cela interromprait toute l'initialisation).
 
 -- Ce script crée toutes les tables, index et triggers nécessaires pour
 -- la plateforme Pharmacie 360°. Il est exécuté automatiquement au
@@ -309,61 +309,70 @@ CREATE INDEX IF NOT EXISTS idx_movements_type ON movements(type);
 -- =============================================================================
 
 -- Trigger pour updated_at sur users
-CREATE TRIGGER IF NOT EXISTS update_users_updated_at
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur categories
-CREATE TRIGGER IF NOT EXISTS update_categories_updated_at
+DROP TRIGGER IF EXISTS update_categories_updated_at ON categories;
+CREATE TRIGGER update_categories_updated_at
     BEFORE UPDATE ON categories
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur suppliers
-CREATE TRIGGER IF NOT EXISTS update_suppliers_updated_at
+DROP TRIGGER IF EXISTS update_suppliers_updated_at ON suppliers;
+CREATE TRIGGER update_suppliers_updated_at
     BEFORE UPDATE ON suppliers
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur customers
-CREATE TRIGGER IF NOT EXISTS update_customers_updated_at
+DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
+CREATE TRIGGER update_customers_updated_at
     BEFORE UPDATE ON customers
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur products
-CREATE TRIGGER IF NOT EXISTS update_products_updated_at
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
+CREATE TRIGGER update_products_updated_at
     BEFORE UPDATE ON products
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur invoices
-CREATE TRIGGER IF NOT EXISTS update_invoices_updated_at
+DROP TRIGGER IF EXISTS update_invoices_updated_at ON invoices;
+CREATE TRIGGER update_invoices_updated_at
     BEFORE UPDATE ON invoices
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur batches
-CREATE TRIGGER IF NOT EXISTS update_batches_updated_at
+DROP TRIGGER IF EXISTS update_batches_updated_at ON batches;
+CREATE TRIGGER update_batches_updated_at
     BEFORE UPDATE ON batches
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur sales
-CREATE TRIGGER IF NOT EXISTS update_sales_updated_at
+DROP TRIGGER IF EXISTS update_sales_updated_at ON sales;
+CREATE TRIGGER update_sales_updated_at
     BEFORE UPDATE ON sales
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur returns
-CREATE TRIGGER IF NOT EXISTS update_returns_updated_at
+DROP TRIGGER IF EXISTS update_returns_updated_at ON returns;
+CREATE TRIGGER update_returns_updated_at
     BEFORE UPDATE ON returns
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour copier expiry_date depuis batches vers sale_items
-CREATE OR REPLACE FUNCTION IF NOT EXISTS set_sale_item_expiry_date()
+CREATE OR REPLACE FUNCTION set_sale_item_expiry_date()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.expiry_date := (
@@ -373,7 +382,8 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER IF NOT EXISTS update_sale_item_expiry_date
+DROP TRIGGER IF EXISTS update_sale_item_expiry_date ON sale_items;
+CREATE TRIGGER update_sale_item_expiry_date
     BEFORE INSERT ON sale_items
     FOR EACH ROW
     EXECUTE FUNCTION set_sale_item_expiry_date();
@@ -394,13 +404,14 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_sale_item_expiry_date_on_update ON sale_items;
 CREATE TRIGGER update_sale_item_expiry_date_on_update
     BEFORE UPDATE ON sale_items
     FOR EACH ROW
     EXECUTE FUNCTION update_sale_item_expiry_date();
 
 -- Trigger pour valider que quantity <= initial_quantity dans batches
-CREATE OR REPLACE FUNCTION IF NOT EXISTS check_batch_quantity()
+CREATE OR REPLACE FUNCTION check_batch_quantity()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.quantity > NEW.initial_quantity THEN
@@ -410,24 +421,28 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER IF NOT EXISTS validate_batch_quantity
+DROP TRIGGER IF EXISTS validate_batch_quantity ON batches;
+CREATE TRIGGER validate_batch_quantity
     BEFORE UPDATE ON batches
     FOR EACH ROW
     EXECUTE FUNCTION check_batch_quantity();
 
 -- Trigger pour enregistrer automatiquement les mouvements de stock
 -- Note: Ce trigger nécessite que app.current_user_id soit défini dans la session
-CREATE OR REPLACE FUNCTION IF NOT EXISTS log_batch_quantity_change()
+CREATE OR REPLACE FUNCTION log_batch_quantity_change()
 RETURNS TRIGGER AS $$
 DECLARE
     current_user_id_val INTEGER;
 BEGIN
     -- Récupérer l'ID de l'utilisateur courant depuis la variable de session
     -- En pratique, cela sera défini par l'application
-    SELECT current_setting('app.current_user_id')::INTEGER INTO current_user_id_val;
+    -- missing_ok = true : renvoie NULL (au lieu de lever une erreur) si la variable n'est pas définie
+    current_user_id_val := NULLIF(current_setting('app.current_user_id', true), '')::INTEGER;
     
     IF current_user_id_val IS NULL THEN
-        current_user_id_val := 1; -- Utilisateur système par défaut
+        -- Utilisateur système par défaut : le plus ancien utilisateur existant
+        -- (évite une violation de la clé étrangère movements.user_id -> users.id)
+        SELECT MIN(id) INTO current_user_id_val FROM users;
     END IF;
     
     IF NEW.quantity != OLD.quantity THEN
@@ -451,11 +466,12 @@ END;
 $$ language 'plpgsql';
 -- Trigger principal pour enregistrer automatiquement les mouvements de stock
 -- Utilise current_setting('app.current_user_id') pour obtenir l'ID de l'utilisateur
-CREATE TRIGGER IF NOT EXISTS log_batch_quantity_change_trigger
+DROP TRIGGER IF EXISTS log_batch_quantity_change_trigger ON batches;
+CREATE TRIGGER log_batch_quantity_change_trigger
     AFTER UPDATE ON batches
     FOR EACH ROW
     WHEN (OLD.quantity IS DISTINCT FROM NEW.quantity)
-    EXECUTE PROCEDURE log_batch_quantity_change();
+    EXECUTE FUNCTION log_batch_quantity_change();
 
 -- =============================================================================
 -- 6. DONNÉES INITIALES (Optionnel - pour démonstration)
