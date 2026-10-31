@@ -12,10 +12,12 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any
 
 from .config import settings
+from .database import get_db
 
 
 # Password hashing context
@@ -23,7 +25,7 @@ from .config import settings
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 # OAuth2 scheme for token authentication
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
 
 
 # Token types
@@ -162,40 +164,44 @@ class RBACUtils:
 
 # Dependency for getting current user
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)]
-) -> Dict[str, Any]:
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
++):
     """
-    Dependency that provides the current authenticated user from JWT payload
+    Dependency that provides the current authenticated user (instance de models.User)
+    chargée depuis la base à partir du JWT.
     """
+    # Import local pour éviter tout import circulaire core <-> models
+    from ..models.user import User
+
+    credentials_error = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )    
     try:
         payload = JWTUtils.decode_token(token)
         user_id = payload.get("sub")
-        
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Return user data from JWT
-        # In production, you would fetch from database
-        return {
-            "id": int(user_id),
-            "username": payload.get("username", "unknown"),
-            "email": payload.get("email", "unknown@example.com"),
-            "full_name": payload.get("full_name", ""),
-            "role": payload.get("role", "seller"),
-            "is_active": True
-        }
+            raise credentials_error
+        user_id = int(user_id)
+     except HTTPException:
+         raise
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
+        raise credentials_error
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+
+    if user is None:
+        raise credentials_error
+    if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Could not validate credentials: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User account is disabled",
         )
+    return user
 
 
 # Dependency for role-based access
@@ -205,19 +211,17 @@ def get_current_user_with_role(
     """
     Factory for creating role-based access dependencies
     """
-    async def dependency(
-        current_user: Annotated[Dict[str, Any], Depends(get_current_user)]
-    ) -> Dict[str, Any]:
-        user_role = current_user.get("role", "seller")
-        
+    async def dependency(current_user=Depends(get_current_user)):
+        user_role = current_user.role or "seller"
+
         if required_role and not RBACUtils.has_permission(user_role, required_role):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions"
             )
-        
+            
         return current_user
-    
+        
     return dependency
 
 
