@@ -117,11 +117,13 @@ class Batch(Base):
     # Relationships
     product: Mapped["Product"] = relationship(
         "Product",
-        back_populates="batches"
+        back_populates="batches",
+        lazy="selectin"  # chargement anticipé : les routes lisent batch.product.name
     )
     supplier: Mapped[Optional["Supplier"]] = relationship(
         "Supplier",
-        back_populates="batches"
+        back_populates="batches",
+        lazy="selectin"
     )
     purchase_invoice: Mapped[Optional["Invoice"]] = relationship(
         "Invoice",
