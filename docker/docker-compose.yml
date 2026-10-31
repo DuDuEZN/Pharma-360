@@ -26,7 +26,7 @@ services:
     volumes:
       - pharma360-db-data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-      - ./scripts/backup-db.sh:/docker-entrypoint-initdb.d/backup-db.sh
+      - ./scripts/backup-db.sh:/usr/local/bin/backup-db.sh:ro
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     networks:
@@ -36,12 +36,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    command: >
-      sh -c '
-        docker-entrypoint.sh postgres &
-        sleep 5
-        psql -U $$POSTGRES_USER -d $$POSTGRES_DB -f /docker-entrypoint-initdb.d/init-db.sql
-      '
 
   # Service Backend (FastAPI)
   pharma360-backend:
@@ -80,9 +74,9 @@ services:
       retries: 3
       start_period: 10s
     volumes:
-      - ./backend:/app:ro
-      - ./backend/logs:/app/logs
-      - ./backend/uploads:/app/uploads
+      - ./backend:/app/backend:ro
+      - pharma360-backend-logs:/app/logs
+      - pharma360-backend-uploads:/app/uploads
 
   # Service Frontend (React + Nginx)
   pharma360-frontend:
@@ -165,7 +159,7 @@ services:
     networks:
       - pharma360-network
     volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./docker/nginx/ssl:/etc/nginx/ssl:ro
       - ./frontend/dist:/usr/share/nginx/html:ro
     healthcheck:
@@ -180,6 +174,10 @@ volumes:
   pharma360-db-data:
     driver: local
     name: pharma360-db-data
+  pharma360-backend-logs:
+    name: pharma360-backend-logs
+  pharma360-backend-uploads:
+    name: pharma360-backend-uploads
 
 # Réseau dédié pour le projet
 networks:
