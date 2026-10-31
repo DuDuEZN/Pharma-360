@@ -105,10 +105,10 @@ function cleanup() {
     echo_info "Nettoyage de l'environnement..."
     
     # Arrêter et supprimer les conteneurs
-    docker-compose -f docker/docker-compose.yml down 2>/dev/null
+    docker-compose --project-directory . -f docker/docker-compose.yml down 2>/dev/null
     
     # Supprimer les images inutilisées (optionnel)
-    # docker system prune -f
+    docker system prune -f
     
     echo_success "Environnement nettoyé"
 }
@@ -117,10 +117,10 @@ function cleanup() {
 function build_images() {
     echo_info "Construction des images Docker..."
     
-    cd /workspace/github__DuDuEZN__Pharma-360
+    cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
     
     # Construire toutes les images
-    docker-compose -f docker/docker-compose.yml build --no-cache
+    docker-compose --project-directory . -f docker/docker-compose.yml build --no-cache
     
     if [ $? -ne 0 ]; then
         echo_error "Erreur lors de la construction des images"
@@ -135,7 +135,7 @@ function start_services() {
     echo_info "Démarrage des services..."
     
     # Démarrer en mode détaché
-    docker-compose -f docker/docker-compose.yml up -d
+    docker-compose --project-directory . -f docker/docker-compose.yml up -d
     
     if [ $? -ne 0 ]; then
         echo_error "Erreur lors du démarrage des services"
@@ -199,7 +199,7 @@ function check_services() {
     
     if [ "$all_ready" = false ]; then
         echo_error "Les services ne sont pas tous prêts après $max_attempts tentatives"
-        echo_warning "Vérifiez les logs avec: docker-compose -f docker/docker-compose.yml logs -f"
+        echo_warning "Vérifiez les logs avec: docker-compose --project-directory . -f docker/docker-compose.yml logs -f"
         return 1
     fi
     
@@ -229,8 +229,8 @@ function display_connection_info() {
     echo_success "  Password: (voir .env)"
     echo_info ""
     echo_info "Commandes utiles:"
-    echo_success "  docker-compose -f docker/docker-compose.yml ps"
-    echo_success "  docker-compose -f docker/docker-compose.yml logs -f"
+    echo_success "  docker-compose --project-directory . -f docker/docker-compose.yml ps"
+    echo_success "  docker-compose --project-directory . -f docker/docker-compose.yml logs -f"
     echo_success "  docker exec -it pharma360-db psql -U pharma_user -d pharma360_dev"
     echo_info ""
 }
