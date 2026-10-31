@@ -57,7 +57,7 @@ class BatchResponse(BaseModel):
     """Schema for batch response (includes computed fields)"""
     id: int = Field(..., description="Batch ID")
     product_id: int = Field(..., description="Product ID")
-    product_name: str = Field(..., description="Product name")
+    product_name: Optional[str] = Field(None, description="Product name")
     batch_number: str = Field(..., description="Batch number")
     expiry_date: date = Field(..., description="Expiration date")
     quantity: int = Field(..., description="Current quantity")
