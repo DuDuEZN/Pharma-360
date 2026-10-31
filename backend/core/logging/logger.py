@@ -72,6 +72,52 @@ class StructuredFormatter(logging.Formatter):
         
         return base_msg
 
+class KwargsLogger:
+    """
+    Enveloppe autour de logging.Logger qui accepte des champs structurés en kwargs :
+        logger.info("Message", user_id=1, product_id=2)
+    Le logger standard lève TypeError sur ces kwargs ; ici ils sont transmis via
+    extra={"extra_fields": ...}, que les formatters (console et JSON) savent déjà afficher.
+    """
+
+    def __init__(self, logger: logging.Logger):
+        self._logger = logger
+
+    def _log(self, level: int, message, *args, exc_info=None, stack_info=False,
+             stacklevel: int = 1, extra=None, **fields):
+        merged = dict(extra or {})
+        if fields:
+            merged["extra_fields"] = fields
+        self._logger.log(
+            level, message, *args,
+            exc_info=exc_info, stack_info=stack_info, stacklevel=stacklevel + 2,
+            extra=merged or None,
+        )
+
+    def debug(self, message, *args, **kwargs):
+        self._log(logging.DEBUG, message, *args, **kwargs)
+
+    def info(self, message, *args, **kwargs):
+        self._log(logging.INFO, message, *args, **kwargs)
+
+    def warning(self, message, *args, **kwargs):
+        self._log(logging.WARNING, message, *args, **kwargs)
+
+    def error(self, message, *args, **kwargs):
+        self._log(logging.ERROR, message, *args, **kwargs)
+
+    def critical(self, message, *args, **kwargs):
+        self._log(logging.CRITICAL, message, *args, **kwargs)
+
+    def exception(self, message, *args, exc_info=True, **kwargs):
+        self._log(logging.ERROR, message, *args, exc_info=exc_info, **kwargs)
+
+    def __getattr__(self, name):
+        # setLevel, handlers, isEnabledFor, etc. : délégué au logger standard
+        return getattr(self._logger, name)
+
+
+
 
 class CentralizedLogger:
     """
@@ -141,9 +187,9 @@ class CentralizedLogger:
         # Prevent propagation to root logger
         self.logger.propagate = False
     
-    def get_logger(self, name: str) -> logging.Logger:
-        """Get a named logger instance"""
-        return logging.getLogger(f"pharma360.{name}")
+    def get_logger(self, name: str) -> "KwargsLogger":
+        """Get a named logger instance (accepte les champs structurés en kwargs)"""
+        return KwargsLogger(logging.getLogger(f"pharma360.{name}"))
     
     def debug(self, message: str, **kwargs):
         self.logger.debug(message, extra={"extra_fields": kwargs})
@@ -187,7 +233,7 @@ def setup_logging(config: Optional[Dict[str, Any]] = None) -> CentralizedLogger:
     return _logger
 
 
-def get_logger(name: str) -> logging.Logger:
+def get_logger(name: str) -> "KwargsLogger":
     """
     Get a named logger instance
     
