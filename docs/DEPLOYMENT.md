@@ -208,23 +208,23 @@ Le script effectue automatiquement:
 cd /opt/pharma360/Pharma-360
 
 # Backend
-docker-compose -f docker/docker-compose.prod.yml build pharma360-backend
+docker-compose --project-directory . -f docker/docker-compose.prod.yml build pharma360-backend
 
 # Frontend
-docker-compose -f docker/docker-compose.prod.yml build pharma360-frontend
+docker-compose --project-directory . -f docker/docker-compose.prod.yml build pharma360-frontend
 
 # IA
-docker-compose -f docker/docker-compose.prod.yml build pharma360-ia
+docker-compose --project-directory . -f docker/docker-compose.prod.yml build pharma360-ia
 ```
 
 #### Étape 2: Démarrer les Conteneurs
 
 ```bash
 # Arrêter les conteneurs existants
-docker-compose -f docker/docker-compose.prod.yml down
+docker-compose --project-directory . -f docker/docker-compose.prod.yml down
 
 # Démarrer les conteneurs
-docker-compose -f docker/docker-compose.prod.yml up -d
+docker-compose --project-directory . -f docker/docker-compose.prod.yml up -d
 ```
 
 #### Étape 3: Vérifier la Santé
@@ -234,7 +234,7 @@ docker-compose -f docker/docker-compose.prod.yml up -d
 docker ps -a
 
 # Vérifier les logs
-docker-compose -f docker/docker-compose.prod.yml logs -f
+docker-compose --project-directory . -f docker/docker-compose.prod.yml logs -f
 ```
 
 #### Étape 4: Initialiser la Base de Données
@@ -371,7 +371,7 @@ ls -la /var/backups/pharma360/
 ./scripts/restore-db.sh /var/backups/pharma360/pharma360_20250117_020000.sql
 
 # Redémarrer les services
-docker-compose -f docker/docker-compose.prod.yml restart pharma360-backend pharma360-frontend pharma360-ia
+docker-compose --project-directory . -f docker/docker-compose.prod.yml restart pharma360-backend pharma360-frontend pharma360-ia
 ```
 
 ---
@@ -449,7 +449,7 @@ find /var/backups/pharma360 -name "*.sql" -mtime +30 -delete
 #### Problème: Les conteneurs ne démarrent pas
 ```bash
 # Vérifier les logs des conteneurs
-docker-compose -f docker/docker-compose.prod.yml logs
+docker-compose --project-directory . -f docker/docker-compose.prod.yml logs
 
 # Vérifier les ressources
 docker stats
@@ -524,10 +524,10 @@ cd /opt/pharma360/Pharma-360
 git pull origin main
 
 # Reconstruire les images
-docker-compose -f docker/docker-compose.prod.yml build
+docker-compose --project-directory . -f docker/docker-compose.prod.yml build
 
 # Redémarrer les conteneurs
-docker-compose -f docker/docker-compose.prod.yml up -d --force-recreate
+docker-compose --project-directory . -f docker/docker-compose.prod.yml up -d --force-recreate
 ```
 
 ### 9.2 Mise à Jour des Dépendances
@@ -541,7 +541,7 @@ docker exec pharma360-backend-prod pip install --upgrade -r requirements.txt
 docker exec pharma360-frontend-prod npm update
 
 # Reconstruire les images
-docker-compose -f docker/docker-compose.prod.yml build
+docker-compose --project-directory . -f docker/docker-compose.prod.yml build
 ```
 
 ### 9.3 Mise à Jour de la Base de Données
@@ -595,7 +595,7 @@ sudo chown $USER:$USER /opt/pharma360/Pharma-360/docker/nginx/ssl/*.pem
 
 4. Redémarrer Nginx
 ```bash
-docker-compose -f docker/docker-compose.prod.yml restart pharma360-nginx
+docker-compose --project-directory . -f docker/docker-compose.prod.yml restart pharma360-nginx
 ```
 
 ---
@@ -604,11 +604,10 @@ docker-compose -f docker/docker-compose.prod.yml restart pharma360-nginx
 
 | Description | Commande |
 |-------------|----------|
-| Voir les conteneurs | `docker ps -a` |
-| Voir les logs | `docker-compose -f docker/docker-compose.prod.yml logs -f` |
-| Arrêter les services | `docker-compose -f docker/docker-compose.prod.yml down` |
-| Démarrer les services | `docker-compose -f docker/docker-compose.prod.yml up -d` |
-| Reconstruire les images | `docker-compose -f docker/docker-compose.prod.yml build` |
+| Voir les logs | `docker-compose --project-directory . -f docker/docker-compose.prod.yml logs -f` |
+| Arrêter les services | `docker-compose --project-directory . -f docker/docker-compose.prod.yml down` |
+| Démarrer les services | `docker-compose --project-directory . -f docker/docker-compose.prod.yml up -d` |
+| Reconstruire les images | `docker-compose --project-directory . -f docker/docker-compose.prod.yml build` |
 | Exécuter une commande dans un conteneur | `docker exec -it <container> <command>` |
 | Sauvegarder la base | `./scripts/backup-db.sh` |
 | Restaurer la base | `./scripts/restore-db.sh <file>` |
