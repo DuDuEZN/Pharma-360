@@ -152,13 +152,13 @@ NGINX_SSL_KEY=/etc/nginx/ssl/key.pem
 #### **Étape 3 : Lancer l'environnement Docker**
 ```bash
 # Construire et démarrer tous les services
-docker-compose -f docker/docker-compose.yml up -d --build
+docker-compose --project-directory . -f docker/docker-compose.yml up -d --build
 
 # Vérifier que tous les services sont en cours d'exécution
-docker-compose -f docker/docker-compose.yml ps
+docker-compose --project-directory . -f docker/docker-compose.yml ps
 
 # Afficher les logs en temps réel
-docker-compose -f docker/docker-compose.yml logs -f
+docker-compose --project-directory . -f docker/docker-compose.yml logs -f
 ```
 
 #### **Étape 4 : Initialiser la base de données**
@@ -186,10 +186,10 @@ curl -X GET http://localhost:3000
 
 | Commande | Description |
 |----------|-------------|
-| `docker-compose -f docker/docker-compose.yml up -d` | Démarrer tous les services |
-| `docker-compose -f docker/docker-compose.yml down` | Arrêter tous les services |
-| `docker-compose -f docker/docker-compose.yml restart` | Redémarrer tous les services |
-| `docker-compose -f docker/docker-compose.yml logs -f backend` | Logs du backend |
+| `docker-compose --project-directory . -f docker/docker-compose.yml up -d` | Démarrer tous les services |
+| `docker-compose --project-directory . -f docker/docker-compose.yml down` | Arrêter tous les services |
+| `docker-compose --project-directory . -f docker/docker-compose.yml restart` | Redémarrer tous les services |
+| `docker-compose --project-directory . -f docker/docker-compose.yml logs -f backend` | Logs du backend |
 | `docker exec -it pharma360-backend bash` | Accéder au container backend |
 | `docker exec -it pharma360-db psql -U pharma_user -d pharma360_dev` | Accéder à PostgreSQL |
 
