@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 
@@ -14,24 +14,17 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (username, password) => {
     try {
-      const response = await api.post('/auth/login', {
-        username,
-        password
-      })
-      
+      const response = await api.post('/auth/login', { username, password })
       const { access_token, user: userData } = response.data
-      
+
       localStorage.setItem('token', access_token)
       localStorage.setItem('user', JSON.stringify(userData))
-      
       setToken(access_token)
       setUser(userData)
-      
+
       return { success: true, user: userData }
     } catch (error) {
-      const message = error.response?.data?.detail || 
-                     error.response?.data?.message ||
-                     'Erreur de connexion'
+      const message = error.response?.data?.detail || error.response?.data?.message || 'Erreur de connexion'
       return { success: false, message }
     }
   }, [])
@@ -52,24 +45,19 @@ export function AuthProvider({ children }) {
   const checkAuth = useCallback(async () => {
     const storedToken = localStorage.getItem('token')
     const storedUser = localStorage.getItem('user')
-    
+
     if (!storedToken) {
       setIsLoading(false)
       return
     }
-    
-    // Verify token is still valid
+
     try {
-      // Set token for api
       api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`
-      
-      // Test token with a simple request
       await api.get('/api/health')
-      
+
       setToken(storedToken)
       setUser(JSON.parse(storedUser))
     } catch (error) {
-      // Token is invalid, clear it
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       delete api.defaults.headers.common['Authorization']
@@ -82,37 +70,27 @@ export function AuthProvider({ children }) {
     checkAuth()
   }, [checkAuth])
 
-  // Set up axios interceptor for token
   useEffect(() => {
-    const interceptor = api.interceptors.request.use(
-      (config) => {
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`
-        }
-        return config
-      },
-      (error) => {
-        return Promise.reject(error)
+    const interceptor = api.interceptors.request.use((config) => {
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
       }
-    )
+      return config
+    }, (error) => Promise.reject(error))
 
     return () => {
       api.interceptors.request.eject(interceptor)
     }
   }, [token])
 
-  // Handle 401 errors globally
   useEffect(() => {
-    const responseInterceptor = api.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          logout()
-          navigate('/login')
-        }
-        return Promise.reject(error)
+    const responseInterceptor = api.interceptors.response.use((response) => response, (error) => {
+      if (error.response?.status === 401) {
+        logout()
+        navigate('/login')
       }
-    )
+      return Promise.reject(error)
+    })
 
     return () => {
       api.interceptors.response.eject(responseInterceptor)
@@ -120,14 +98,14 @@ export function AuthProvider({ children }) {
   }, [logout, navigate])
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token, 
-      isAuthenticated, 
+    <AuthContext.Provider value={{
+      user,
+      token,
+      isAuthenticated,
       isLoading,
       login,
       logout,
-      setUser
+      setUser,
     }}>
       {children}
     </AuthContext.Provider>
