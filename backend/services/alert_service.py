@@ -35,7 +35,6 @@ class AlertService:
         """Get all products with low or over stock"""
         result = await db.execute(
             select(Product)
-            .options(joinedload(Product.batches))
             .where(or_(
                 Product.current_stock < Product.stock_min,
                 Product.current_stock > Product.stock_max
