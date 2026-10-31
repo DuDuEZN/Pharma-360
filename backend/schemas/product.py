@@ -6,8 +6,10 @@ Pydantic models for product-related API validation
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from decimal import Decimal
+
+from .batch import BatchResponse
 
 
 # Base Product Schema
@@ -64,6 +66,12 @@ class ProductResponse(ProductBase):
     has_expiring_soon: bool = Field(default=False, description="Whether any batch is expiring soon")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
+
+    @field_validator("next_expiring_batch", mode="before")
+    @classmethod
+    def _batch_to_number(cls, value):
+        """Product.next_expiring_batch renvoie un Batch : on n'expose que son numéro"""
+        return getattr(value, "batch_number", value)
     
     model_config = ConfigDict(from_attributes=True, json_encoders={Decimal: float})
 
