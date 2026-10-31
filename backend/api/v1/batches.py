@@ -11,7 +11,7 @@ from typing import Annotated, Optional
 from ...core.logging import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from ...core.logging import get_logger
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from ...core.logging import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
