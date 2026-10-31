@@ -236,6 +236,68 @@ CREATE TABLE IF NOT EXISTS movements (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- -----------------------------------------------------------------------------
+-- Compléments de schéma : éléments attendus par les modèles SQLAlchemy
+-- -----------------------------------------------------------------------------
+
+-- Fournisseur principal d'un produit (Product.supplier_id)
+ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS ix_products_supplier_id ON products(supplier_id);
+
+-- Historique des ventes (modèle SaleHistory)
+CREATE TABLE IF NOT EXISTS sale_history (
+    id SERIAL PRIMARY KEY,
+    sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+    sale_number VARCHAR(50) NOT NULL,
+    product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+    product_name VARCHAR(200) NOT NULL,
+    batch_id INTEGER REFERENCES batches(id) ON DELETE SET NULL,
+    batch_number VARCHAR(50),
+    quantity INTEGER NOT NULL,
+    unit_price NUMERIC(10, 2) NOT NULL,
+    total_price NUMERIC(12, 2) NOT NULL,
+    sale_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    sale_day DATE NOT NULL,
+    cashier_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    cashier_name VARCHAR(100),
+    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    customer_name VARCHAR(200),
+    payment_method VARCHAR(50),
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_sale_history_batch_id ON sale_history(batch_id);
+CREATE INDEX IF NOT EXISTS ix_sale_history_product_id ON sale_history(product_id);
+CREATE INDEX IF NOT EXISTS ix_sale_history_sale_date ON sale_history(sale_date);
+CREATE INDEX IF NOT EXISTS ix_sale_history_sale_day ON sale_history(sale_day);
+CREATE INDEX IF NOT EXISTS ix_sale_history_sale_id ON sale_history(sale_id);
+CREATE INDEX IF NOT EXISTS ix_sale_history_sale_number ON sale_history(sale_number);
+
+-- Rapports générés (modèle Report)
+CREATE TABLE IF NOT EXISTS reports (
+    id SERIAL PRIMARY KEY,
+    report_type VARCHAR(50) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    generated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    parameters TEXT NOT NULL,
+    file_path VARCHAR(500),
+    file_format VARCHAR(10),
+    data_range_start DATE,
+    data_range_end DATE,
+    total_records INTEGER NOT NULL,
+    total_amount NUMERIC(12, 2) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    generated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_reports_data_range_end ON reports(data_range_end);
+CREATE INDEX IF NOT EXISTS ix_reports_data_range_start ON reports(data_range_start);
+CREATE INDEX IF NOT EXISTS ix_reports_generated_at ON reports(generated_at);
+CREATE INDEX IF NOT EXISTS ix_reports_generated_by ON reports(generated_by);
+CREATE INDEX IF NOT EXISTS ix_reports_report_type ON reports(report_type);
+CREATE INDEX IF NOT EXISTS ix_reports_status ON reports(status);
+
 -- =============================================================================
 -- 4. CRÉATION DES INDEX (Optimisation des requêtes)
 -- =============================================================================
