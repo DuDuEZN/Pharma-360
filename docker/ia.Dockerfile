@@ -45,7 +45,10 @@ RUN pip install --user -r requirements.txt
 FROM python:3.11-slim-bookworm
 
 # Configuration de l'image finale
-WORKDIR /app
+# Le code est copié dans le paquet /app/ia (imports "ia.*" et relatifs) et lancé
+# depuis /app/ia afin que les chemins relatifs (./logs, ./uploads, ./models)
+# correspondent aux volumes montés par docker-compose.
+WORKDIR /app/ia
 
 # Installer les dépendances système pour Tesseract (runtime)
 RUN apt-get update && \
@@ -53,14 +56,15 @@ RUN apt-get update && \
     tesseract-ocr \
     tesseract-ocr-fra \
     tesseract-ocr-eng \
+    poppler-utils \
     libleptonica-dev \
     libopencv-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Créer un utilisateur non-root pour la sécurité
 RUN useradd --create-home --shell /bin/bash appuser && \
-    mkdir -p /app && \
-    chown appuser:appuser /app
+    mkdir -p /app/ia && \
+    chown appuser:appuser /app /app/ia
 
 # Copier les dépendances installées depuis le builder
 COPY --from=builder /root/.local /home/appuser/.local
@@ -69,10 +73,10 @@ COPY --from=builder /root/.local /home/appuser/.local
 ENV PATH=/home/appuser/.local/bin:$PATH
 
 # Copier le code source
-COPY ia/ /app
+COPY ia/ /app/ia
 
 # Créer les répertoires nécessaires
-RUN mkdir -p /app/logs /app/uploads /app/models /app/tests
+RUN mkdir -p /app/ia/logs /app/ia/uploads /app/ia/models /app/ia/tests
 
 # Changer le propriétaire des fichiers
 RUN chown -R appuser:appuser /app
@@ -85,8 +89,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    # Configuration Tesseract
-    TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
+    PYTHONPATH=/app
 
 # Port d'écoute
 EXPOSE 8001
@@ -96,4 +99,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD python -c "import httpx; httpx.get('http://localhost:8001/api/health').raise_for_status()" || exit 1
 
 # Commande de démarrage
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "ia.main:app", "--host", "0.0.0.0", "--port", "8001"]
