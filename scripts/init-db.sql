@@ -405,6 +405,7 @@ END;
 $$ language 'plpgsql';
 
 DROP TRIGGER IF EXISTS update_sale_item_expiry_date_on_update ON sale_items;
+CREATE TRIGGER update_sale_item_expiry_date_on_update
     BEFORE UPDATE ON sale_items
     FOR EACH ROW
     EXECUTE FUNCTION update_sale_item_expiry_date();
@@ -441,7 +442,7 @@ BEGIN
     IF current_user_id_val IS NULL THEN
         -- Utilisateur système par défaut : le plus ancien utilisateur existant
         -- (évite une violation de la clé étrangère movements.user_id -> users.id)
-+        SELECT MIN(id) INTO current_user_id_val FROM users;
+        SELECT MIN(id) INTO current_user_id_val FROM users;
     END IF;
     
     IF NEW.quantity != OLD.quantity THEN
