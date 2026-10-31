@@ -7,7 +7,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from decimal import Decimal
 
-from sqlalchemy import Numeric,  Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Numeric,  Boolean, DateTime, ForeignKey, Integer, String, Text, func, select
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.types import Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -91,28 +92,31 @@ class Product(Base):
     # Relationships
     category: Mapped[Optional["Category"]] = relationship(
         "Category",
-        back_populates="products"
+        back_populates="products",
+        lazy="selectin"
     )
     supplier: Mapped[Optional["Supplier"]] = relationship(
         "Supplier",
         back_populates="products",
-        foreign_keys="Product.supplier_id"
-    )
-    movements: Mapped[list["Movement"]] = relationship(
-        "Movement",
-        back_populates="product",
-        foreign_keys="Movement.product_id"
+        foreign_keys="Product.supplier_id",
+        lazy="selectin"
     )
     batches: Mapped[list["Batch"]] = relationship(
         "Batch",
         back_populates="product",
         foreign_keys="Batch.product_id",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        lazy="selectin"  # chargement anticipé : current_stock lit batches (pas de lazy-load en async)
     )
     sale_items: Mapped[list["SaleItem"]] = relationship(
         "SaleItem",
         back_populates="product",
         foreign_keys="SaleItem.product_id"
+    )
+    movements: Mapped[list["Movement"]] = relationship(
+        "Movement",
+        back_populates="product",
+        foreign_keys="Movement.product_id"
     )
     
     # Additional foreign key (for supplier relationship)
@@ -133,22 +137,44 @@ class Product(Base):
     def __repr__(self) -> str:
         return f"<Product(id={self.id}, name='{self.name}', barcode={self.barcode or 'N/A'})>"
     
-    @property
+    @hybrid_property
     def current_stock(self) -> int:
         """Get current total stock across all batches"""
         if self.batches:
             return sum(batch.quantity for batch in self.batches if batch.status == "active")
         return 0
-    
-    @property
+    @current_stock.inplace.expression
+    @classmethod
+    def _current_stock_expression(cls):
+        """Version SQL : somme des quantités des lots actifs (sous-requête corrélée)"""
+        from .batch import Batch
+        return (
+            select(func.coalesce(func.sum(Batch.quantity), 0))
+            .where(Batch.product_id == cls.id, Batch.status == "active")
+            .correlate_except(Batch)
+            .scalar_subquery()
+        )
+
+    @hybrid_property
     def is_low_stock(self) -> bool:
         """Check if product is below minimum stock level"""
         return self.current_stock < self.stock_min
-    
-    @property
+
+    @is_low_stock.inplace.expression
+    @classmethod
+    def _is_low_stock_expression(cls):
+        return cls.current_stock < cls.stock_min
+
+    @hybrid_property
     def is_overstocked(self) -> bool:
         """Check if product is above maximum stock level"""
         return self.current_stock > self.stock_max
+
+    @is_overstocked.inplace.expression
+    @classmethod
+    def _is_overstocked_expression(cls):
+        return cls.current_stock > cls.stock_max
+    
     
     @property
     def next_expiring_batch(self) -> Optional["Batch"]:
