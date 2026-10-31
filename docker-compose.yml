@@ -75,8 +75,8 @@ services:
       start_period: 10s
     volumes:
       - ./backend:/app/backend:ro
-      - ./backend/logs:/app/backend/logs
-      - ./backend/uploads:/app/backend/uploads
+      - pharma360-backend-logs:/app/logs
+      - pharma360-backend-uploads:/app/uploads
 
   # Service Frontend (React + Nginx)
   pharma360-frontend:
@@ -170,6 +170,10 @@ volumes:
   pharma360-db-data:
     driver: local
     name: pharma360-db-data
+  pharma360-backend-logs:
+    name: pharma360-backend-logs
+  pharma360-backend-uploads:
+    name: pharma360-backend-uploads
 
 # Réseau dédié pour le projet
 networks:
