@@ -63,10 +63,8 @@ class InvoiceOCR:
             # Convert to grayscale
             img = img.convert('L')
             
-            # Enhance contrast
-            img = img.point(lambda x: 0 if x < 128 else 255, '1')
-            
-            # Apply thresholding
+            # Apply thresholding (Otsu choisit le seuil ; pas de conversion en mode '1'
+            # qui produirait un tableau booleen refuse par cv2.threshold)
             img_np = np.array(img)
             _, img_np = cv2.threshold(img_np, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             img = Image.fromarray(img_np)
