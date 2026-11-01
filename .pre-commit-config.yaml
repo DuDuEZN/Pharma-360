@@ -1,0 +1,16 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 26.10.1
+    hooks:
+      - id: black
+        language_version: python3.12
+        args: [--safe, --quiet]
+        files: ^(backend|ia)/.*\.py$
+
+  - repo: https://github.com/pycqa/isort
+    rev: 9.0.2
+    hooks:
+      - id: isort
+        language_version: python3.12
+        args: [--profile, black, --filter-files, --quiet]
+        files: ^(backend|ia)/.*\.py$
