@@ -15,7 +15,7 @@ class TestDeploymentConfiguration:
 
     def test_production_env_file_exists(self):
         """Vérifier que le fichier .env.production existe"""
-        env_file = Path("./backend/tests/../../.env.production")
+        env_file = Path("../../.env.production")
         assert env_file.exists(), "Fichier .env.production manquant"
 
     def test_production_docker_compose_exists(self):
@@ -25,27 +25,27 @@ class TestDeploymentConfiguration:
 
     def test_nginx_prod_config_exists(self):
         """Vérifier que la configuration Nginx production existe"""
-        nginx_config = Path("./docker/nginx/nginx.prod.conf")
+        nginx_config = Path("../../docker/nginx/nginx.prod.conf")
         assert nginx_config.exists(), "Fichier nginx.prod.conf manquant"
 
     def test_deploy_script_exists(self):
         """Vérifier que le script de déploiement existe"""
-        deploy_script = Path("./scripts/deploy-prod.sh")
+        deploy_script = Path("../../scripts/deploy-prod.sh")
         assert deploy_script.exists(), "Script deploy-prod.sh manquant"
 
     def test_deploy_script_is_executable(self):
         """Vérifier que le script de déploiement est exécutable"""
-        deploy_script = Path("./scripts/deploy-prod.sh")
+        deploy_script = Path("../../scripts/deploy-prod.sh")
         assert os.access(deploy_script, os.X_OK), "Script deploy-prod.sh non exécutable"
 
     def test_deployment_documentation_exists(self):
         """Vérifier que la documentation de déploiement existe"""
-        doc_file = Path("./docs/DEPLOYMENT.md")
+        doc_file = Path("../../docs/DEPLOYMENT.md")
         assert doc_file.exists(), "Documentation DEPLOYMENT.md manquante"
 
     def test_production_env_has_required_keys(self):
         """Vérifier que .env.production contient les clés requises"""
-        env_file = Path("./backend/tests/../../.env.production")
+        env_file = Path("../../.env.production")
         with open(env_file, "r") as f:
             content = f.read()
 
@@ -64,7 +64,7 @@ class TestDeploymentConfiguration:
 
     def test_docker_compose_prod_has_production_settings(self):
         """Vérifier que docker-compose.prod.yml a les paramètres de production"""
-        compose_file = Path("./docker/docker-compose.prod.yml")
+        compose_file = Path("../../docker/docker-compose.prod.yml")
         with open(compose_file, "r") as f:
             content = f.read()
 
@@ -86,9 +86,9 @@ class TestDockerConfiguration:
     def test_dockerfiles_exist(self):
         """Vérifier que tous les Dockerfiles existent"""
         dockerfiles = [
-            Path("./docker/backend.Dockerfile"),
-            Path("./docker/frontend.Dockerfile"),
-            Path("./docker/ia.Dockerfile"),
+            Path("../../docker/backend.Dockerfile"),
+            Path("../../docker/frontend.Dockerfile"),
+            Path("../../docker/ia.Dockerfile"),
         ]
 
         for dockerfile in dockerfiles:
@@ -96,7 +96,7 @@ class TestDockerConfiguration:
 
     def test_docker_networks_configured(self):
         """Vérifier que les réseaux Docker sont configurés"""
-        compose_file = Path("./docker/docker-compose.prod.yml")
+        compose_file = Path("../../docker/docker-compose.prod.yml")
         with open(compose_file, "r") as f:
             content = f.read()
 
@@ -104,7 +104,7 @@ class TestDockerConfiguration:
 
     def test_docker_volumes_configured(self):
         """Vérifier que les volumes Docker sont configurés"""
-        compose_file = Path("./docker/docker-compose.prod.yml")
+        compose_file = Path("../../docker/docker-compose.prod.yml")
         with open(compose_file, "r") as f:
             content = f.read()
 
@@ -116,7 +116,7 @@ class TestNginxConfiguration:
 
     def test_nginx_prod_has_optimizations(self):
         """Vérifier que nginx.prod.conf a les optimisations"""
-        nginx_config = Path("./docker/nginx/nginx.prod.conf")
+        nginx_config = Path("../../docker/nginx/nginx.prod.conf")
         with open(nginx_config, "r") as f:
             content = f.read()
 
@@ -129,7 +129,7 @@ class TestNginxConfiguration:
 
     def test_nginx_prod_has_proxy_config(self):
         """Vérifier que nginx.prod.conf a la configuration proxy"""
-        nginx_config = Path("./docker/nginx/nginx.prod.conf")
+        nginx_config = Path("../../docker/nginx/nginx.prod.conf")
         with open(nginx_config, "r") as f:
             content = f.read()
 
@@ -142,22 +142,22 @@ class TestBackupConfiguration:
 
     def test_backup_script_exists(self):
         """Vérifier que le script de sauvegarde existe"""
-        backup_script = Path("./scripts/backup-db.sh")
+        backup_script = Path("../../scripts/backup-db.sh")
         assert backup_script.exists(), "Script backup-db.sh manquant"
 
     def test_restore_script_exists(self):
         """Vérifier que le script de restauration existe"""
-        restore_script = Path("./scripts/restore-db.sh")
+        restore_script = Path("../../scripts/restore-db.sh")
         assert restore_script.exists(), "Script restore-db.sh manquant"
 
     def test_backup_script_is_executable(self):
         """Vérifier que le script de sauvegarde est exécutable"""
-        backup_script = Path("./scripts/backup-db.sh")
+        backup_script = Path("../../scripts/backup-db.sh")
         assert os.access(backup_script, os.X_OK), "Script backup-db.sh non exécutable"
 
     def test_backup_script_has_production_config(self):
         """Vérifier que le script de sauvegarde a la configuration production"""
-        backup_script = Path("./scripts/backup-db.sh")
+        backup_script = Path("../../scripts/backup-db.sh")
         with open(backup_script, "r") as f:
             content = f.read()
 
@@ -171,7 +171,7 @@ class TestSecurityConfiguration:
 
     def test_nginx_has_security_headers(self):
         """Vérifier que Nginx a les en-têtes de sécurité"""
-        nginx_config = Path("./docker/nginx/nginx.prod.conf")
+        nginx_config = Path("../../docker/nginx/nginx.prod.conf")
         with open(nginx_config, "r") as f:
             content = f.read()
 
@@ -188,7 +188,7 @@ class TestSecurityConfiguration:
 
     def test_production_passwords_are_strong(self):
         """Vérifier que les mots de passe de production sont forts"""
-        env_file = Path("./backend/tests/../../.env.production")
+        env_file = Path("../../.env.production")
         with open(env_file, "r") as f:
             content = f.read()
 
@@ -211,7 +211,7 @@ class TestDocumentation:
 
     def test_deployment_doc_has_required_sections(self):
         """Vérifier que la documentation de déploiement a les sections requises"""
-        doc_file = Path("./docs/DEPLOYMENT.md")
+        doc_file = Path("../../docs/DEPLOYMENT.md")
         with open(doc_file, "r") as f:
             content = f.read()
 
@@ -232,7 +232,7 @@ class TestDocumentation:
 
     def test_deployment_doc_has_commands(self):
         """Vérifier que la documentation a les commandes utiles"""
-        doc_file = Path("./docs/DEPLOYMENT.md")
+        doc_file = Path("../../docs/DEPLOYMENT.md")
         with open(doc_file, "r") as f:
             content = f.read()
 
@@ -247,7 +247,7 @@ class TestDeploymentSmoke:
 
     def test_docker_compose_prod_is_valid_yaml(self):
         """Vérifier que docker-compose.prod.yml est un YAML valide"""
-        compose_file = Path("./docker/docker-compose.prod.yml")
+        compose_file = Path("../../docker/docker-compose.prod.yml")
 
         # Essayer de parser le YAML
         try:
@@ -263,7 +263,7 @@ class TestDeploymentSmoke:
 
     def test_deploy_script_has_shebang(self):
         """Vérifier que le script de déploiement a un shebang"""
-        deploy_script = Path("./scripts/deploy-prod.sh")
+        deploy_script = Path("../../scripts/deploy-prod.sh")
         with open(deploy_script, "r") as f:
             first_line = f.readline()
 
@@ -271,7 +271,7 @@ class TestDeploymentSmoke:
 
     def test_backup_script_has_shebang(self):
         """Vérifier que le script de sauvegarde a un shebang"""
-        backup_script = Path("./scripts/backup-db.sh")
+        backup_script = Path("../../scripts/backup-db.sh")
         with open(backup_script, "r") as f:
             first_line = f.readline()
 
