@@ -37,11 +37,14 @@ class InvoiceOCR:
         
         self.patterns = {
             # French/Benin invoice patterns
-            'invoice_number': r'(?:facture|n°|num\.?|invoice)[\s:]*([a-zA-Z0-9\-\_\/]+)',
+            # "Facture N° FAC-2026-0042", "Facture: 123", "Invoice no. A-12" (le n° doit contenir un chiffre)
+            'invoice_number': r'(?:facture|invoice|n\s*°|num(?:éro|ero)?\.?)\s*(?:n\s*°|no\.?|num(?:éro|ero)?\.?)?\s*:?\s*([A-Za-z0-9][A-Za-z0-9\-_/]*)',
             'date': r'(?:date|le|au)[\s:]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})',
             'supplier_name': r'(?:fournisseur|de|par)[\s:]*([A-Z\s&\.]+)',
-            'total_amount': r'(?:total|montant|prix)[\s:]*([\d\s.,]+)',
-            'product_line': r'([A-Z\s\-]+)\s+(\d+[.,]?\d*)\s+([\d\s.,]+)',
+            # "Total: 100 000 XOF", "TOTAL TTC: 45000.00 FCFA", "Montant total : 1.500,00", "Net à payer 9 900"
+            'total_amount': r'(?:total(?:\s+(?:ttc|ht|tva))?|montant(?:\s+(?:total|ttc|ht))?|net\s+à\s+payer|prix)\s*:?\s*(\d[\d\s.,]*)',
+            # "Paracetamol 500mg   100   250.00   25000.00" : désignation, quantité, prix unitaire, [total ligne]
+            'product_line': r'^(?!total|date|facture|invoice|fournisseur|tva|montant|net)([A-Za-zÀ-ÿ].*?)\s+(\d+(?:[.,]\d+)?)\s+(\d[\d.,]*)(?:\s+(\d[\d.,]*))?\s*(?:FCFA|XOF|CFA)?\s*$',
             'price': r'([\d\s.,]+)[\s]*(?:FCFA|XOF|\$|€)',
             'quantity': r'(\d+[.,]?\d*)\s+(?:unité|kg|g|l|ml|boîte|box)',
         }
@@ -125,10 +128,11 @@ class InvoiceOCR:
                 continue
             
             # Extract invoice number
-            if not invoice_data['invoice_number']:
-                match = re.search(self.patterns['invoice_number'], line, re.IGNORECASE)
-                if match:
-                    invoice_data['invoice_number'] = match.group(1).strip()
+            for match in re.finditer(self.patterns['invoice_number'], line, re.IGNORECASE):
+                    candidate = match.group(1).strip()
+                    if any(ch.isdigit() for ch in candidate):
+                        invoice_data['invoice_number'] = candidate
+                        break
             
             # Extract date
             if not invoice_data['date']:
@@ -150,24 +154,24 @@ class InvoiceOCR:
                     amount_str = match.group(1).strip()
                     invoice_data['total'] = self._parse_amount(amount_str)
             
-            # Extract product lines (simplified pattern)
-            # Look for lines with product name, quantity, price
-            product_match = re.match(
-                r'([A-Z\s\-\.]+)\s+(\d+[.,]?\d*)\s+([\d\s.,]+)',
-                line,
-                re.IGNORECASE
-            )
+            # Extract product lines : désignation, quantité, prix unitaire [, total ligne]
+            product_match = re.match(self.patterns['product_line'], line, re.IGNORECASE)
+
             if product_match and len(invoice_data['items']) < 50:  # Limit items
                 name = product_match.group(1).strip()
                 quantity = float(product_match.group(2).replace(',', '.'))
                 price = self._parse_amount(product_match.group(3))
-                
-                invoice_data['items'].append({
-                    'name': name,
-                    'quantity': quantity,
-                    'unit_price': price,
-                    'total': quantity * price if price else 0
-                })
+                line_total = (
+                    self._parse_amount(product_match.group(4))
+                    if product_match.group(4) else None
+                )
+                if price is not None:
+                    invoice_data['items'].append({
+                        'name': name,
+                        'quantity': quantity,
+                        'unit_price': price,
+                        'total': line_total if line_total is not None else quantity * price
+                    })
         
         return invoice_data
     
@@ -195,24 +199,25 @@ class InvoiceOCR:
             return None
     
     def _parse_amount(self, amount_str: str) -> Optional[float]:
-        """Parse amount string into float"""
+        """Parse amount string into float ("1 000", "1.000,50", "1,000.00", "1000 FCFA"...)"""
         try:
-            # Remove currency symbols and spaces
-            amount_str = amount_str.replace('FCFA', '').replace('XOF', '') \
-                               .replace('$', '').replace('€', '') \
-                               .replace(' ', '').replace(',', '.')
-            
-            # Handle thousands separators
-            if '.' in amount_str:
-                parts = amount_str.split('.')
-                if len(parts) == 2 and len(parts[1]) == 3:
-                    # European format: 1.000,00
-                    amount_str = amount_str.replace('.', '').replace(',', '.')
-                elif len(parts) > 2:
-                    # Multiple dots - likely thousands separators
-                    amount_str = amount_str.replace('.', '')
-            
-            return float(amount_str)
+            cleaned = re.sub(r'(?i)fcfa|xof|cfa|[$€\s\u00a0]', '', amount_str)
+            if not cleaned or not re.fullmatch(r'[\d.,]+', cleaned):
+                return None
+            last_dot, last_comma = cleaned.rfind('.'), cleaned.rfind(',')
+            if last_dot != -1 and last_comma != -1:
+                # Les deux séparateurs : le dernier est le séparateur décimal
+                decimal = '.' if last_dot > last_comma else ','
+                thousands = ',' if decimal == '.' else '.'
+                cleaned = cleaned.replace(thousands, '').replace(decimal, '.')
+            elif last_dot != -1 or last_comma != -1:
+                sep = '.' if last_dot != -1 else ','
+                parts = cleaned.split(sep)
+                if len(parts) > 2 or (len(parts) == 2 and len(parts[1]) == 3):
+                    cleaned = cleaned.replace(sep, '')      # séparateur de milliers
+                else:
+                    cleaned = cleaned.replace(sep, '.')     # séparateur décimal
+            return float(cleaned)
         except Exception:
             return None
     
@@ -237,6 +242,7 @@ class InvoiceOCR:
             invoice_data = self.parse_invoice_text(text)
             
             # Add metadata
+            invoice_data['raw_text'] = text
             invoice_data['processed_at'] = datetime.now().isoformat()
             invoice_data['status'] = 'success'
             
