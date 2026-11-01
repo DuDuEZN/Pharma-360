@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { api } from '../src/services/api.js'
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 describe('API client', () => {
   beforeEach(() => {

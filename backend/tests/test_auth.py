@@ -14,8 +14,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
 
 from backend.core.config import settings
-from backend.core.database import get_db, Base
+from backend.core.database import get_db
 from backend.models.user import User
+from backend.models.base import Base
 from backend.core.security import PasswordUtils, JWTUtils, RBACUtils
 
 # Test database setup
@@ -31,8 +32,8 @@ TestingSessionLocal = sessionmaker(
 
 
 # Dependency override for testing
-async def override_get_db():
-    async with TestingSessionLocal() as session:
+def override_get_db():
+    with TestingSessionLocal() as session:
         yield session
 
 
@@ -53,57 +54,55 @@ def test_db_session():
 @pytest.fixture(scope="module")
 def setup_test_database(test_db_session):
     """Setup test database with all tables and test data once per module"""
+    # Import all models to ensure they're registered with Base
+    from backend.models import __all__
+    
     # Create all tables
     Base.metadata.create_all(engine)
     
     # Create test users
     session = test_db_session()
-    try:
-        users = [
-            User(
-                username="admin",
-                email="admin@test.com",
-                password_hash=PasswordUtils.hash_password("admin123"),
-                full_name="Admin User",
-                role="admin",
-                is_active=True
-            ),
-            User(
-                username="seller",
-                email="seller@test.com",
-                password_hash=PasswordUtils.hash_password("seller123"),
-                full_name="Seller User",
-                role="seller",
-                is_active=True
-            ),
-            User(
-                username="cashier",
-                email="cashier@test.com",
-                password_hash=PasswordUtils.hash_password("cashier123"),
-                full_name="Cashier User",
-                role="cashier",
-                is_active=True
-            ),
-            User(
-                username="manager",
-                email="manager@test.com",
-                password_hash=PasswordUtils.hash_password("manager123"),
-                full_name="Manager User",
-                role="manager",
-                is_active=True
-            )
-        ]
-        session.add_all(users)
-        session.commit()
-        yield
-    finally:
-        session.close()
-    
-    yield
+    users = [
+        User(
+            username="admin",
+            email="admin@test.com",
+            password_hash=PasswordUtils.hash_password("admin123"),
+            full_name="Admin User",
+            role="admin",
+            is_active=True
+        ),
+        User(
+            username="seller",
+            email="seller@test.com",
+            password_hash=PasswordUtils.hash_password("seller123"),
+            full_name="Seller User",
+            role="seller",
+            is_active=True
+        ),
+        User(
+            username="cashier",
+            email="cashier@test.com",
+            password_hash=PasswordUtils.hash_password("cashier123"),
+            full_name="Cashier User",
+            role="cashier",
+            is_active=True
+        ),
+        User(
+            username="manager",
+            email="manager@test.com",
+            password_hash=PasswordUtils.hash_password("manager123"),
+            full_name="Manager User",
+            role="manager",
+            is_active=True
+        )
+    ]
+    session.add_all(users)
+    session.commit()
+    yield session
     
     # Cleanup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    session.close()
+    Base.metadata.drop_all(engine)
 
 
 # Test data

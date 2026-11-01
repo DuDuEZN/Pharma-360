@@ -16,6 +16,10 @@ WORKDIR /app
 
 # Installer les dépendances de build
 RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copier les fichiers de dépendances
 COPY backend/requirements.txt ./

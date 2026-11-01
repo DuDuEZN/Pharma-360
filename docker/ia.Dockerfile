@@ -24,6 +24,8 @@ RUN apt-get update && \
     libleptonica-dev \
     libopencv-dev \
     python3-opencv \
+    gcc \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Installer les dépendances Python pour le build
