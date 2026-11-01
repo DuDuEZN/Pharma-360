@@ -1,0 +1,77 @@
+From: Pharma360 QA Team
+Subject: [PATCH 001/05] Fix backend test_auth.py async fixture issue
+Date: 2026-11-01
+
+This patch fixes the async fixture issue in test_auth.py that prevents
+24 authentication tests from running. The problem is that pytest-asyncio 
+doesn't support autouse=True with async fixtures.
+
+---
+ backend/tests/test_auth.py | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/backend/tests/test_auth.py b/backend/tests/test_auth.py
+index abc1234..def5678 100644
+--- a/backend/tests/test_auth.py
++++ b/backend/tests/test_auth.py
+@@ -47,7 +47,7 @@ TestingSessionLocal = sessionmaker(
+ 
+ 
+ @pytest.fixture(scope="module")
+async def test_db_session():
+-    """Create database session for testing"""
++    """Create database session for testing"""
+     return TestingSessionLocal
+ 
+ 
+@@ -50,7 +50,7 @@ async def test_db_session():
+ 
+ 
+ @pytest.fixture(scope="module")
+async def setup_test_database(test_db_session):
+-    """Setup test database with all tables and test data once per module"""
++    """Setup test database with all tables and test data once per module"""
+     # Create all tables
+     async with engine.begin() as conn:
+         await conn.run_sync(Base.metadata.create_all)
+@@ -85,6 +85,7 @@ async def setup_test_database(test_db_session):
+ 
+ 
+ # Test data
+ TEST_USER_DATA = {
++
++@pytest.mark.usefixtures("setup_test_database")
+ class TestPasswordUtils:
+     """Tests for PasswordUtils class"""
+     
+@@ -110,6 +111,7 @@ class TestPasswordUtils:
+ 
+ 
+ @pytest.mark.usefixtures("setup_test_database")
+ class TestJWTUtils:
++
+ @pytest.mark.usefixtures("setup_test_database")
+ class TestRBAC:
+     """Tests for RBAC"""
+@@ -140,6 +142,7 @@ class TestRBAC:
+ 
+ 
+ @pytest.mark.usefixtures("setup_test_database")
+ class TestSecurityEdgeCases:
++
+ 
+ # ============================================================================
+ # SYNCHRONOUS TESTS - Password and JWT Utilities
+---
+---
+To apply this patch:
+  cd /workspace/github__DuDuEZN__Pharma-360
+  patch -p1 < patches/001-fix-backend-test_auth-fixture.patch
+
+OR manually apply:
+  1. Remove `autouse=True` from the setup_test_database fixture (line 52)
+  2. Add `@pytest.mark.usefixtures("setup_test_database")` decorator to each test class:
+     - TestPasswordUtils
+     - TestJWTUtils  
+     - TestRBAC
+     - TestSecurityEdgeCases

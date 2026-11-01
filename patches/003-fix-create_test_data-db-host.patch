@@ -1,0 +1,39 @@
+From: Pharma360 QA Team
+Subject: [PATCH 003/05] Fix create_test_data.py PostgreSQL host for Docker
+Date: 2026-11-01
+
+This patch fixes the PostgreSQL host in create_test_data.py to work with
+Docker container networking. The script currently uses 'localhost' which
+only works from the host machine, not from within Docker containers.
+
+---
+ scripts/create_test_data.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/create_test_data.py b/scripts/create_test_data.py
+index abc1234..def5678 100644
+--- a/scripts/create_test_data.py
++++ b/scripts/create_test_data.py
+@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+ 
+ # Set environment variables for testing
+-os.environ['POSTGRES_HOST'] = 'localhost'
++os.environ['POSTGRES_HOST'] = 'pharma360-db'
+ os.environ['POSTGRES_PORT'] = '5432'
+ os.environ['POSTGRES_DB'] = 'pharma360_dev'
+ os.environ['POSTGRES_USER'] = 'pharma_user'
+---
+To apply this patch:
+  cd /workspace/github__DuDuEZN__Pharma-360
+  patch -p1 < patches/003-fix-create_test_data-db-host.patch
+
+OR manually apply:
+  1. Edit scripts/create_test_data.py
+  2. Change line 19 from:
+     os.environ['POSTGRES_HOST'] = 'localhost'
+     to:
+     os.environ['POSTGRES_HOST'] = 'pharma360-db'
+
+Note: This allows the script to work when executed from within the Docker
+network. When running from the host machine, you may need to use 'localhost'
+or configure your Docker network appropriately.

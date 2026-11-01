@@ -1,0 +1,38 @@
+From: Pharma360 QA Team
+Subject: [PATCH 004/05] Fix frontend healthcheck to use curl instead of wget
+Date: 2026-11-01
+
+This patch fixes the frontend container healthcheck. The nginxinc/nginx-unprivileged
+image doesn't have wget installed and doesn't allow apk add (non-root user).
+We use curl which is already available in the image.
+
+---
+ docker-compose.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/docker-compose.yml b/docker-compose.yml
+index abc1234..def5678 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -99,7 +99,7 @@ services:
+     networks:
+       - pharma360-network
+     healthcheck:
+-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/ || exit 1"]
++      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+       interval: 30s
+       timeout: 10s
+       retries: 5
+---
+To apply this patch:
+  cd /workspace/github__DuDuEZN__Pharma-360
+  patch -p1 < patches/004-fix-frontend-healthcheck-wget.patch
+
+OR manually apply:
+  1. Edit docker-compose.yml
+  2. Change line 102 from:
+     test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/ || exit 1"]
+     to:
+     test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+
+Note: This change is already applied in the current repository state.
