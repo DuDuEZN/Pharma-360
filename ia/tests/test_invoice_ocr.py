@@ -120,6 +120,25 @@ class TestInvoiceOCR:
         assert 'date' in result
         assert 'items' in result
         assert 'total' in result
+
+    def test_parse_invoice_number_keeps_first_match(self, ocr_processor):
+        """Le n° de facture (1re occurrence) ne doit pas être écrasé par une ligne suivante"""
+        result = ocr_processor.parse_invoice_text(
+            "Facture N° FAC-2026-0042\nDate: 30/10/2026\nRéf. interne num 77 à classer\nTotal: 1000"
+        )
+        assert result['invoice_number'] == 'FAC-2026-0042'
+
+    def test_parse_invoice_mixed_case_items_and_total(self, ocr_processor):
+        """Lignes produit en casse mixte, quantité/prix/total de ligne, TOTAL TTC"""
+        result = ocr_processor.parse_invoice_text(
+            "Paracetamol 500mg   100   250.00   25000.00\nTOTAL TTC: 45000.00 FCFA"
+        )
+        assert result['total'] == 45000.0
+        assert result['items'][0]['name'] == 'Paracetamol 500mg'
+        assert result['items'][0]['quantity'] == 100.0
+        assert result['items'][0]['unit_price'] == 250.0
+        assert result['items'][0]['total'] == 25000.0
+
         
     def test_process_invoice(self, ocr_processor, sample_image_path):
         """Test full invoice processing"""
