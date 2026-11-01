@@ -182,7 +182,7 @@ check_health() {
         fi
         
         # Vérifier le frontend
-        if docker exec pharma360-frontend-prod wget --no-verbose --tries=1 --spider http://localhost/ &> /dev/null; then
+         if docker exec pharma360-frontend-prod wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/ &> /dev/null; then
             log_info "Frontend: HEALTHY"
         else
             log_warn "Frontend: Unhealthy (attempt $retry/$max_retries)"
@@ -239,9 +239,17 @@ init_database() {
     fi
     
     # Exécuter les migrations
-    log_info "Exécution des migrations..."
-    docker exec pharma360-backend-prod alembic upgrade head || \
-        log_error "Échec des migrations"
+    # Pas de configuration Alembic dans le projet : on vérifie que le schéma existe
+    log_info "Vérification du schéma de la base de données..."
+    local tables
+    tables=$(docker exec pharma360-db-prod psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
+        "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" | tr -d '[:space:]')
+ 
+    if [ "${tables:-0}" -gt 0 ]; then
+        log_info "Schéma existant détecté ($tables tables) : migrations non nécessaires."
+    else
+        log_error "Base vide et aucune migration disponible : créez le schéma avant de déployer."
+    fi
     
     log_info "Base de données initialisée avec succès."
 }
@@ -249,6 +257,15 @@ init_database() {
 # Configurer les sauvegardes automatiques
 setup_backups() {
     log_step "Configuration des sauvegardes automatiques..."
+
+    # /usr/local/bin et crontab n'existent que sur un vrai système Linux
+    case "$OSTYPE" in
+        linux*) ;;
+        *)
+            log_warn "Système non Linux ($OSTYPE) : sauvegardes automatiques ignorées."
+            return 0
+            ;;
+    esac
     
     # Copier le script de sauvegarde
     cp "$PROJECT_DIR/scripts/backup-db.sh" /usr/local/bin/pharma360-backup
