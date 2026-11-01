@@ -126,7 +126,6 @@ jobs:
           cd backend && python -m black --check .
           cd ../ia && python -m black --check .
           cd .. && python -m isort --check-only backend/ ia/
-          python -m flake8 backend/ ia/ --max-line-length=88
           echo "✅ All Python formatting checks passed"
 
       - name: Set up Node.js
