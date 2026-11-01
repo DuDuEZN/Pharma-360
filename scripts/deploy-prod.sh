@@ -104,7 +104,6 @@ load_env() {
     if [ -f "$PROJECT_DIR/.env.production" ]; then
         log_info "Chargement de .env.production"
         set -a
-        # shellcheck disable=SC1091
         source <(sed 's/\r$//' "$PROJECT_DIR/.env.production")
         set +a
     else
