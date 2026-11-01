@@ -9,7 +9,7 @@ import pytest
 from datetime import datetime, timedelta
 from jose import jwt
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
 
@@ -19,14 +19,13 @@ from backend.models.user import User
 from backend.core.security import PasswordUtils, JWTUtils, RBACUtils
 
 # Test database setup
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+TEST_DATABASE_URL = "sqlite:///:memory:"
 
-engine = create_async_engine(TEST_DATABASE_URL)
+engine = create_engine(TEST_DATABASE_URL)
 TestingSessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine,
-    class_=AsyncSession,
     expire_on_commit=False
 )
 
@@ -51,15 +50,15 @@ def test_db_session():
     return TestingSessionLocal
 
 
-@pytest.fixture(scope="module", autouse=True)
-async def setup_test_database(test_db_session):
+@pytest.fixture(scope="module")
+def setup_test_database(test_db_session):
     """Setup test database with all tables and test data once per module"""
     # Create all tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    Base.metadata.create_all(engine)
     
     # Create test users
-    async with test_db_session() as session:
+    session = test_db_session()
+    try:
         users = [
             User(
                 username="admin",
@@ -95,7 +94,10 @@ async def setup_test_database(test_db_session):
             )
         ]
         session.add_all(users)
-        await session.commit()
+        session.commit()
+        yield
+    finally:
+        session.close()
     
     yield
     
@@ -119,6 +121,7 @@ TEST_USER_DATA = {
 # SYNCHRONOUS TESTS - Password and JWT Utilities
 # ============================================================================
 
+@pytest.mark.usefixtures("setup_test_database")
 class TestPasswordUtils:
     """Tests for PasswordUtils class"""
     
@@ -187,6 +190,7 @@ class TestPasswordUtils:
         assert len(temp_pass2) >= 16
 
 
+@pytest.mark.usefixtures("setup_test_database")
 class TestJWTUtils:
     """Tests for JWTUtils class"""
     
@@ -274,6 +278,7 @@ class TestJWTUtils:
 # RBAC Tests
 # ============================================================================
 
+@pytest.mark.usefixtures("setup_test_database")
 class TestRBAC:
     """Tests for RBAC utilities"""
     
@@ -349,6 +354,7 @@ class TestRBAC:
 # EDGE CASES AND SECURITY TESTS
 # ============================================================================
 
+@pytest.mark.usefixtures("setup_test_database")
 class TestSecurityEdgeCases:
     """Tests for security edge cases"""
     
