@@ -16,9 +16,6 @@ WORKDIR /app
 
 # Installer les dépendances de build
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
 
 # Copier les fichiers de dépendances
 COPY backend/requirements.txt ./

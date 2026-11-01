@@ -26,7 +26,6 @@ services:
     volumes:
       - pharma360-db-data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-      - ./scripts/backup-db.sh:/usr/local/bin/backup-db.sh:ro
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     networks:
@@ -87,18 +86,18 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      FRONTEND_PORT: ${FRONTEND_PORT:-3000}
+      FRONTEND_PORT: ${FRONTEND_PORT:-8080}
       BACKEND_URL: http://pharma360-backend:8000
       IA_URL: http://pharma360-ia:8001
     depends_on:
       pharma360-backend:
         condition: service_healthy
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_PORT:-8080}:8080"
     networks:
       - pharma360-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -162,7 +161,7 @@ services:
       - ./docker/nginx/ssl:/etc/nginx/ssl:ro
       - ./frontend/dist:/usr/share/nginx/html:ro
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
