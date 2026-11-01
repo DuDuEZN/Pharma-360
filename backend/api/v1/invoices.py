@@ -6,23 +6,35 @@ FastAPI endpoints for supplier invoice management with OCR support
 from datetime import datetime
 from typing import Annotated, Optional
 
-from fastapi import (APIRouter, Depends, File, Form, HTTPException, Query,
-                     UploadFile, status)
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db
 from ...core.logging import get_logger
-from ...core.security import (RBACUtils, get_current_user,
-                              get_current_user_with_role)
+from ...core.security import RBACUtils, get_current_user, get_current_user_with_role
 from ...models.batch import Batch
 from ...models.invoice import Invoice
 from ...models.supplier import Supplier
 from ...models.user import User
-from ...schemas.invoice import (InvoiceCreate, InvoiceDetailResponse,
-                                InvoiceListResponse, InvoiceResponse,
-                                InvoiceStatusUpdate, InvoiceUpdate,
-                                OCRInvoiceData)
+from ...schemas.invoice import (
+    InvoiceCreate,
+    InvoiceDetailResponse,
+    InvoiceListResponse,
+    InvoiceResponse,
+    InvoiceStatusUpdate,
+    InvoiceUpdate,
+    OCRInvoiceData,
+)
 
 # Create router
 router = APIRouter(prefix="/invoices", tags=["invoices"])

@@ -12,15 +12,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db
 from ...core.logging import get_logger
-from ...core.security import (RBACUtils, get_current_user,
-                              get_current_user_with_role)
+from ...core.security import RBACUtils, get_current_user, get_current_user_with_role
 from ...models.batch import Batch
 from ...models.product import Product
 from ...models.return_ import Return
 from ...models.user import User
-from ...schemas.return_ import (ReturnCreate, ReturnDetailResponse,
-                                ReturnListResponse, ReturnResponse,
-                                ReturnStatsResponse, ReturnUpdate)
+from ...schemas.return_ import (
+    ReturnCreate,
+    ReturnDetailResponse,
+    ReturnListResponse,
+    ReturnResponse,
+    ReturnStatsResponse,
+    ReturnUpdate,
+)
 
 # Create router
 router = APIRouter(prefix="/returns", tags=["returns"])

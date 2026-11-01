@@ -3,8 +3,14 @@ Logging module for Pharmacie 360 Backend
 Centralized logging configuration and handlers
 """
 
-from .logger import (get_logger, log_api_request, log_business_event,
-                     log_cache_operation, log_database_query, setup_logging)
+from .logger import (
+    get_logger,
+    log_api_request,
+    log_business_event,
+    log_cache_operation,
+    log_database_query,
+    setup_logging,
+)
 
 __all__ = [
     "setup_logging",

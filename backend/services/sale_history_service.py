@@ -16,11 +16,15 @@ from ..models.category import Category
 from ..models.product import Product
 from ..models.sale import Sale
 from ..models.sale_history import SaleHistory
-from ..schemas.sale_history import (DailySalesResponse, MonthlySalesResponse,
-                                    ProductSalesAnalytics,
-                                    SaleAnalyticsResponse, SaleHistoryCreate,
-                                    SaleHistoryListResponse,
-                                    SaleHistoryResponse)
+from ..schemas.sale_history import (
+    DailySalesResponse,
+    MonthlySalesResponse,
+    ProductSalesAnalytics,
+    SaleAnalyticsResponse,
+    SaleHistoryCreate,
+    SaleHistoryListResponse,
+    SaleHistoryResponse,
+)
 
 
 class SaleHistoryService:
