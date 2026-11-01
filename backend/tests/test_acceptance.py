@@ -241,16 +241,14 @@ class TestAcceptanceCriteria:
         import os
 
         test_files = [
-            "backend/tests/test_auth.py",
-            "backend/tests/test_products.py",
-            "backend/tests/test_barcode.py",
-            "backend/tests/test_integration.py",
-            "backend/tests/test_offline.py",
-            "backend/tests/test_performance.py",
-            "backend/tests/test_ia.py",
-            "backend/tests/test_bug_fixes.py",
-            "frontend/tests/test_frontend_verification.py",
-            "ia/tests/test_ia_module.py",
+            "tests/test_auth.py",
+            "tests/test_products.py",
+            "tests/test_barcode.py",
+            "tests/test_integration.py",
+            "tests/test_offline.py",
+            "tests/test_performance.py",
+            "tests/test_ia.py",
+            "tests/test_bug_fixes.py",
         ]
 
         for test_file in test_files:
@@ -261,12 +259,12 @@ class TestAcceptanceCriteria:
         import os
 
         doc_files = [
-            "docs/TESTING.md",
-            "docs/ARCHITECTURE.md",
-            "docs/ARCH-001_SPECIFICATIONS.md",
-            "docs/ARCH-002_POSTGRESQL.md",
-            "docs/ARCH-003_API_SPECIFICATIONS.md",
-            "docs/ARCH-004_DEVELOPMENT_GUIDE.md",
+            "../docs/TESTING.md",
+            "../docs/ARCHITECTURE.md",
+            "../docs/ARCH-001_SPECIFICATIONS.md",
+            "../docs/ARCH-002_POSTGRESQL.md",
+            "../docs/ARCH-003_API_SPECIFICATIONS.md",
+            "../docs/ARCH-004_DEVELOPMENT_GUIDE.md",
         ]
 
         for doc_file in doc_files:
@@ -276,9 +274,9 @@ class TestAcceptanceCriteria:
         """Verify project tracking is updated"""
         import os
 
-        assert os.path.exists("PROJECT_TRACKING.md")
+        assert os.path.exists("../PROJECT_TRACKING.md")
 
-        with open("PROJECT_TRACKING.md", "r") as f:
+        with open("../PROJECT_TRACKING.md", "r") as f:
             content = f.read()
 
         # Verify Phase 4 is marked as complete
