@@ -125,12 +125,12 @@ jobs:
       - name: Install Node dependencies
         run: |
           cd frontend
-          npm install --save-dev eslint @eslint/js
+          npm ci
 
-      - name: Check JavaScript formatting
+      - name: Check JavaScript lint
         run: |
           cd frontend
-          npx eslint . --ext js,jsx
+          npx run lint
 
   # =============================================================================
   # Build Docker Images
