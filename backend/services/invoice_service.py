@@ -17,15 +17,10 @@ from ..models.invoice import Invoice
 from ..models.product import Product
 from ..models.supplier import Supplier
 from ..models.user import User
-from ..schemas.invoice import (
-    InvoiceCreate,
-    InvoiceDetailResponse,
-    InvoiceListResponse,
-    InvoiceResponse,
-    InvoiceStatusUpdate,
-    InvoiceUpdate,
-    OCRInvoiceData,
-)
+from ..schemas.invoice import (InvoiceCreate, InvoiceDetailResponse,
+                               InvoiceListResponse, InvoiceResponse,
+                               InvoiceStatusUpdate, InvoiceUpdate,
+                               OCRInvoiceData)
 
 
 class InvoiceService:

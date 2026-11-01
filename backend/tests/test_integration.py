@@ -190,7 +190,8 @@ class TestSchemaIntegration:
 
     def test_product_schemas(self):
         """Test product schemas"""
-        from backend.schemas.product import ProductBase, ProductCreate, ProductResponse
+        from backend.schemas.product import (ProductBase, ProductCreate,
+                                             ProductResponse)
 
         assert ProductBase is not None
         assert ProductCreate is not None
@@ -198,12 +199,8 @@ class TestSchemaIntegration:
 
     def test_user_schemas(self):
         """Test user schemas"""
-        from backend.schemas.user import (
-            LoginRequest,
-            UserBase,
-            UserCreate,
-            UserResponse,
-        )
+        from backend.schemas.user import (LoginRequest, UserBase, UserCreate,
+                                          UserResponse)
 
         assert UserBase is not None
         assert UserCreate is not None

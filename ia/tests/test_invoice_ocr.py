@@ -13,11 +13,8 @@ try:
     import numpy as np
     from PIL import Image
 
-    from ..ocr.invoice_ocr import (
-        InvoiceOCR,
-        extract_invoice_data,
-        process_invoice_image,
-    )
+    from ..ocr.invoice_ocr import (InvoiceOCR, extract_invoice_data,
+                                   process_invoice_image)
 
     HAS_OCR = True
 except ModuleNotFoundError:

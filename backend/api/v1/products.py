@@ -10,18 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db
 from ...core.logging import get_logger, log_business_event
-from ...core.security import RBACUtils, get_current_user, get_current_user_with_role
+from ...core.security import (RBACUtils, get_current_user,
+                              get_current_user_with_role)
 from ...models.user import User
-from ...schemas.product import (
-    BarcodeScanRequest,
-    BarcodeScanResponse,
-    ProductCreate,
-    ProductDetailResponse,
-    ProductListResponse,
-    ProductResponse,
-    ProductSearchResponse,
-    ProductUpdate,
-)
+from ...schemas.product import (BarcodeScanRequest, BarcodeScanResponse,
+                                ProductCreate, ProductDetailResponse,
+                                ProductListResponse, ProductResponse,
+                                ProductSearchResponse, ProductUpdate)
 from ...services.product_service import ProductService
 
 # Create router

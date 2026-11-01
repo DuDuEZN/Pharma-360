@@ -14,12 +14,8 @@ from ..models.batch import Batch
 from ..models.category import Category
 from ..models.product import Product
 from ..schemas.batch import BatchResponse
-from ..schemas.product import (
-    BarcodeScanResponse,
-    ProductListResponse,
-    ProductResponse,
-    ProductSearchResponse,
-)
+from ..schemas.product import (BarcodeScanResponse, ProductListResponse,
+                               ProductResponse, ProductSearchResponse)
 
 
 class ProductService:

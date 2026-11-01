@@ -13,13 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.config import settings
 from ..core.security import JWTUtils, PasswordUtils, oauth2_scheme
 from ..models.user import User
-from ..schemas.user import (
-    LoginRequest,
-    LoginResponse,
-    TokenRefreshResponse,
-    UserCreate,
-    UserResponse,
-)
+from ..schemas.user import (LoginRequest, LoginResponse, TokenRefreshResponse,
+                            UserCreate, UserResponse)
 
 
 class AuthService:

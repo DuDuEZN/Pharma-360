@@ -12,7 +12,8 @@ from ...core.database import get_db
 from ...core.logging import get_logger
 from ...core.security import RBACUtils, get_current_user
 from ...models.user import User
-from ...schemas.alert import AlertListResponse, AlertResponse, AlertStatsResponse
+from ...schemas.alert import (AlertListResponse, AlertResponse,
+                              AlertStatsResponse)
 from ...services.alert_service import AlertService
 
 # Create router

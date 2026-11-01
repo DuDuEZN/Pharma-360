@@ -15,13 +15,9 @@ from ..models.batch import Batch
 from ..models.invoice import Invoice
 from ..models.product import Product
 from ..models.supplier import Supplier
-from ..schemas.supplier import (
-    SupplierCreate,
-    SupplierDetailResponse,
-    SupplierListResponse,
-    SupplierResponse,
-    SupplierUpdate,
-)
+from ..schemas.supplier import (SupplierCreate, SupplierDetailResponse,
+                                SupplierListResponse, SupplierResponse,
+                                SupplierUpdate)
 
 
 class SupplierService:

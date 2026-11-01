@@ -14,13 +14,9 @@ from ..models.batch import Batch
 from ..models.product import Product
 from ..models.return_ import Return
 from ..models.user import User
-from ..schemas.return_ import (
-    ReturnCreate,
-    ReturnListResponse,
-    ReturnResponse,
-    ReturnStatsResponse,
-    ReturnUpdate,
-)
+from ..schemas.return_ import (ReturnCreate, ReturnListResponse,
+                               ReturnResponse, ReturnStatsResponse,
+                               ReturnUpdate)
 
 
 class ReturnService:

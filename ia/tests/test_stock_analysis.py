@@ -9,11 +9,9 @@ from typing import Any, Dict, List
 import pytest
 
 try:
-    from ..analytics.stock_analysis import (
-        StockAnalyzer,
-        predict_stock_ruptures,
-        stock_rotation_analysis,
-    )
+    from ..analytics.stock_analysis import (StockAnalyzer,
+                                            predict_stock_ruptures,
+                                            stock_rotation_analysis)
 
     HAS_STOCK_ANALYSIS = True
 except ModuleNotFoundError:

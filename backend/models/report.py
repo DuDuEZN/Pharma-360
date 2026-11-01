@@ -6,7 +6,8 @@ SQLAlchemy model for generating various reports
 from datetime import date
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import (Date, DateTime, ForeignKey, Integer, Numeric, String,
+                        Text, func)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base

@@ -11,17 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db
 from ...core.logging import get_logger
-from ...core.security import RBACUtils, get_current_user, get_current_user_with_role
+from ...core.security import (RBACUtils, get_current_user,
+                              get_current_user_with_role)
 from ...models.user import User
-from ...schemas.report import (
-    CashReportRequest,
-    ReportGenerationRequest,
-    ReportListResponse,
-    ReportResponse,
-    ReportStatsResponse,
-    SalesReportRequest,
-    StockReportRequest,
-)
+from ...schemas.report import (CashReportRequest, ReportGenerationRequest,
+                               ReportListResponse, ReportResponse,
+                               ReportStatsResponse, SalesReportRequest,
+                               StockReportRequest)
 from ...services.report_service import ReportService
 
 # Create router

@@ -76,14 +76,10 @@ class TestProductSchemas:
 
     def test_product_schemas_exist(self):
         """Test that product schemas exist"""
-        from backend.schemas.product import (
-            ProductBase,
-            ProductCreate,
-            ProductDetailResponse,
-            ProductListResponse,
-            ProductResponse,
-            ProductUpdate,
-        )
+        from backend.schemas.product import (ProductBase, ProductCreate,
+                                             ProductDetailResponse,
+                                             ProductListResponse,
+                                             ProductResponse, ProductUpdate)
 
         assert ProductBase is not None
         assert ProductCreate is not None

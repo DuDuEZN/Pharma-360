@@ -7,17 +7,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import (
-    Boolean,
-    DateTime,
-    ForeignKey,
-    Integer,
-    Numeric,
-    String,
-    Text,
-    func,
-    select,
-)
+from sqlalchemy import (Boolean, DateTime, ForeignKey, Integer, Numeric,
+                        String, Text, func, select)
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Numeric
