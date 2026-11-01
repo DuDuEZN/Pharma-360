@@ -3,8 +3,7 @@
   "env": {
     "browser": true,
     "es2021": true,
-    "node": true,
-    "vitest": true
+    "node": true
   },
   "globals": {
     "describe": "readonly",
