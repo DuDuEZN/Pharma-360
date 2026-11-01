@@ -37,13 +37,8 @@
     "react/react-in-jsx-scope": "off",
     "react/prop-types": "off",
     "react/display-name": "off",
-    "no-unused-vars": [
-      "error",
-      {
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_"
-      }
-    ]
+    "react/no-unescaped-entities": "off",
+    "no-unused-vars": "off"
   },
   "ignorePatterns": [
     "node_modules/",
