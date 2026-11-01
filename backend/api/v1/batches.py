@@ -12,15 +12,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db
 from ...core.logging import get_logger
-from ...core.security import (RBACUtils, get_current_user,
-                              get_current_user_with_role)
+from ...core.security import RBACUtils, get_current_user, get_current_user_with_role
 from ...models.batch import Batch
 from ...models.product import Product
 from ...models.user import User
-from ...schemas.batch import (BatchCreate, BatchListResponse, BatchResponse,
-                              BatchStockAdjustment, BatchStockResponse,
-                              BatchUpdate, FEFOSelectionRequest,
-                              FEFOSelectionResponse)
+from ...schemas.batch import (
+    BatchCreate,
+    BatchListResponse,
+    BatchResponse,
+    BatchStockAdjustment,
+    BatchStockResponse,
+    BatchUpdate,
+    FEFOSelectionRequest,
+    FEFOSelectionResponse,
+)
 from ...services.product_service import ProductService
 
 # Create router

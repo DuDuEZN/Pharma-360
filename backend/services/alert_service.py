@@ -13,9 +13,13 @@ from sqlalchemy.orm import joinedload
 
 from ..models.batch import Batch
 from ..models.product import Product
-from ..schemas.alert import (AlertListResponse, AlertResponse,
-                             AlertStatsResponse, ExpiryAlertResponse,
-                             StockAlertResponse)
+from ..schemas.alert import (
+    AlertListResponse,
+    AlertResponse,
+    AlertStatsResponse,
+    ExpiryAlertResponse,
+    StockAlertResponse,
+)
 
 
 class AlertService:

@@ -6,8 +6,18 @@ SQLAlchemy model for invoices table (supplier purchase invoices)
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import (JSON, Boolean, Date, DateTime, ForeignKey, Integer,
-                        Numeric, String, Text, func)
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base

@@ -10,8 +10,13 @@ from ...core.database import get_db
 from ...core.logging import get_logger
 from ...core.security import RBACUtils, get_current_user
 from ...models.user import User
-from ...schemas.user import (LoginRequest, LoginResponse, TokenRefreshResponse,
-                             UserCreate, UserResponse)
+from ...schemas.user import (
+    LoginRequest,
+    LoginResponse,
+    TokenRefreshResponse,
+    UserCreate,
+    UserResponse,
+)
 from ...services.auth_service import AuthService
 
 # Create router

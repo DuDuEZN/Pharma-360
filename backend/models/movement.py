@@ -6,8 +6,7 @@ SQLAlchemy model for movements table (AUDIT TRAIL)
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import (DateTime, ForeignKey, Integer, Numeric, String, Text,
-                        func)
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base

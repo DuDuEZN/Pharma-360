@@ -11,14 +11,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db
 from ...core.logging import get_logger
-from ...core.security import (RBACUtils, get_current_user,
-                              get_current_user_with_role)
+from ...core.security import RBACUtils, get_current_user, get_current_user_with_role
 from ...models.user import User
-from ...schemas.sale_history import (DailySalesResponse, MonthlySalesResponse,
-                                     ProductSalesAnalytics,
-                                     SaleAnalyticsResponse, SaleHistoryCreate,
-                                     SaleHistoryListResponse,
-                                     SaleHistoryResponse, SalesReportRequest)
+from ...schemas.sale_history import (
+    DailySalesResponse,
+    MonthlySalesResponse,
+    ProductSalesAnalytics,
+    SaleAnalyticsResponse,
+    SaleHistoryCreate,
+    SaleHistoryListResponse,
+    SaleHistoryResponse,
+    SalesReportRequest,
+)
 from ...services.sale_history_service import SaleHistoryService
 
 # Create router

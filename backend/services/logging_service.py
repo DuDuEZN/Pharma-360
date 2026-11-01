@@ -5,9 +5,13 @@ Provides centralized logging with business context and audit trail
 
 from typing import Any, Dict, Optional
 
-from backend.core.logging import (get_logger, log_api_request,
-                                  log_business_event, log_cache_operation,
-                                  log_database_query)
+from backend.core.logging import (
+    get_logger,
+    log_api_request,
+    log_business_event,
+    log_cache_operation,
+    log_database_query,
+)
 
 
 class LoggingService:
