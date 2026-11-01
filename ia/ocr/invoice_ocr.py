@@ -127,8 +127,9 @@ class InvoiceOCR:
             if not line:
                 continue
             
-            # Extract invoice number
-            for match in re.finditer(self.patterns['invoice_number'], line, re.IGNORECASE):
+            # Extract invoice number (le premier trouvé est conservé)
+            if not invoice_data['invoice_number']:
+                for match in re.finditer(self.patterns['invoice_number'], line, re.IGNORECASE):
                     candidate = match.group(1).strip()
                     if any(ch.isdigit() for ch in candidate):
                         invoice_data['invoice_number'] = candidate
