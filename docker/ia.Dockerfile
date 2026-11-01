@@ -41,7 +41,8 @@ RUN pip install --user --no-cache-dir \
 COPY ia/requirements.txt .
 
 # Installer les dépendances Python de l'application
-RUN pip install --user -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --user --default-timeout=300 --retries=10 -r requirements.txt
 
 # Étape 2: Runtime (image finale optimisée)
 FROM python:3.11-slim-bookworm
