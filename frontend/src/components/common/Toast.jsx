@@ -100,11 +100,11 @@ function useToast() {
 }
 
 export function Toaster() {
-  return (
-    <ToastProvider>
-      <ToastConsumer />
-    </ToastProvider>
-  )
+  return <ToastConsumer />
+    //<ToastProvider>
+      
+    //</ToastProvider>
+  
 }
 
 function ToastConsumer() {
