@@ -96,10 +96,9 @@ class TestIAServiceMethods:
             from ia.services.ocr_service import OCRService
             ocr = OCRService()
             
-            assert hasattr(ocr, 'preprocess_image')
-            assert hasattr(ocr, 'extract_text')
-            assert hasattr(ocr, 'parse_invoice_text')
-            assert hasattr(ocr, 'process_invoice')
+            assert hasattr(ocr, 'process_invoice_upload')
+            assert hasattr(ocr, 'extract_from_image_path')
+            assert hasattr(ocr, 'batch_process_invoices')
         except ModuleNotFoundError:
             assert True
     
@@ -122,9 +121,9 @@ class TestIAServiceMethods:
             from ia.services.alert_service import AlertService
             alerts = AlertService()
             
-            assert hasattr(alerts, 'check_low_stock')
-            assert hasattr(alerts, 'check_expiring_batches')
-            assert hasattr(alerts, 'generate_alerts')
+            assert hasattr(alerts, 'generate_stock_alerts')
+            assert hasattr(alerts, 'generate_sales_alerts')
+            assert hasattr(alerts, 'get_active_alerts')
         except ModuleNotFoundError:
             assert True
     
@@ -134,9 +133,10 @@ class TestIAServiceMethods:
             from ia.services.kpi_service import KPIService
             kpis = KPIService()
             
-            assert hasattr(kpis, 'calculate_daily_sales')
-            assert hasattr(kpis, 'calculate_monthly_trends')
-            assert hasattr(kpis, 'generate_kpi_report')
+            assert hasattr(kpis, 'generate_daily_kpis')
+            assert hasattr(kpis, 'generate_weekly_kpis')
+            assert hasattr(kpis, 'generate_monthly_kpis')
+            assert hasattr(kpis, 'get_current_kpis')
         except ModuleNotFoundError:
             assert True
 
