@@ -291,12 +291,16 @@ class StockAnalyzer:
             total_revenue = sales_df['total_amount'].sum() if 'total_amount' in sales_df.columns else 0
             
             # Active products
-            active_products = products_df[products_df.get('is_active', True)].shape[0] if 'is_active' in products_df.columns else len(products_df)
+            if 'is_active' in products_df.columns:
+                active_mask = products_df['is_active'].astype(bool)
+            else:
+                active_mask = pd.Series(True, index=products_df.index)
+            active_products = int(active_mask.sum())
             
-            # Low stock products
+            # Low stock products (produits actifs sous leur stock minimum)
             low_stock = 0
             if 'current_stock' in products_df.columns and 'stock_min' in products_df.columns:
-                low_stock = ((products_df['current_stock'] < products_df['stock_min']) & products_df['is_active']).sum()
+                low_stock = int(((products_df['current_stock'] < products_df['stock_min']) & active_mask).sum())
             
             # Calculate average rotation
             avg_rotation = 0
