@@ -103,7 +103,10 @@ load_env() {
     
     if [ -f "$PROJECT_DIR/.env.production" ]; then
         log_info "Chargement de .env.production"
-        export $(grep -v '^#' "$PROJECT_DIR/.env.production" | xargs)
+        set -a
+        # shellcheck disable=SC1091
+        source <(sed 's/\r$//' "$PROJECT_DIR/.env.production")
+        set +a
     else
         log_error ".env.production non trouvé. Veuillez créer le fichier."
     fi
