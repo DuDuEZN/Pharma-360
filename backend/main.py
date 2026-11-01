@@ -3,9 +3,9 @@ Main Application Module for Pharmacie 360 Backend
 FastAPI application entry point
 """
 
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
-import logging
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,15 +14,13 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.core.config import settings
 from backend.core.database import engine
+from backend.core.logging import get_logger, setup_logging
 from backend.core.security import add_security_headers, oauth2_scheme
-from backend.core.logging import setup_logging, get_logger
 
 # Initialize centralized logging system
-logging_service = setup_logging({
-    "logs_dir": "./logs",
-    "console_level": logging.INFO,
-    "file_level": logging.DEBUG
-})
+logging_service = setup_logging(
+    {"logs_dir": "./logs", "console_level": logging.INFO, "file_level": logging.DEBUG}
+)
 logger = get_logger("main")
 
 
@@ -33,7 +31,7 @@ app = FastAPI(
     description="Pharmacie 360 - Plateforme de Gestion de Pharmacie",
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
 )
 
 
@@ -115,29 +113,32 @@ for router in v1_routers:
 # Include WebSocket router
 app.include_router(websocket_router, prefix="/api")
 
+
 # Add logging middleware
 @app.middleware("http")
 async def logging_middleware(request: Request, call_next):
     """Middleware for logging all HTTP requests"""
     import time
+
     start_time = time.time()
-    
+
     response = await call_next(request)
-    
+
     process_time = (time.time() - start_time) * 1000
     logger = get_logger("http")
-    
+
     # Log API requests
     if request.url.path.startswith("/api"):
         from backend.core.logging import log_api_request
+
         log_api_request(
             method=request.method,
             path=str(request.url),
             status_code=response.status_code,
             duration_ms=process_time,
-            client=request.client.host if request.client else None
+            client=request.client.host if request.client else None,
         )
-    
+
     return response
 
 
@@ -163,7 +164,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Run the application
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "main:app",
         host=settings.backend_host,

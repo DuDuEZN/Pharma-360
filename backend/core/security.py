@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .config import settings
 from .database import get_db
 
-
 # Password hashing context
 # Utiliser sha256_crypt au lieu de bcrypt pour éviter la limite de 72 bytes
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
@@ -154,7 +153,9 @@ class RBACUtils:
         return user_level >= required_level
 
     @staticmethod
-    def can_access_resource(user_role: str, resource_permissions: Dict[str, Any]) -> bool:
+    def can_access_resource(
+        user_role: str, resource_permissions: Dict[str, Any]
+    ) -> bool:
         """Check if a user can access a resource based on permissions."""
         if user_role == "admin":
             return True

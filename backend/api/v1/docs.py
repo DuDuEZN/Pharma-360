@@ -3,9 +3,11 @@ API Documentation Endpoints for Pharmacie 360
 Provides Swagger/OpenAPI documentation and custom API docs
 """
 
+from typing import Any, Dict
+
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse
-from typing import Dict, Any
+from fastapi.responses import HTMLResponse, JSONResponse
+
 from backend.core.config import settings
 from backend.core.logging import get_logger
 
@@ -21,32 +23,44 @@ def custom_openapi() -> Dict[str, Any]:
             "title": "Pharma-360 API",
             "description": "Pharmacie 360 - Systeme de Gestion de Pharmacie ERP",
             "version": "5.1.0",
-            "contact": {
-                "name": "Pharma-360 Team",
-                "email": "support@pharma360.bj"
-            },
+            "contact": {"name": "Pharma-360 Team", "email": "support@pharma360.bj"},
             "license": {
                 "name": "Proprietary",
-                "url": "https://github.com/DuDuEZN/Pharma-360"
-            }
+                "url": "https://github.com/DuDuEZN/Pharma-360",
+            },
         },
         "servers": [
             {"url": "http://localhost:8000", "description": "Development Server"},
-            {"url": "http://localhost:8080", "description": "Production Server (Docker)"}
+            {
+                "url": "http://localhost:8080",
+                "description": "Production Server (Docker)",
+            },
         ],
         "tags": [
-            {"name": "Authentification", "description": "Gestion des utilisateurs et authentification JWT"},
-            {"name": "Produits", "description": "CRUD Produits et gestion des codes-barres"},
+            {
+                "name": "Authentification",
+                "description": "Gestion des utilisateurs et authentification JWT",
+            },
+            {
+                "name": "Produits",
+                "description": "CRUD Produits et gestion des codes-barres",
+            },
             {"name": "Stocks", "description": "Gestion des stocks avec FEFO/FIFO"},
             {"name": "Ventes", "description": "Creation et gestion des ventes"},
             {"name": "Caisse", "description": "Encaissement et gestion de caisse"},
-            {"name": "Fournisseurs", "description": "Gestion des fournisseurs et factures"},
+            {
+                "name": "Fournisseurs",
+                "description": "Gestion des fournisseurs et factures",
+            },
             {"name": "Rapports", "description": "Generation de rapports"},
-            {"name": "Historique", "description": "Historique des ventes et statistiques"},
+            {
+                "name": "Historique",
+                "description": "Historique des ventes et statistiques",
+            },
             {"name": "Retours", "description": "Gestion des retours"},
             {"name": "Alertes", "description": "Systeme d'alertes"},
             {"name": "OCR", "description": "Reconnaissance optique des factures"},
-            {"name": "Documentation", "description": "Documentation API"}
+            {"name": "Documentation", "description": "Documentation API"},
         ],
         "components": {
             "securitySchemes": {
@@ -54,10 +68,10 @@ def custom_openapi() -> Dict[str, Any]:
                     "type": "http",
                     "scheme": "bearer",
                     "bearerFormat": "JWT",
-                    "description": "Token JWT pour l'authentification"
+                    "description": "Token JWT pour l'authentification",
                 }
             }
-        }
+        },
     }
 
 
@@ -128,7 +142,9 @@ async def get_redoc_documentation():
     """)
 
 
-@router.get("/markdown", response_class=JSONResponse, summary="API Documentation Markdown")
+@router.get(
+    "/markdown", response_class=JSONResponse, summary="API Documentation Markdown"
+)
 async def get_api_documentation_markdown():
     """Return complete API documentation in Markdown format"""
     markdown = """# Pharma-360 API Documentation
@@ -214,6 +230,6 @@ async def health_check():
         "services": {
             "database": "connected",
             "cache": "connected",
-            "storage": "connected"
-        }
+            "storage": "connected",
+        },
     }

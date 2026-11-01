@@ -4,29 +4,34 @@ Pydantic models for alert responses
 """
 
 from datetime import date
-from typing import Optional, Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
 
 class AlertBase(BaseModel):
     """Base alert model"""
+
     type: str = Field(..., description="Type of alert: 'stock' or 'expiry'")
     severity: str = Field(..., description="Severity: 'danger', 'warning', 'info'")
     product_id: int = Field(..., description="ID of the product")
     product_name: str = Field(..., description="Name of the product")
     barcode: Optional[str] = Field(None, description="Barcode of the product")
     message: str = Field(..., description="Human-readable alert message")
-    details: dict[str, Any] = Field(default_factory=dict, description="Additional alert details")
+    details: dict[str, Any] = Field(
+        default_factory=dict, description="Additional alert details"
+    )
 
 
 class AlertResponse(AlertBase):
     """Complete alert response model"""
+
     pass
 
 
 class StockAlertResponse(BaseModel):
     """Stock alert response model"""
+
     product_id: int
     product_name: str
     barcode: Optional[str]
@@ -40,6 +45,7 @@ class StockAlertResponse(BaseModel):
 
 class ExpiryAlertResponse(BaseModel):
     """Expiry alert response model"""
+
     batch_id: int
     product_id: int
     product_name: str
@@ -54,6 +60,7 @@ class ExpiryAlertResponse(BaseModel):
 
 class AlertListResponse(BaseModel):
     """List of all alerts"""
+
     alerts: list[AlertResponse]
     stock_alerts: list[StockAlertResponse]
     expiry_alerts: list[ExpiryAlertResponse]
@@ -64,6 +71,7 @@ class AlertListResponse(BaseModel):
 
 class StockStats(BaseModel):
     """Stock alert statistics"""
+
     total: int = 0
     low_stock: int = 0
     over_stock: int = 0
@@ -71,6 +79,7 @@ class StockStats(BaseModel):
 
 class ExpiryStats(BaseModel):
     """Expiry alert statistics"""
+
     total: int = 0
     expired: int = 0
     critical: int = 0
@@ -79,6 +88,7 @@ class ExpiryStats(BaseModel):
 
 class AlertStatsResponse(BaseModel):
     """Alert statistics response"""
+
     total_alerts: int
     stock_alerts: StockStats = Field(default_factory=StockStats)
     expiry_alerts: ExpiryStats = Field(default_factory=ExpiryStats)
@@ -86,6 +96,7 @@ class AlertStatsResponse(BaseModel):
 
 class AlertNotification(BaseModel):
     """WebSocket notification for alerts"""
+
     type: str = "alert_update"
     alert: AlertResponse
     count: int

@@ -3,8 +3,9 @@ Tests for Barcode Scanner Middleware
 Tests for QA-010 task
 """
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
 
 from backend.services.barcode_service import BarcodeService
 
@@ -22,12 +23,12 @@ def mock_current_user():
 
 class TestBarcodeService:
     """Tests for barcode service"""
-    
+
     def test_scan_barcode_success(self):
         """Test successful barcode scan through service"""
         service = BarcodeService()
         assert service is not None
-        
+
     def test_scan_barcode_not_found(self):
         """Test barcode not found through service"""
         service = BarcodeService()
@@ -36,12 +37,12 @@ class TestBarcodeService:
 
 class TestBarcodeValidation:
     """Tests for barcode validation"""
-    
+
     def test_valid_barcode_format(self):
         """Test valid barcode formats"""
         service = BarcodeService()
         assert service is not None
-        
+
     def test_invalid_barcode_format(self):
         """Test invalid barcode formats"""
         service = BarcodeService()
@@ -50,7 +51,7 @@ class TestBarcodeValidation:
 
 class TestBarcodeMiddleware:
     """Tests for barcode middleware"""
-    
+
     def test_middleware_instantiation(self):
         """Test that middleware can be instantiated"""
         service = BarcodeService()
@@ -59,7 +60,7 @@ class TestBarcodeMiddleware:
 
 class TestBarcodePerformance:
     """Performance tests for barcode scanning"""
-    
+
     def test_service_instantiation(self):
         """Test service instantiation"""
         service = BarcodeService()
@@ -68,17 +69,17 @@ class TestBarcodePerformance:
 
 class TestBarcodeEdgeCases:
     """Tests for edge cases"""
-    
+
     def test_service_handles_none(self):
         """Test service handles None gracefully"""
         service = BarcodeService()
         assert service is not None
-    
+
     def test_service_has_scan_method(self):
         """Test service has scan_barcode method"""
         service = BarcodeService()
-        assert hasattr(service, 'scan_barcode')
+        assert hasattr(service, "scan_barcode")
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

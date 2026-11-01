@@ -7,11 +7,11 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
+                                    create_async_engine)
 from sqlalchemy.orm import DeclarativeBase
 
 from .config import settings
-
 
 # Database URL
 DATABASE_URL = (
@@ -28,6 +28,7 @@ engine = create_async_engine(
     pool_timeout=30,
     pool_pre_ping=True,
 )
+
 
 # Enable foreign keys for SQLite (if needed)
 @event.listens_for(engine.sync_engine, "connect")
@@ -52,6 +53,7 @@ async_session_maker = async_sessionmaker(
 # Base class for models
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models"""
+
     pass
 
 
