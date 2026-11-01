@@ -604,6 +604,7 @@ docker-compose --project-directory . -f docker/docker-compose.prod.yml restart p
 
 | Description | Commande |
 |-------------|----------|
+| Voir les conteneurs | `docker ps -a` |
 | Voir les logs | `docker-compose --project-directory . -f docker/docker-compose.prod.yml logs -f` |
 | Arrêter les services | `docker-compose --project-directory . -f docker/docker-compose.prod.yml down` |
 | Démarrer les services | `docker-compose --project-directory . -f docker/docker-compose.prod.yml up -d` |
