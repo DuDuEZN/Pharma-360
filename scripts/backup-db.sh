@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # =============================================================================
 # PHARMACIE 360 - Script de Sauvegarde Automatique de la Base de Données
@@ -131,7 +131,12 @@ cleanup_old_backups() {
     log "Nettoyage des anciennes sauvegardes..."
     
     # Lister toutes les sauvegardes
-    local backups=($BACKUP_DIR/${DB_NAME}_*.sql* 2>/dev/null)
+    # nullglob : liste vide (et non le motif littéral) s'il n'y a aucune sauvegarde
+    local backups=()
+    shopt -s nullglob
+    backups=("$BACKUP_DIR"/${DB_NAME}_*.sql*)
+    shopt -u nullglob
+    
     
     if [ ${#backups[@]} -le $MAX_BACKUPS ]; then
         log "Aucune ancienne sauvegarde à supprimer (${#backups[@]} <= $MAX_BACKUPS)"
@@ -145,7 +150,7 @@ cleanup_old_backups() {
         if [ -f "$backup" ]; then
             log "Suppression de l'ancienne sauvegarde: $backup"
             rm -f "$backup"
-            ((count++))
+            count=$((count + 1))
         fi
     done
     
