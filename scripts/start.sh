@@ -108,7 +108,7 @@ function cleanup() {
     docker-compose --project-directory . -f docker/docker-compose.yml down 2>/dev/null
     
     # Supprimer les images inutilisées (optionnel)
-    docker system prune -f
+    # docker system prune -f
     
     echo_success "Environnement nettoyé"
 }
