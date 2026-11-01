@@ -116,7 +116,7 @@ jobs:
         run: |
           echo "🔍 Verifying Python formatting..."
           python -m black --check backend/ ia/
-          python -m isort --check-only backend/ ia/
+          python -m isort --profile black --check-only backend/ ia/
           echo "✅ All Python formatting checks passed"
 
       - name: Set up Node.js
