@@ -237,6 +237,27 @@ class StockPredictionService:
                 'status': 'error',
                 'error': str(e)
             }
+            
+    async def get_predictions(
+        self,
+        products: Optional[List[Dict[str, Any]]] = None,
+        historical_data: Optional[Dict[str, List[Dict[str, Any]]]] = None
+    ) -> List[Dict[str, Any]]:
+        """Liste des prévisions de rupture (utilisée par le dashboard IA).
+
+        Le service IA est autonome : sans produits fournis, la liste est vide.
+        """
+        result = await self.predict_ruptures(products or [], historical_data or {})
+        return result.get('predictions', [])
+
+    async def get_recommendations(
+        self,
+        products: Optional[List[Dict[str, Any]]] = None,
+        lead_time: int = 7
+    ) -> List[Dict[str, Any]]:
+        """Liste des recommandations de réapprovisionnement (dashboard IA)."""
+        result = await self.get_reorder_recommendations(products or [], lead_time)
+        return result.get('recommendations', [])
 
 
 # Global stock prediction service instance
