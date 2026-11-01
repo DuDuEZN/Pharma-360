@@ -3,9 +3,6 @@
 # ===========================================
 # Pharma 360 - Script de Déploiement Production
 # ===========================================
-# ID Tâche: QA-016
-# Responsable: QA/DevOps
-# Statut: EN COURS
 # Description: Script pour déployer l'application en production
 # ===========================================
 
@@ -52,27 +49,27 @@ log_step() {
 # Vérifier les dépendances
 check_dependencies() {
     log_step "Vérification des dépendances..."
-    
+
     local missing=0
-    
+
     # Docker
     if ! command -v docker &> /dev/null; then
         log_error "Docker n'est pas installé. Veuillez installer Docker."
         missing=1
     fi
-    
+
     # Docker Compose
     if ! command -v docker-compose &> /dev/null; then
         log_error "Docker Compose n'est pas installé. Veuillez installer Docker Compose."
         missing=1
     fi
-    
+
     # Git
     if ! command -v git &> /dev/null; then
         log_error "Git n'est pas installé. Veuillez installer Git."
         missing=1
     fi
-    
+
     if [ $missing -eq 0 ]; then
         log_info "Toutes les dépendances sont installées."
     fi
@@ -81,7 +78,7 @@ check_dependencies() {
 # Créer les répertoires nécessaires
 create_directories() {
     log_step "Création des répertoires..."
-    
+
     mkdir -p "$BACKUP_DIR"
     mkdir -p "/var/log/pharma360"
     mkdir -p "$PROJECT_DIR/backups"
@@ -92,18 +89,20 @@ create_directories() {
     mkdir -p "$PROJECT_DIR/ia/logs"
     mkdir -p "$PROJECT_DIR/ia/models"
     mkdir -p "$PROJECT_DIR/ia/uploads"
+    mkdir -p "$PROJECT_DIR/ia/static"
     mkdir -p "$PROJECT_DIR/docker/nginx/ssl"
-    
+
     log_info "Répertoires créés avec succès."
 }
 
 # Charger les variables d'environnement
 load_env() {
     log_step "Chargement de la configuration..."
-    
+
     if [ -f "$PROJECT_DIR/.env.production" ]; then
         log_info "Chargement de .env.production"
         set -a
+        # shellcheck disable=SC1090
         source <(sed 's/\r$//' "$PROJECT_DIR/.env.production")
         set +a
     else
@@ -114,57 +113,57 @@ load_env() {
 # Construire les images Docker
 build_images() {
     log_step "Construction des images Docker..."
-    
+
     cd "$PROJECT_DIR"
-    
+
     # Backend
     log_info "Construction de l'image Backend..."
     docker-compose --project-directory . -f docker/docker-compose.prod.yml build pharma360-backend || \
         log_error "Échec de la construction de l'image Backend"
-    
+
     # Frontend
     log_info "Construction de l'image Frontend..."
     docker-compose --project-directory . -f docker/docker-compose.prod.yml build pharma360-frontend || \
         log_error "Échec de la construction de l'image Frontend"
-    
+
     # IA
     log_info "Construction de l'image IA..."
     docker-compose --project-directory . -f docker/docker-compose.prod.yml build pharma360-ia || \
         log_error "Échec de la construction de l'image IA"
-    
+
     log_info "Toutes les images Docker construites avec succès."
 }
 
 # Démarrer les conteneurs
 start_containers() {
     log_step "Démarrage des conteneurs..."
-    
+
     cd "$PROJECT_DIR"
-    
+
     # Arrêter les conteneurs existants
     log_info "Arrêt des conteneurs existants..."
     docker-compose --project-directory . -f docker/docker-compose.prod.yml down || true
-    
+
     # Démarrer les conteneurs
     log_info "Démarrage des conteneurs..."
     docker-compose --project-directory . -f docker/docker-compose.prod.yml up -d || \
         log_error "Échec du démarrage des conteneurs"
-    
+
     log_info "Conteneurs démarrés avec succès."
 }
 
 # Vérifier la santé des services
 check_health() {
     log_step "Vérification de la santé des services..."
-    
+
     local max_retries=30
     local retry=0
     local all_healthy=false
-    
+
     while [ $retry -lt $max_retries ] && [ "$all_healthy" = false ]; do
         retry=$((retry + 1))
         sleep 5
-        
+
         # Vérifier la base de données
         if docker exec pharma360-db-prod pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" &> /dev/null; then
             log_info "Base de données: HEALTHY"
@@ -172,7 +171,7 @@ check_health() {
             log_warn "Base de données: Unhealthy (attempt $retry/$max_retries)"
             continue
         fi
-        
+
         # Vérifier le backend
         if docker exec pharma360-backend-prod python -c "import httpx; httpx.get('http://localhost:8000/api/health', timeout=5).raise_for_status()" &> /dev/null; then
             log_info "Backend: HEALTHY"
@@ -180,15 +179,15 @@ check_health() {
             log_warn "Backend: Unhealthy (attempt $retry/$max_retries)"
             continue
         fi
-        
-        # Vérifier le frontend
-         if docker exec pharma360-frontend-prod wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/ &> /dev/null; then
+
+        # Vérifier le frontend (nginx-unprivileged écoute sur 8080)
+        if docker exec pharma360-frontend-prod wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/ &> /dev/null; then
             log_info "Frontend: HEALTHY"
         else
             log_warn "Frontend: Unhealthy (attempt $retry/$max_retries)"
             continue
         fi
-        
+
         # Vérifier IA
         if docker exec pharma360-ia-prod python -c "import httpx; httpx.get('http://localhost:8001/api/health', timeout=5).raise_for_status()" &> /dev/null; then
             log_info "IA: HEALTHY"
@@ -196,62 +195,63 @@ check_health() {
             log_warn "IA: Unhealthy (attempt $retry/$max_retries)"
             continue
         fi
-        
+
         # Vérifier Nginx
-        if docker exec pharma360-nginx-prod wget --no-verbose --tries=1 --spider http://localhost/ &> /dev/null; then
+        if docker exec pharma360-nginx-prod wget --no-verbose --tries=1 --spider http://127.0.0.1/ &> /dev/null; then
             log_info "Nginx: HEALTHY"
         else
             log_warn "Nginx: Unhealthy (attempt $retry/$max_retries)"
             continue
         fi
-        
+
         all_healthy=true
     done
-    
+
     if [ "$all_healthy" = false ]; then
         log_error "Échec de la vérification de santé après $max_retries tentatives"
     fi
-    
+
     log_info "Tous les services sont en santé."
 }
 
 # Initialiser la base de données
 init_database() {
     log_step "Initialisation de la base de données..."
-    
+
     cd "$PROJECT_DIR"
-    
+
     # Attendre que la base soit prête
     log_info "Attente de la disponibilité de la base de données..."
     local max_retries=30
     local retry=0
-    
+    local ready=false
+
     while [ $retry -lt $max_retries ]; do
         retry=$((retry + 1))
         if docker exec pharma360-db-prod pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" &> /dev/null; then
+            ready=true
             break
         fi
         sleep 2
     done
-    
-    if [ $retry -eq $max_retries ]; then
+
+    if [ "$ready" = false ]; then
         log_error "La base de données n'est pas prête après $max_retries tentatives"
     fi
-    
-    # Exécuter les migrations
+
     # Pas de configuration Alembic dans le projet : on vérifie que le schéma existe
     log_info "Vérification du schéma de la base de données..."
     local tables
     tables=$(docker exec pharma360-db-prod psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
         "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" | tr -d '[:space:]')
- 
+
     if [ "${tables:-0}" -gt 0 ]; then
         log_info "Schéma existant détecté ($tables tables) : migrations non nécessaires."
     else
         log_error "Base vide et aucune migration disponible : créez le schéma avant de déployer."
     fi
-    
-    log_info "Base de données initialisée avec succès."
+
+    log_info "Base de données prête."
 }
 
 # Configurer les sauvegardes automatiques
@@ -266,13 +266,13 @@ setup_backups() {
             return 0
             ;;
     esac
-    
+
     # Copier le script de sauvegarde
     cp "$PROJECT_DIR/scripts/backup-db.sh" /usr/local/bin/pharma360-backup
     chmod +x /usr/local/bin/pharma360-backup
-    
+
     # Configurer cron pour les sauvegardes quotidiennes
-    if ! crontab -l | grep -q "pharma360-backup"; then
+    if ! crontab -l 2>/dev/null | grep -q "pharma360-backup"; then
         (crontab -l 2>/dev/null; echo "0 2 * * * /usr/local/bin/pharma360-backup") | crontab -
         log_info "Sauvegardes automatiques configurées (tous les jours à 2h)."
     else
@@ -283,7 +283,7 @@ setup_backups() {
 # Vérifications finales
 final_checks() {
     log_step "Vérifications finales..."
-    
+
     # Vérifier les ports
     log_info "Vérification des ports..."
     if docker ps | grep -q "0.0.0.0:80->80/tcp"; then
@@ -291,31 +291,33 @@ final_checks() {
     else
         log_warn "Port 80 (Nginx): Non trouvé"
     fi
-    
+
     if docker ps | grep -q "0.0.0.0:8000->8000/tcp"; then
         log_info "Port 8000 (Backend): OK"
     else
         log_warn "Port 8000 (Backend): Non trouvé"
     fi
-    
+
     if docker ps | grep -q "0.0.0.0:8001->8001/tcp"; then
         log_info "Port 8001 (IA): OK"
     else
         log_warn "Port 8001 (IA): Non trouvé"
     fi
-    
+
     # Tester l'API
     log_info "Test de l'API..."
-    local api_response=$(curl -s http://localhost/api/health || echo "")
+    local api_response
+    api_response=$(curl -s http://localhost/api/health || echo "")
     if echo "$api_response" | grep -q "healthy"; then
         log_info "API Health Check: OK"
     else
         log_warn "API Health Check: Échec"
     fi
-    
+
     # Tester le frontend
     log_info "Test du Frontend..."
-    local frontend_response=$(curl -s http://localhost/ || echo "")
+    local frontend_response
+    frontend_response=$(curl -s http://localhost/ || echo "")
     if echo "$frontend_response" | grep -q "Pharma"; then
         log_info "Frontend: OK"
     else
@@ -331,7 +333,7 @@ show_summary() {
     echo "                    PHARMA 360 - DÉPLOIEMENT PRODUCTION"
     echo "============================================================================"
     echo ""
-    echo "  Statut: ${GREEN}TERMINÉ${NC}"
+    echo -e "  Statut: ${GREEN}TERMINÉ${NC}"
     echo ""
     echo "  Services déployés:"
     echo "    - Base de données PostgreSQL: pharma360-db-prod"
@@ -366,14 +368,14 @@ main() {
     # Créer le fichier de log
     mkdir -p "$(dirname "$LOG_FILE")"
     touch "$LOG_FILE"
-    
+
     echo ""
     echo "============================================================================"
     echo "              PHARMA 360 - DÉPLOIEMENT PRODUCTION"
     echo "              ID Tâche: QA-016"
     echo "============================================================================"
     echo ""
-    
+
     # Exécuter les étapes
     check_dependencies
     create_directories
@@ -385,7 +387,7 @@ main() {
     setup_backups
     final_checks
     show_summary
-    
+
     log_info "Déploiement terminé avec succès!"
 }
 
