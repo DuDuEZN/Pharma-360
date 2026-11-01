@@ -18,6 +18,18 @@ class KPIService:
     def __init__(self):
         self.cache_ttl = 3600  # Default cache TTL in seconds
     
+    async def get_current_kpis(self) -> Dict[str, Any]:
+        """KPIs du jour (utilisé par le dashboard IA)"""
+        return await self.generate_daily_kpis()
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Etat du service KPI (utilisé par /api/v1/dashboard/health)"""
+        return {
+            'status': 'healthy',
+            'service': 'KPI Generation',
+            'version': '1.0.0'
+        }
+
     async def generate_daily_kpis(self, date: Optional[str] = None) -> Dict[str, Any]:
         """
         Generate daily KPIs
