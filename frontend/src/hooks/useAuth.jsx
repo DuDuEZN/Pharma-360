@@ -53,7 +53,7 @@ export function AuthProvider({ children }) {
 
     try {
       api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`
-      await api.get('/api/health')
+      await api.get('/health', { baseURL: '/api' })
 
       setToken(storedToken)
       setUser(JSON.parse(storedUser))
