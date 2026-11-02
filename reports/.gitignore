@@ -1,0 +1,4 @@
+# Ignorer tous les fichiers de rapport
+*.json
+*.txt
+*.html
