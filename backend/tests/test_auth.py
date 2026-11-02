@@ -352,12 +352,12 @@ class TestSecurityEdgeCases:
 
     def test_password_hashing_long_password(self):
         """Test password hashing with long password"""
-        # Password longer than 72 bytes - sha256_crypt can handle it but truncates at 72
+        # sha256_crypt can handle long passwords without truncation
         long_password = "a" * 100
         hashed = PasswordUtils.hash_password(long_password)
 
-        # Verify with truncated password (72 chars max for sha256_crypt)
-        assert PasswordUtils.verify_password(long_password[:72], hashed) is True
+        # Verify with full password - sha256_crypt handles it
+        assert PasswordUtils.verify_password(long_password, hashed) is True
 
     def test_password_hashing_unicode(self):
         """Test password hashing with unicode characters"""

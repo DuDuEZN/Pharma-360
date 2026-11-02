@@ -38,20 +38,12 @@ class PasswordUtils:
 
     @staticmethod
     def hash_password(password: str) -> str:
-        """Hash a password using bcrypt"""
-        # Tronquer à 72 bytes pour bcrypt (limite de bcrypt)
-        password_bytes = password.encode("utf-8")
-        if len(password_bytes) > 72:
-            password = password[:72]
+        """Hash a password using sha256_crypt"""
         return pwd_context.hash(password)
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash"""
-        # Tronquer à 72 bytes pour correspondre au hash
-        plain_password_bytes = plain_password.encode("utf-8")
-        if len(plain_password_bytes) > 72:
-            plain_password = plain_password[:72]
         return pwd_context.verify(plain_password, hashed_password)
 
     @staticmethod
