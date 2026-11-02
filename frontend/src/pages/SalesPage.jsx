@@ -199,7 +199,7 @@ function SalesPage() {
     return { label: 'OK', color: 'success' }
   }
 
-  const cartSummary = getSummary()
+  const cartSummary = getSummary ? getSummary() : { itemCount: 0, totalItems: 0, subtotal: 0, tax: 0, discount: 0, total: 0 }
 
   return (
     <div className="space-y-6">

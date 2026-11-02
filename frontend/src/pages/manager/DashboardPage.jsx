@@ -66,7 +66,7 @@ const DashboardPage = () => {
         }
       });
       
-      if (statsResponse.data) {
+      if (statsResponse?.data) {
         setStats({
           totalSales: statsResponse.data.total_sales || 0,
           totalRevenue: statsResponse.data.total_revenue || 0,
@@ -86,7 +86,7 @@ const DashboardPage = () => {
         }
       });
       
-      if (salesResponse.data) {
+      if (salesResponse?.data) {
         const labels = salesResponse.data.map(item => new Date(item.date).toLocaleDateString());
         const data = salesResponse.data.map(item => item.total_sales);
         setSalesData({ labels, data });
@@ -97,7 +97,7 @@ const DashboardPage = () => {
         params: { limit: 5 }
       });
       
-      if (productsResponse.data) {
+      if (productsResponse?.data) {
         const labels = productsResponse.data.map(item => item.product_name);
         const data = productsResponse.data.map(item => item.quantity_sold);
         setTopProducts({ labels, data });
@@ -106,7 +106,7 @@ const DashboardPage = () => {
       // Fetch category distribution
       const categoryResponse = await api.get('/products/categories/stats');
       
-      if (categoryResponse.data) {
+      if (categoryResponse?.data) {
         const labels = categoryResponse.data.map(item => item.category_name);
         const data = categoryResponse.data.map(item => item.product_count);
         setCategoryDistribution({ labels, data });
