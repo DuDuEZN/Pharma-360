@@ -8,6 +8,7 @@ from .auth import router as auth_router
 from .barcode import router as barcode_router
 from .batches import router as batches_router
 from .docs import router as docs_router
+from .health import router as health_router
 from .invoices import router as invoices_router
 from .ocr_integration import router as ocr_integration_router
 from .products import router as products_router
@@ -20,6 +21,7 @@ from .users import router as users_router
 
 # List of all routers to be included in main.py
 routers = [
+    health_router,
     auth_router,
     users_router,
     products_router,
