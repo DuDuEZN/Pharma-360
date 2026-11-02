@@ -7,6 +7,10 @@
 -- Tâche: ARCH-002 (Modèle de Données PostgreSQL)
 -- =============================================================================
 
+-- NOTE: la base de données est créée par l'image postgres via POSTGRES_DB.
+-- Ce script s'exécute donc directement dedans (pas de CREATE DATABASE / \c ici :
+-- avec ON_ERROR_STOP=1 de l'entrypoint, cela interromprait toute l'initialisation).
+
 -- Ce script crée toutes les tables, index et triggers nécessaires pour
 -- la plateforme Pharmacie 360°. Il est exécuté automatiquement au
 -- premier démarrage de PostgreSQL via docker-compose.
@@ -232,6 +236,68 @@ CREATE TABLE IF NOT EXISTS movements (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- -----------------------------------------------------------------------------
+-- Compléments de schéma : éléments attendus par les modèles SQLAlchemy
+-- -----------------------------------------------------------------------------
+
+-- Fournisseur principal d'un produit (Product.supplier_id)
+ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS ix_products_supplier_id ON products(supplier_id);
+
+-- Historique des ventes (modèle SaleHistory)
+CREATE TABLE IF NOT EXISTS sale_history (
+    id SERIAL PRIMARY KEY,
+    sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+    sale_number VARCHAR(50) NOT NULL,
+    product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+    product_name VARCHAR(200) NOT NULL,
+    batch_id INTEGER REFERENCES batches(id) ON DELETE SET NULL,
+    batch_number VARCHAR(50),
+    quantity INTEGER NOT NULL,
+    unit_price NUMERIC(10, 2) NOT NULL,
+    total_price NUMERIC(12, 2) NOT NULL,
+    sale_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    sale_day DATE NOT NULL,
+    cashier_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    cashier_name VARCHAR(100),
+    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    customer_name VARCHAR(200),
+    payment_method VARCHAR(50),
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_sale_history_batch_id ON sale_history(batch_id);
+CREATE INDEX IF NOT EXISTS ix_sale_history_product_id ON sale_history(product_id);
+CREATE INDEX IF NOT EXISTS ix_sale_history_sale_date ON sale_history(sale_date);
+CREATE INDEX IF NOT EXISTS ix_sale_history_sale_day ON sale_history(sale_day);
+CREATE INDEX IF NOT EXISTS ix_sale_history_sale_id ON sale_history(sale_id);
+CREATE INDEX IF NOT EXISTS ix_sale_history_sale_number ON sale_history(sale_number);
+
+-- Rapports générés (modèle Report)
+CREATE TABLE IF NOT EXISTS reports (
+    id SERIAL PRIMARY KEY,
+    report_type VARCHAR(50) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    generated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    parameters TEXT NOT NULL,
+    file_path VARCHAR(500),
+    file_format VARCHAR(10),
+    data_range_start DATE,
+    data_range_end DATE,
+    total_records INTEGER NOT NULL,
+    total_amount NUMERIC(12, 2) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    generated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_reports_data_range_end ON reports(data_range_end);
+CREATE INDEX IF NOT EXISTS ix_reports_data_range_start ON reports(data_range_start);
+CREATE INDEX IF NOT EXISTS ix_reports_generated_at ON reports(generated_at);
+CREATE INDEX IF NOT EXISTS ix_reports_generated_by ON reports(generated_by);
+CREATE INDEX IF NOT EXISTS ix_reports_report_type ON reports(report_type);
+CREATE INDEX IF NOT EXISTS ix_reports_status ON reports(status);
+
 -- =============================================================================
 -- 4. CRÉATION DES INDEX (Optimisation des requêtes)
 -- =============================================================================
@@ -305,61 +371,70 @@ CREATE INDEX IF NOT EXISTS idx_movements_type ON movements(type);
 -- =============================================================================
 
 -- Trigger pour updated_at sur users
-CREATE TRIGGER IF NOT EXISTS update_users_updated_at
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur categories
-CREATE TRIGGER IF NOT EXISTS update_categories_updated_at
+DROP TRIGGER IF EXISTS update_categories_updated_at ON categories;
+CREATE TRIGGER update_categories_updated_at
     BEFORE UPDATE ON categories
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur suppliers
-CREATE TRIGGER IF NOT EXISTS update_suppliers_updated_at
+DROP TRIGGER IF EXISTS update_suppliers_updated_at ON suppliers;
+CREATE TRIGGER update_suppliers_updated_at
     BEFORE UPDATE ON suppliers
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur customers
-CREATE TRIGGER IF NOT EXISTS update_customers_updated_at
+DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
+CREATE TRIGGER update_customers_updated_at
     BEFORE UPDATE ON customers
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur products
-CREATE TRIGGER IF NOT EXISTS update_products_updated_at
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
+CREATE TRIGGER update_products_updated_at
     BEFORE UPDATE ON products
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur invoices
-CREATE TRIGGER IF NOT EXISTS update_invoices_updated_at
+DROP TRIGGER IF EXISTS update_invoices_updated_at ON invoices;
+CREATE TRIGGER update_invoices_updated_at
     BEFORE UPDATE ON invoices
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur batches
-CREATE TRIGGER IF NOT EXISTS update_batches_updated_at
+DROP TRIGGER IF EXISTS update_batches_updated_at ON batches;
+CREATE TRIGGER update_batches_updated_at
     BEFORE UPDATE ON batches
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur sales
-CREATE TRIGGER IF NOT EXISTS update_sales_updated_at
+DROP TRIGGER IF EXISTS update_sales_updated_at ON sales;
+CREATE TRIGGER update_sales_updated_at
     BEFORE UPDATE ON sales
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour updated_at sur returns
-CREATE TRIGGER IF NOT EXISTS update_returns_updated_at
+DROP TRIGGER IF EXISTS update_returns_updated_at ON returns;
+CREATE TRIGGER update_returns_updated_at
     BEFORE UPDATE ON returns
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger pour copier expiry_date depuis batches vers sale_items
-CREATE OR REPLACE FUNCTION IF NOT EXISTS set_sale_item_expiry_date()
+CREATE OR REPLACE FUNCTION set_sale_item_expiry_date()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.expiry_date := (
@@ -369,7 +444,8 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER IF NOT EXISTS update_sale_item_expiry_date
+DROP TRIGGER IF EXISTS update_sale_item_expiry_date ON sale_items;
+CREATE TRIGGER update_sale_item_expiry_date
     BEFORE INSERT ON sale_items
     FOR EACH ROW
     EXECUTE FUNCTION set_sale_item_expiry_date();
@@ -390,13 +466,14 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_sale_item_expiry_date_on_update ON sale_items;
 CREATE TRIGGER update_sale_item_expiry_date_on_update
     BEFORE UPDATE ON sale_items
     FOR EACH ROW
     EXECUTE FUNCTION update_sale_item_expiry_date();
 
 -- Trigger pour valider que quantity <= initial_quantity dans batches
-CREATE OR REPLACE FUNCTION IF NOT EXISTS check_batch_quantity()
+CREATE OR REPLACE FUNCTION check_batch_quantity()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.quantity > NEW.initial_quantity THEN
@@ -406,24 +483,28 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER IF NOT EXISTS validate_batch_quantity
+DROP TRIGGER IF EXISTS validate_batch_quantity ON batches;
+CREATE TRIGGER validate_batch_quantity
     BEFORE UPDATE ON batches
     FOR EACH ROW
     EXECUTE FUNCTION check_batch_quantity();
 
 -- Trigger pour enregistrer automatiquement les mouvements de stock
 -- Note: Ce trigger nécessite que app.current_user_id soit défini dans la session
-CREATE OR REPLACE FUNCTION IF NOT EXISTS log_batch_quantity_change()
+CREATE OR REPLACE FUNCTION log_batch_quantity_change()
 RETURNS TRIGGER AS $$
 DECLARE
     current_user_id_val INTEGER;
 BEGIN
     -- Récupérer l'ID de l'utilisateur courant depuis la variable de session
     -- En pratique, cela sera défini par l'application
-    SELECT current_setting('app.current_user_id')::INTEGER INTO current_user_id_val;
+    -- missing_ok = true : renvoie NULL (au lieu de lever une erreur) si la variable n'est pas définie
+    current_user_id_val := NULLIF(current_setting('app.current_user_id', true), '')::INTEGER;
     
     IF current_user_id_val IS NULL THEN
-        current_user_id_val := 1; -- Utilisateur système par défaut
+        -- Utilisateur système par défaut : le plus ancien utilisateur existant
+        -- (évite une violation de la clé étrangère movements.user_id -> users.id)
+        SELECT MIN(id) INTO current_user_id_val FROM users;
     END IF;
     
     IF NEW.quantity != OLD.quantity THEN
@@ -447,11 +528,12 @@ END;
 $$ language 'plpgsql';
 -- Trigger principal pour enregistrer automatiquement les mouvements de stock
 -- Utilise current_setting('app.current_user_id') pour obtenir l'ID de l'utilisateur
-CREATE TRIGGER IF NOT EXISTS log_batch_quantity_change_trigger
+DROP TRIGGER IF EXISTS log_batch_quantity_change_trigger ON batches;
+CREATE TRIGGER log_batch_quantity_change_trigger
     AFTER UPDATE ON batches
     FOR EACH ROW
     WHEN (OLD.quantity IS DISTINCT FROM NEW.quantity)
-    EXECUTE PROCEDURE log_batch_quantity_change();
+    EXECUTE FUNCTION log_batch_quantity_change();
 
 -- =============================================================================
 -- 6. DONNÉES INITIALES (Optionnel - pour démonstration)
@@ -473,7 +555,7 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO suppliers (name, contact, email, phone, address, city, country) VALUES 
     ('Fournisseur Générique', 'Jean Dupont', 'contact@fournisseur.com', '+229 12 34 56 78', 
      '123 Rue de la Santé', 'Cotonou', 'Bénin')
-ON CONFLICT (name) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Utilisateur admin par défaut (à utiliser pour la première connexion)
 -- NOTE: Le mot de passe doit être hashé avant insertion

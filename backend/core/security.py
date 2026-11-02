@@ -6,24 +6,24 @@ Handles authentication, JWT tokens, and password hashing
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Annotated
+from typing import Annotated, Any, Dict, Optional
 
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any
 
 from .config import settings
-
+from .database import get_db
 
 # Password hashing context
 # Utiliser sha256_crypt au lieu de bcrypt pour éviter la limite de 72 bytes
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 # OAuth2 scheme for token authentication
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
 
 
 # Token types
@@ -35,25 +35,25 @@ class TokenType:
 # Password utilities
 class PasswordUtils:
     """Password hashing and verification utilities"""
-    
+
     @staticmethod
     def hash_password(password: str) -> str:
         """Hash a password using bcrypt"""
         # Tronquer à 72 bytes pour bcrypt (limite de bcrypt)
-        password_bytes = password.encode('utf-8')
+        password_bytes = password.encode("utf-8")
         if len(password_bytes) > 72:
             password = password[:72]
         return pwd_context.hash(password)
-    
+
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash"""
         # Tronquer à 72 bytes pour correspondre au hash
-        plain_password_bytes = plain_password.encode('utf-8')
+        plain_password_bytes = plain_password.encode("utf-8")
         if len(plain_password_bytes) > 72:
             plain_password = plain_password[:72]
         return pwd_context.verify(plain_password, hashed_password)
-    
+
     @staticmethod
     def generate_temp_password(length: int = 12) -> str:
         """Generate a temporary password"""
@@ -63,20 +63,20 @@ class PasswordUtils:
 # JWT utilities
 class JWTUtils:
     """JWT token utilities"""
-    
+
     @staticmethod
     def create_token(
         subject: str,
         data: Optional[dict] = None,
         token_type: str = TokenType.ACCESS,
-        expires_delta: Optional[timedelta] = None
+        expires_delta: Optional[timedelta] = None,
     ) -> str:
         """Create a JWT token"""
         if data is None:
             data = {}
-        
+
         to_encode = data.copy()
-        
+
         # Set expiration
         if expires_delta:
             expire = datetime.now(timezone.utc) + expires_delta
@@ -87,22 +87,24 @@ class JWTUtils:
                 )
             else:
                 expire = datetime.now(timezone.utc) + timedelta(days=7)
-        
-        to_encode.update({
-            "exp": expire,
-            "iat": datetime.now(timezone.utc),
-            "sub": str(subject),
-            "type": token_type
-        })
-        
+
+        to_encode.update(
+            {
+                "exp": expire,
+                "iat": datetime.now(timezone.utc),
+                "sub": str(subject),
+                "type": token_type,
+            }
+        )
+
         encoded_jwt = jwt.encode(
             to_encode,
             settings.jwt_secret.get_secret_value(),
-            algorithm=settings.jwt_algorithm
+            algorithm=settings.jwt_algorithm,
         )
-        
+
         return encoded_jwt
-    
+
     @staticmethod
     def decode_token(token: str) -> dict:
         """Decode and verify a JWT token"""
@@ -110,7 +112,7 @@ class JWTUtils:
             payload = jwt.decode(
                 token,
                 settings.jwt_secret.get_secret_value(),
-                algorithms=[settings.jwt_algorithm]
+                algorithms=[settings.jwt_algorithm],
             )
             return payload
         except JWTError as e:
@@ -119,7 +121,7 @@ class JWTUtils:
                 detail=f"Invalid token: {str(e)}",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-    
+
     @staticmethod
     def verify_token_type(token: str, expected_type: str) -> bool:
         """Verify token type"""
@@ -130,7 +132,7 @@ class JWTUtils:
 # RBAC utilities
 class RBACUtils:
     """Role-Based Access Control utilities"""
-    
+
     # Role hierarchy
     ROLE_HIERARCHY = {
         "admin": 4,
@@ -138,108 +140,109 @@ class RBACUtils:
         "seller": 2,
         "cashier": 1,
     }
-    
+
     @staticmethod
     def has_permission(user_role: str, required_role: Optional[str] = None) -> bool:
-        """Check if user has required permission"""
+        """Check if a user has a required permission level."""
         if required_role is None:
             return True
-        
+
         user_level = RBACUtils.ROLE_HIERARCHY.get(user_role, 0)
         required_level = RBACUtils.ROLE_HIERARCHY.get(required_role, 0)
-        
+
         return user_level >= required_level
-    
+
     @staticmethod
-    def can_access_resource(user_role: str, resource_permissions: dict) -> bool:
-        """Check if user can access a resource based on permissions"""
+    def can_access_resource(
+        user_role: str, resource_permissions: Dict[str, Any]
+    ) -> bool:
+        """Check if a user can access a resource based on permissions."""
         if user_role == "admin":
             return True
-        
+
         permissions = resource_permissions.get(user_role, [])
         return len(permissions) > 0
 
 
 # Dependency for getting current user
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)]
-) -> Dict[str, Any]:
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     """
-    Dependency that provides the current authenticated user from JWT payload
+    Dependency that provides the current authenticated user instance from the DB.
     """
+    from ..models.user import User
+
+    credentials_error = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
     try:
         payload = JWTUtils.decode_token(token)
         user_id = payload.get("sub")
-        
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Return user data from JWT
-        # In production, you would fetch from database
-        return {
-            "id": int(user_id),
-            "username": payload.get("username", "unknown"),
-            "email": payload.get("email", "unknown@example.com"),
-            "full_name": payload.get("full_name", ""),
-            "role": payload.get("role", "seller"),
-            "is_active": True
-        }
+        if user_id is None:
+            raise credentials_error
+        user_id = int(user_id)
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
+        raise credentials_error
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+
+    if user is None:
+        raise credentials_error
+    if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Could not validate credentials: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User account is disabled",
         )
+    return user
 
 
 # Dependency for role-based access
-def get_current_user_with_role(
-    required_role: Optional[str] = None
-):
-    """
-    Factory for creating role-based access dependencies
-    """
-    async def dependency(
-        current_user: Annotated[Dict[str, Any], Depends(get_current_user)]
-    ) -> Dict[str, Any]:
-        user_role = current_user.get("role", "seller")
-        
+def get_current_user_with_role(required_role: Optional[str] = None):
+    """Factory for creating role-based access dependencies."""
+
+    async def dependency(current_user=Depends(get_current_user)):
+        user_role = current_user.role or "seller"
+
         if required_role and not RBACUtils.has_permission(user_role, required_role):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions"
+                detail="Insufficient permissions",
             )
-        
+
         return current_user
-    
+
     return dependency
 
 
 # Request ID generator
 class RequestID:
-    """Generate unique request IDs"""
-    
+    """Generate unique request IDs."""
+
     @staticmethod
     def generate() -> str:
-        """Generate a unique request ID"""
+        """Generate a request ID."""
         return hashlib.sha256(secrets.token_bytes(16)).hexdigest()[:12]
 
 
 # Security headers middleware
 async def add_security_headers(request: Request, call_next):
-    """Add security headers to all responses"""
+    """Add security headers to all responses."""
     response = await call_next(request)
-    
+
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+    response.headers["Strict-Transport-Security"] = (
+        "max-age=63072000; includeSubDomains; preload"
+    )
     response.headers["Content-Security-Policy"] = "default-src 'self'"
-    
+
     return response

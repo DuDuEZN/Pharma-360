@@ -1,0 +1,45 @@
+From: Pharma360 QA Team
+Subject: [PATCH 006/05] Remove unnecessary build-essential from backend Dockerfile
+Date: 2026-11-01
+
+This patch removes the build-essential package from the backend Dockerfile.
+All Python dependencies in requirements.txt are pre-compiled (psycopg2-binary,
+not psycopg2), so build-essential (gcc, make, g++) is not needed.
+
+This reduces:
+- Image size
+- Build time
+- Potential security vulnerabilities
+
+---
+ docker/backend.Dockerfile | 3 ---
+ 1 file changed, 0 insertions(+), 3 deletions(-)
+
+diff --git a/docker/backend.Dockerfile b/docker/backend.Dockerfile
+index abc1234..def5678 100644
+--- a/docker/backend.Dockerfile
++++ b/docker/backend.Dockerfile
+@@ -17,9 +17,6 @@ FROM python:3.11-slim-bookworm as builder
+ # Configuration du builder
+ WORKDIR /app
+ 
+-# Installer les d\u00e9pendances de build
+-RUN apt-get update && \\
+-    apt-get install -y --no-install-recommends \\
+-    build-essential \\
+-    && rm -rf /var/lib/apt/lists/*
+-
+ # Copier les fichiers de d\u00e9pendances
+ COPY backend/requirements.txt ./
+ 
+---
+To apply this patch:
+  cd /workspace/github__DuDuEZN__Pharma-360
+  patch -p1 < patches/006-fix-backend-dockerfile-remove-build-essential.patch
+
+OR manually apply:
+  1. Edit docker/backend.Dockerfile
+  2. Remove lines 20-23 (the apt-get install build-essential block)
+
+Note: This optimization is optional. The backend will work with or without
+this change, but removing build-essential makes the image smaller and faster to build.

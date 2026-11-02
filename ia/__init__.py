@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 __all__ = [
     "ocr_facture",
-    "stock_rotation_analysis", 
+    "stock_rotation_analysis",
     "predict_stock_ruptures",
     "load_stock_prediction_model",
 ]

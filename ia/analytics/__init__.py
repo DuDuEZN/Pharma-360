@@ -5,10 +5,10 @@ Provides stock rotation analysis and rupture prediction
 
 try:
     from .stock_analysis import (
-        stock_rotation_analysis,
-        predict_stock_ruptures,
-        generate_stock_kpis,
         StockAnalyzer,
+        generate_stock_kpis,
+        predict_stock_ruptures,
+        stock_rotation_analysis,
     )
 except ModuleNotFoundError:
     stock_rotation_analysis = None

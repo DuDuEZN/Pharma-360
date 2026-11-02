@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react'
+import React, { forwardRef, useId } from 'react'
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -10,12 +10,17 @@ const Input = forwardRef(function Input({
   leftIcon,
   rightIcon,
   className,
+  id,
   ...props
 }, ref) {
+  // Identifiant stable : relie le <label> au champ (htmlFor/id) pour l'accessibilité
+  const generatedId = useId()
+  const inputId = id || generatedId
+  
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
           {label}
           {props.required && <span className="text-danger-500 ml-1" title="Champ obligatoire">*</span>}
         </label>
@@ -28,6 +33,7 @@ const Input = forwardRef(function Input({
         )}
         <input
           ref={ref}
+          id={inputId}
           type={type}
           className={twMerge(
             clsx(

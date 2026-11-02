@@ -61,7 +61,11 @@ check_dependencies() {
 list_backups() {
     log "Liste des sauvegardes disponibles dans $BACKUP_DIR:"
     
-    local backups=($BACKUP_DIR/${DB_NAME}_*.sql* 2>/dev/null)
+    # nullglob : liste vide (et non le motif littéral) s'il n'y a aucune sauvegarde
+    local backups=()
+    shopt -s nullglob
+    backups=("$BACKUP_DIR"/${DB_NAME}_*.sql*)
+    shopt -u nullglob
     
     if [ ${#backups[@]} -eq 0 ]; then
         log "Aucune sauvegarde trouvée"
