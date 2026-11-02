@@ -12,10 +12,8 @@ import { useToast } from '../components/common/Toast'
 const WebSocketContext = createContext(null)
 
 // WebSocket URL configuration
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || 
-  (window.location.hostname === 'localhost' 
-    ? `ws://localhost:8000` 
-    : `ws://${window.location.host}`)
+const WS_BASE_URL = import.meta.env.VITE_WS_URL ||
+  `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/api`
 
 // Reconnect delay (exponential backoff)
 const RECONNECT_DELAYS = [1000, 2000, 5000, 10000]
@@ -54,7 +52,8 @@ export function WebSocketProvider({ children, role = 'cashier' }) {
     const endpoint = getWebSocketEndpoint()
     if (!token) return null
     
-    const url = new URL(endpoint, WS_BASE_URL)
+    //const url = new URL(endpoint, WS_BASE_URL)
+    const url = new URL(`${WS_BASE_URL.replace(/\/$/, '')}${endpoint}`)
     url.searchParams.append('token', token)
     
     return url.toString()
