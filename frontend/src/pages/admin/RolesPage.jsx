@@ -48,7 +48,7 @@ function RolesPage() {
           limit: 50
         }
       })
-      setRoles(response.data.roles || [])
+      setRoles(response?.data?.roles || [])
     } catch (error) {
       addToast({
         type: 'error',
@@ -63,7 +63,7 @@ function RolesPage() {
   const fetchPermissions = async () => {
     try {
       const response = await api.get('/permissions')
-      setAllPermissions(response.data.permissions || [])
+      setAllPermissions(response?.data?.permissions || [])
     } catch (error) {
       console.error('Error fetching permissions:', error)
     }

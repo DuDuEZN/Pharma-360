@@ -58,7 +58,7 @@ function PermissionsPage() {
           limit: 100
         }
       })
-      setPermissions(response.data.permissions || [])
+      setPermissions(response?.data?.permissions || [])
     } catch (error) {
       addToast({
         type: 'error',
