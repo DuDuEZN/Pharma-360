@@ -13,7 +13,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock all external dependencies
 vi.mock('@/services/api', () => ({
@@ -95,25 +94,33 @@ import ManagerPage from '@/pages/manager/ManagerPage';
 import InventoryPage from '@/pages/manager/InventoryPage';
 import SuppliersPage from '@/pages/manager/SuppliersPage';
 import ManagerDashboardPage from '@/pages/manager/DashboardPage';
+import { ToastProvider } from '@/components/common/Toast';
+import { AuthProvider } from '@/hooks/useAuth';
+import { CartProvider } from '@/hooks/useCart';
+import { BarcodeScannerProvider } from '@/hooks/useBarcodeScanner';
+import { WebSocketProvider } from '@/hooks/useWebSocket';
+import { AlertsProvider } from '@/hooks/useAlerts';
 
-// Helper component to wrap pages with providers
+// Helper component to wrap pages with providers (matching App.jsx structure)
 const TestWrapper = ({ children, initialRoute = '/' }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialRoute]}>
-        <Routes>
-          <Route path="*" element={children} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>
+    <AuthProvider>
+      <BarcodeScannerProvider>
+        <CartProvider>
+          <WebSocketProvider role="cashier">
+            <AlertsProvider>
+              <ToastProvider>
+                <MemoryRouter initialEntries={[initialRoute]}>
+                  <Routes>
+                    <Route path="*" element={children} />
+                  </Routes>
+                </MemoryRouter>
+              </ToastProvider>
+            </AlertsProvider>
+          </WebSocketProvider>
+        </CartProvider>
+      </BarcodeScannerProvider>
+    </AuthProvider>
   );
 };
 
