@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Package, Search, Plus, Edit, Trash2, Barcode, Calendar, AlertTriangle } from 'lucide-react'
 import Input from '../components/common/Input'
 import Button from '../components/common/Button'
 import api from '../services/api'
 import { useToast } from '../components/common/Toast'
 import { useAlerts } from '../hooks/useAlerts'
+import { useAuth } from '../hooks/useAuth'
 import { AlertBadge } from '../components/common'
 
 function ProductsPage() {
@@ -14,6 +15,11 @@ function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [barcodeInput, setBarcodeInput] = useState('')
+  const [deletingId, setDeletingId] = useState(null)
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const canEdit = ['admin', 'manager'].includes(user?.role)
+  const canDelete = user?.role === 'admin'
   const { addToast } = useToast()
   const { hasAlerts, getAlertCountForProduct, getProductAlertSeverity } = useAlerts()
 
@@ -27,7 +33,7 @@ function ProductsPage() {
       const response = await api.get('/products', {
         params: {
           search: searchQuery || undefined,
-          limit: 50
+          page_size: 50
         }
       })
       setProducts(response.data.products || [])
@@ -39,6 +45,39 @@ function ProductsPage() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleEdit = (product) => {
+    navigate(`/products/${product.id}/edit`)
+  }
+
+  const handleDelete = async (product) => {
+    const confirmed = window.confirm(
+      `Supprimer définitivement « ${product.name} » ?\nCette action est irréversible.`
+    )
+    if (!confirmed) return
+
+    setDeletingId(product.id)
+    try {
+      await api.delete(`/products/${product.id}`)
+      setProducts((prev) => prev.filter((p) => p.id !== product.id))
+      addToast({ type: 'success', title: 'Produit supprimé', message: `${product.name} a été supprimé.` })
+    } catch (error) {
+      const status = error?.response?.status
+      const detail = error?.response?.data?.detail
+      addToast({
+        type: 'error',
+        title: 'Suppression impossible',
+        message:
+          status === 403
+            ? 'Seul un administrateur peut supprimer un produit.'
+            : typeof detail === 'string'
+              ? detail
+              : 'Impossible de supprimer le produit.'
+      })
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -194,6 +233,9 @@ function ProductsPage() {
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <div className="font-medium text-gray-900">{product.name}</div>
+                          {product.is_active === false && (
+                            <span className="badge badge-warning">Inactif</span>
+                          )}
                           {hasAlerts(product.id) && (
                             <AlertBadge productId={product.id} size="sm" />
                           )}
@@ -224,21 +266,28 @@ function ProductsPage() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            leftIcon={<Edit className="w-4 h-4" />}
-                          >
-                            Modifier
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            leftIcon={<Trash2 className="w-4 h-4" />}
-                            className="text-danger-600 hover:text-danger-700"
-                          >
-                            Supprimer
-                          </Button>
+                          {canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              leftIcon={<Edit className="w-4 h-4" />}
+                              onClick={() => handleEdit(product)}
+                            >
+                              Modifier
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              leftIcon={<Trash2 className="w-4 h-4" />}
+                              className="text-danger-600 hover:text-danger-700"
+                              onClick={() => handleDelete(product)}
+                              disabled={deletingId === product.id}
+                            >
+                              Supprimer
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

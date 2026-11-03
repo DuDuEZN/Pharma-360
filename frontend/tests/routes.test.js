@@ -8,6 +8,8 @@ const h = await vi.hoisted(async () => {
   return {
     addToast: vi.fn(),
     post: vi.fn(),
+    get: vi.fn(),
+    put: vi.fn(),
     stub: (name) => () => React.createElement('div', null, `STUB:${name}`),
   }
 })
@@ -23,7 +25,7 @@ vi.mock('../src/hooks/useWebSocket', () => ({ WebSocketProvider: ({ children }) 
 vi.mock('../src/hooks/useAlerts', () => ({ AlertsProvider: ({ children }) => children }))
 vi.mock('../src/components/common/Toast', () => ({ Toaster: () => null, useToast: () => ({ addToast: h.addToast }) }))
 vi.mock('../src/components/layout/Layout', () => ({ default: () => React.createElement(Outlet) }))
-vi.mock('../src/services/api', () => ({ default: { post: (...a) => h.post(...a), get: vi.fn() }, api: {} }))
+vi.mock('../src/services/api', () => ({ default: { post: (...a) => h.post(...a), get: (...a) => h.get(...a), put: (...a) => h.put(...a) }, api: {} }))
 
 vi.mock('../src/pages/LoginPage', () => ({ default: h.stub('Login') }))
 vi.mock('../src/pages/ProductsPage', () => ({ default: h.stub('Products') }))
@@ -61,7 +63,14 @@ const CASES = [
 ]
 
 describe('routes', () => {
-  beforeEach(() => { addToast.mockClear(); post.mockReset() })
+  beforeEach(() => {
+    addToast.mockClear(); post.mockReset(); h.put.mockReset(); h.get.mockReset()
+    h.get.mockImplementation((url) => {
+      if (url === '/categories/') return Promise.resolve({ data: [{ id: 1, name: 'Antibiotiques' }, { id: 2, name: 'Vitamines' }] })
+      if (url === '/products/5') return Promise.resolve({ data: { id: 5, name: 'Doliprane', category_id: 2, price: 1200, cost_price: 800, stock_min: 5, stock_max: 50, unit: 'boîte', dci: 'Paracétamol', barcode: '999', is_active: true, requires_prescription: false } })
+      return Promise.resolve({ data: [] })
+    })
+  })
 
   it.each(CASES)('%s ne renvoie plus 404', (path, marker) => {
     go(path)
@@ -95,5 +104,51 @@ describe('routes', () => {
     fireEvent.click(screen.getByRole('button', { name: /Créer le produit/ }))
     await waitFor(() => expect(addToast).toHaveBeenCalled())
     expect(addToast.mock.calls.at(-1)[0].message).toMatch(/gestionnaires et administrateurs/)
+  })
+
+  it('création : la catégorie choisie est envoyée (category_id)', async () => {
+    post.mockResolvedValue({ data: { id: 1 } })
+    go('/products/new')
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Antibiotiques' })).toBeInTheDocument())
+    fireEvent.change(screen.getByLabelText(/^Nom/), { target: { value: 'Amoxicilline' } })
+    fireEvent.change(screen.getByLabelText('Catégorie'), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: /Créer le produit/ }))
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(post.mock.calls[0][1]).toMatchObject({ name: 'Amoxicilline', category_id: 1 })
+  })
+
+  it('création : sans catégorie, category_id vaut null', async () => {
+    post.mockResolvedValue({ data: { id: 1 } })
+    go('/products/new')
+    fireEvent.change(screen.getByLabelText(/^Nom/), { target: { value: 'Sans catégorie' } })
+    fireEvent.click(screen.getByRole('button', { name: /Créer le produit/ }))
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(post.mock.calls[0][1].category_id).toBeNull()
+  })
+
+  it('nouvelle catégorie à la volée : POST /categories/ puis sélection automatique', async () => {
+    post.mockImplementation((url) => url === '/categories/'
+      ? Promise.resolve({ data: { id: 9, name: 'Antipaludéens' } })
+      : Promise.resolve({ data: { id: 1 } }))
+    go('/products/new')
+    fireEvent.click(screen.getByRole('button', { name: /Nouvelle catégorie/ }))
+    fireEvent.change(screen.getByLabelText('Nom de la nouvelle catégorie'), { target: { value: 'Antipaludéens' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+    await waitFor(() => expect(screen.getByLabelText('Catégorie').value).toBe('9'))
+    expect(post.mock.calls[0]).toEqual(['/categories/', { name: 'Antipaludéens' }])
+  })
+
+  it('modification : charge le produit (catégorie incluse) et envoie PUT /products/5', async () => {
+    h.put.mockResolvedValue({ data: {} })
+    go('/products/5/edit')
+    await waitFor(() => expect(screen.getByDisplayValue('Doliprane')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText('Catégorie').value).toBe('2'))
+    fireEvent.change(screen.getByLabelText('Prix de vente'), { target: { value: '1500' } })
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer les modifications/ }))
+    await waitFor(() => expect(h.put).toHaveBeenCalledTimes(1))
+    const [url, body] = h.put.mock.calls[0]
+    expect(url).toBe('/products/5')
+    expect(body).toMatchObject({ name: 'Doliprane', category_id: 2, price: 1500, stock_min: 5 })
+    expect(post).not.toHaveBeenCalled()
   })
 })

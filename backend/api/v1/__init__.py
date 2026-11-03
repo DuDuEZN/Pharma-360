@@ -7,6 +7,7 @@ from .alerts import router as alerts_router
 from .auth import router as auth_router
 from .barcode import router as barcode_router
 from .batches import router as batches_router
+from .categories import router as categories_router
 from .docs import router as docs_router
 from .health import router as health_router
 from .invoices import router as invoices_router
@@ -25,6 +26,7 @@ routers = [
     auth_router,
     users_router,
     products_router,
+    categories_router,
     batches_router,
     sales_router,
     barcode_router,
