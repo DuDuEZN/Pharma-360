@@ -1,409 +1,398 @@
-import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+a/frontend/src/pages/manager/DashboardPage.jsx b/frontend/src/pages/manager/DashboardPage.jsx
+++ b/frontend/src/pages/manager/DashboardPage.jsx
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  Package, ShoppingCart, CreditCard, Users, BarChart3, Clock, 
-  AlertTriangle, TrendingUp, TrendingDown, ArrowRight, 
-  Calendar, DollarSign, Activity
-} from 'lucide-react'
-import api from '../../services/api'
-import { useAuth } from '../../hooks/useAuth'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement } from 'chart.js'
-import { Doughnut, Bar, Line } from 'react-chartjs-2'
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Legend, ArcElement,
+} from 'chart.js';
+import { Bar, Doughnut } from 'react-chartjs-2';
+import {
+  AlertTriangle, Banknote, CalendarClock, Package, RefreshCw, TrendingUp, Users, FileText,
+} from 'lucide-react';
+import { api } from '@/services/api.js';
 
-// Register ChartJS components
-ChartJS.register(
-  ArcElement, Tooltip, Legend, CategoryScale, LinearScale, 
-  BarElement, PointElement, LineElement
-)
+/**
+ * Tableau de bord gestionnaire — refonte « Menthe & Sable »
+ * 4 KPI lisibles, sélecteur de période en chips, graphiques teal,
+ * bannière d'alertes priorisée (rupture avant péremption).
+ */
 
-function DashboardPage() {
-  const { user } = useAuth()
-  const [stats, setStats] = useState(null)
-  const [salesData, setSalesData] = useState(null)
-  const [topProducts, setTopProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [timeRange, setTimeRange] = useState('month')
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend, ArcElement);
+
+const TEAL = '13, 148, 136';
+const PALETTE = ['#0D9488', '#14B8A6', '#F59E0B', '#E11D48', '#78716C', '#0F766E', '#D97706'];
+
+const fmt = (amount) =>
+  new Intl.NumberFormat('fr-FR').format(Math.round(amount || 0)) + ' FCFA';
+const fmtN = (n) => new Intl.NumberFormat('fr-FR').format(n || 0);
+
+const RANGES = [
+  { key: 'week', label: '7 j', days: 7 },
+  { key: 'month', label: '30 j', days: 30 },
+  { key: 'quarter', label: '90 j', days: 90 },
+  { key: 'year', label: '1 an', days: 365 },
+];
+
+const DashboardPage = () => {
+  const [stats, setStats] = useState({
+    totalSales: 0,
+    lowStock: 0,
+    expiringSoon: 0,
+    activeUsers: 0,
+    pendingInvoices: 0,
+  });
+
+  const [salesData, setSalesData] = useState({ labels: [], data: [] });
+  const [topProducts, setTopProducts] = useState({ labels: [], data: [] });
+  const [categoryDistribution, setCategoryDistribution] = useState({ labels: [], data: [] });
+
+  const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('month');
+  const [dateRange, setDateRange] = useState({
+    from: new Date(new Date().setDate(new Date().getDate() - 30)),
+    to: new Date(),
+  });
+
+  // Chaque bloc est indépendant : un endpoint en erreur ne vide plus tout le tableau de bord.
+    setLoading(true);
+    const range = {
+      start_date: dateRange.from.toISOString().slice(0, 10),
+      end_date: dateRange.to.toISOString().slice(0, 10),
+    };
+
+    const [statsData, dailyData, topData, categoryData] = await Promise.all([
+      safeGet('/sale-history/stats'),
+      safeGet('/sale-history/daily'),
+      safeGet('/sale-history/products/top', { params: { limit: 5, ...range } }),
+      safeGet('/products/categories/stats'),
+    ]);
+
+    if (statsData) {
+        lowStock: statsData.low_stock_count || 0,
+        expiringSoon: statsData.expiring_soon_count || 0,
+        activeUsers: statsData.active_users || 0,
+        pendingInvoices: statsData.pending_invoices || 0,
+      });
+    }
+
+    if (Array.isArray(dailyData)) {
+      setSalesData({
+        labels: dailyData.map((item) => new Date(item.date ?? item.sale_day).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })),
+        data: dailyData.map((item) => item.total_revenue ?? item.total_sales ?? 0),
+      });
+    }
+
+    const topList = Array.isArray(topData) ? topData : topData?.top_products;
+    if (Array.isArray(topList)) {
+      setTopProducts({
+        labels: topList.map((item) => item.product_name),
+        data: topList.map((item) => item.quantity_sold ?? item.total_quantity ?? 0),
+      });
+    }
+
+    if (Array.isArray(categoryData)) {
+      setCategoryDistribution({
+        labels: categoryData.map((item) => item.category_name),
+        data: categoryData.map((item) => item.product_count),
+      });
+    }
+
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [timeRange])
+    fetchDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange, timeRange]);
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true)
-      
-      // Fetch stats
-      const [statsRes, salesRes, productsRes] = await Promise.all([
-        api.get('/api/v1/alerts/stats'),
-        api.get(`/api/v1/sale-history/analytics?period=${timeRange}`),
-        api.get('/api/v1/sale-history/products/top?limit=5')
-      ])
-      
-      setStats(statsRes.data)
-      setSalesData(salesRes.data)
-      setTopProducts(productsRes.data.top_products || [])
-      
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-      window.toast.error('Échec du chargement des données du tableau de bord')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const handleTimeRangeChange = (value) => {
+    setTimeRange(value);
+    const days = RANGES.find((r) => r.key === value)?.days ?? 30;
+    setDateRange({
+      from: new Date(new Date().setDate(new Date().getDate() - days)),
+      to: new Date(),
+    });
+  };
 
-  // Chart data for sales by category
-  const categoryChartData = {
-    labels: salesData?.sales_by_category?.map(c => c.category_name) || [],
-    datasets: [
-      {
-        label: 'Ventes par catégorie',
-        data: salesData?.sales_by_category?.map(c => c.revenue) || [],
-        backgroundColor: [
-          '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'
-        ],
-        borderWidth: 0
-      }
-    ]
-  }
-
-  // Chart data for sales by day
-  const dailyChartData = {
-    labels: salesData?.sales_by_day?.map(d => new Date(d.date).toLocaleDateString('fr-FR')) || [],
-    datasets: [
-      {
-        label: 'Chiffre d\'affaires',
-        data: salesData?.sales_by_day?.map(d => d.revenue) || [],
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.4,
-        fill: true
-      }
-    ]
-  }
-
-  // Chart data for top products
-  const productsChartData = {
-    labels: topProducts.map(p => p.product_name),
-    datasets: [
-      {
-        label: 'Quantité vendue',
-        data: topProducts.map(p => p.quantity),
-        backgroundColor: '#10b981',
-        borderRadius: 4
-      }
-    ]
-  }
-
-  // Stats cards
-  const statCards = [
+  const kpis = [
     {
-      label: 'Ventes totales',
-      value: salesData?.total_sales || 0,
-      icon: ShoppingCart,
-      color: 'primary',
-      bgColor: 'bg-primary-50',
-      trend: 'up',
-      trendValue: '+12%'
+      title: 'Chiffre d\u2019affaires',
+      value: fmt(stats.totalRevenue),
+      subtitle: `sur ${RANGES.find((r) => r.key === timeRange)?.label ?? ''}`,
+      icon: Banknote,
+      cls: 'bg-teal-50 text-teal-700 ring-teal-100',
     },
     {
-      label: 'Chiffre d\'affaires',
-      value: salesData ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(salesData.total_revenue) : '0 XOF',
-      icon: DollarSign,
-      color: 'success',
-      bgColor: 'bg-success-50',
-      trend: 'up',
-      trendValue: '+8%'
+      title: 'Ventes',
+      value: fmtN(stats.totalSales),
+      subtitle: 'transactions enregistrées',
+      icon: TrendingUp,
+      cls: 'bg-stone-100 text-stone-600 ring-stone-200',
     },
     {
-      label: 'Quantité totale',
-      value: salesData?.total_quantity || 0,
-      icon: Package,
-      color: 'warning',
-      bgColor: 'bg-warning-50',
-      trend: 'down',
-      trendValue: '-2%'
-    },
-    {
-      label: 'Alertes actives',
-      value: stats?.total || 0,
+      title: 'Ruptures de stock',
+      value: fmtN(stats.lowStock),
+      subtitle: 'produits à recommander',
       icon: AlertTriangle,
-      color: stats?.critical > 0 ? 'danger' : 'warning',
-      bgColor: stats?.critical > 0 ? 'bg-danger-50' : 'bg-warning-50',
-      trend: stats?.critical > 0 ? 'up' : 'stable',
-      trendValue: stats?.critical > 0 ? `+${stats.critical}` : '0'
-    }
-  ]
+      cls: 'bg-rose-50 text-rose-700 ring-rose-100',
+    },
+    {
+      title: 'Péremption ≤ 90 j',
+      value: fmtN(stats.expiringSoon),
+      subtitle: 'lots à écouler en priorité',
+      icon: CalendarClock,
+      cls: 'bg-amber-50 text-amber-700 ring-amber-100',
+    },
+  ];
 
-  // Quick actions
-  const quickActions = [
-    {
-      label: 'Nouveau produit',
-      href: '/products/new',
-      icon: Package,
-      color: 'primary'
-    },
-    {
-      label: 'Nouvelle vente',
-      href: '/sales/new',
-      icon: ShoppingCart,
-      color: 'success'
-    },
-    {
-      label: 'Approvisionnement',
-      href: '/manager/inventory',
-      icon: BarChart3,
-      color: 'warning'
-    },
-    {
-      label: 'Fournisseurs',
-      href: '/manager/suppliers',
-      icon: Users,
-      color: 'secondary'
-    }
-  ]
+  const alertCount = stats.lowStock + stats.expiringSoon;
 
-  if (loading) {
-    return (
-      <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-            <p className="text-gray-500 mt-1">Chargement en cours...</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
+  const salesChartData = {
+    labels: salesData.labels,
+    datasets: [
+      {
+        label: 'CA (FCFA)',
+        data: salesData.data,
+        backgroundColor: `rgba(${TEAL}, 0.85)`,
+        hoverBackgroundColor: `rgba(${TEAL}, 1)`,
+        borderRadius: 6,
+        maxBarThickness: 32,
+      },
+    ],
+  };
+
+  const topChartData = {
+    labels: topProducts.labels,
+    datasets: [
+      {
+        label: 'Unités vendues',
+        data: topProducts.data,
+        backgroundColor: PALETTE.slice(0, Math.max(topProducts.data.length, 1)),
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const categoryTotal = categoryDistribution.data.reduce((s, v) => s + v, 0);
+  const categoryChartData = {
+    labels: categoryDistribution.labels,
+    datasets: [
+      {
+        data: categoryDistribution.data,
+        backgroundColor: PALETTE,
+        borderColor: '#FAFAF9',
+        borderWidth: 2,
+        hoverOffset: 4,
+      },
+    ],
+  };
+
+  // Total produits au centre du donut
+  const centerTextPlugin = {
+    id: 'centerText',
+    afterDraw(chart) {
+      const { ctx, chartArea } = chart;
+      if (!chartArea) return;
+      const x = (chartArea.left + chartArea.right) / 2;
+      const y = (chartArea.top + chartArea.bottom) / 2;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1C1917';
+      ctx.font = '700 22px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(fmtN(categoryTotal), x, y - 8);
+      ctx.fillStyle = '#78716C';
+      ctx.font = '500 11px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('produits', x, y + 12);
+      ctx.restore();
+    },
+  };
+
+  const cardCls = 'rounded-2xl border border-stone-200 bg-white p-5 shadow-sm';
+  const chartOptionsBase = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+  };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <div className="space-y-5" style={{ fontFamily: "'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" }}>
+      {/* ============ En-tête ============ */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-          <p className="text-gray-500 mt-1">
-            Bonjour, {user?.username} ! Voici l'aperçu de votre pharmacie.
+          <h1 className="text-2xl font-extrabold text-stone-900">Tableau de bord</h1>
+          <p className="mt-0.5 text-sm text-stone-500">
+            Vue d&rsquo;ensemble de la pharmacie — période sélectionnée en un clic.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-xl border border-stone-200 bg-white p-1 shadow-sm">
+            {RANGES.map((r) => (
+              <button
+                key={r.key}
+                onClick={() => handleTimeRangeChange(r.key)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  timeRange === r.key
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-stone-500 hover:bg-stone-50 hover:text-stone-700'
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={fetchDashboardData}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-600 shadow-sm transition hover:bg-stone-50 disabled:opacity-50"
           >
-            <option value="day">Aujourd'hui</option>
-            <option value="week">Cette semaine</option>
-            <option value="month">Ce mois</option>
-            <option value="year">Cette année</option>
-          </select>
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Rafraîchir
+          </button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, index) => (
-          <div
-            key={index}
-            className={`bg-white rounded-xl shadow p-6 border border-gray-100 ${stat.bgColor}`}
-          >
-            <div className="flex justify-between items-start">
-              <div className={`p-3 rounded-lg bg-${stat.color}-100`}>
-                <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
-              </div>
-              <div className="flex gap-1">
-                <span className={`text-xs px-2 py-1 rounded-full bg-${stat.color}-100 text-${stat.color}-700`}>
-                  {stat.trend === 'up' ? '↑' : stat.trend === 'down' ? '↓' : '→'}
-                </span>
-                <span className="text-xs text-gray-500">{stat.trendValue}</span>
-              </div>
+      {/* ============ KPI ============ */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {kpis.map((kpi) => (
+          <div key={kpi.title} className={cardCls}>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">{kpi.title}</p>
+              <span className={`flex h-8 w-8 items-center justify-center rounded-lg ring-1 ${kpi.cls}`}>
+                <kpi.icon className="h-4 w-4" />
+              </span>
             </div>
-            <p className="text-sm text-gray-500 mt-4">{stat.label}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+            {loading ? (
+              <div className="mt-2.5 h-7 w-28 animate-pulse rounded-lg bg-stone-100" />
+            ) : (
+              <p
+                className="mt-2 text-xl font-extrabold text-stone-900"
+                style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }}
+              >
+                {kpi.value}
+              </p>
+            )}
+            <p className="mt-0.5 text-[11px] text-stone-400">{kpi.subtitle}</p>
           </div>
         ))}
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sales by Category */}
-        <div className="bg-white rounded-xl shadow p-6 border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Ventes par catégorie</h3>
-            <Doughnut
-              data={categoryChartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    position: 'right',
-                    labels: {
-                      padding: 15,
-                      usePointStyle: true
-                    }
-                  }
-                }
-              }}
-              width={300}
-              height={250}
-            />
+      {/* ============ Bannière d'alertes ============ */}
+      {!loading && alertCount > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div className="text-xs leading-relaxed text-amber-900">
+              <p className="text-sm font-bold">
+                {alertCount} alerte{alertCount > 1 ? 's' : ''} à traiter
+              </p>
+              <p>
+                Priorité FEFO : {fmtN(stats.lowStock)} rupture(s) de stock · {fmtN(stats.expiringSoon)} lot(s) en
+                péremption ≤ 90 jours.
+              </p>
+            </div>
           </div>
-        </div>
-
-        {/* Daily Sales */}
-        <div className="bg-white rounded-xl shadow p-6 border border-gray-100 lg:col-span-2">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Chiffre d'affaires par jour
-          </h3>
-          <div className="h-64">
-            <Line
-              data={dailyChartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    display: false
-                  },
-                  tooltip: {
-                    callbacks: {
-                      label: (context) => {
-                        return new Intl.NumberFormat('fr-FR', { 
-                          style: 'currency', 
-                          currency: 'XOF' 
-                        }).format(context.parsed.y)
-                      }
-                    }
-                  }
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      callback: (value) => new Intl.NumberFormat('fr-FR', { 
-                        style: 'currency', 
-                        currency: 'XOF',
-                        notation: 'compact'
-                      }).format(value)
-                    }
-                  }
-                }
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Top Products */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl shadow p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Produits les plus vendus
-          </h3>
-          <div className="space-y-4">
-            {topProducts.map((product, index) => (
-              <div
-                key={product.product_id}
-                className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold">
-                  {index + 1}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{product.product_name}</p>
-                  <p className="text-sm text-gray-500">{product.quantity} unités</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-green-600">
-                    {new Intl.NumberFormat('fr-FR', { 
-                      style: 'currency', 
-                      currency: 'XOF' 
-                    }).format(product.revenue)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white rounded-xl shadow p-6 border border-gray-100 lg:col-span-2">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Actions rapides
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => (
-              <Link
-                key={index}
-                to={action.href}
-                className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50 transition-colors text-center"
-              >
-                <div className={`w-12 h-12 rounded-xl bg-${action.color}-100 flex items-center justify-center`}>
-                  <action.icon className={`w-6 h-6 text-${action.color}-600`} />
-                </div>
-                <span className="text-sm font-medium text-gray-700">{action.label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Sales */}
-      <div className="bg-white rounded-xl shadow p-6 border border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Ventes récentes
-          </h3>
-          <Link to="/sales" className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1">
-            Voir tout <ArrowRight className="w-4 h-4" />
+          <Link
+            to="/manager/inventory"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-600"
+          >
+            <Package className="h-3.5 w-3.5" /> Ouvrir l&rsquo;inventaire
           </Link>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 text-sm font-medium text-gray-500">N° Vente</th>
-                <th className="text-left py-3 text-sm font-medium text-gray-500">Date</th>
-                <th className="text-left py-3 text-sm font-medium text-gray-500">Client</th>
-                <th className="text-right py-3 text-sm font-medium text-gray-500">Montant</th>
-                <th className="text-left py-3 text-sm font-medium text-gray-500">Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-4 text-sm">VE-{1000 + i}</td>
-                  <td className="py-4 text-sm text-gray-500">
-                    {new Date().toLocaleDateString('fr-FR')}
-                  </td>
-                  <td className="py-4 text-sm">Client {i + 1}</td>
-                  <td className="py-4 text-sm text-right">
-                    {new Intl.NumberFormat('fr-FR', { 
-                      style: 'currency', 
-                      currency: 'XOF' 
-                    }).format(Math.random() * 50000 + 1000)}
-                  </td>
-                  <td className="py-4">
-                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                      Terminé
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      )}
+
+      {/* ============ Graphiques ============ */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className={`${cardCls} lg:col-span-2`}>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-stone-900">Évolution du chiffre d&rsquo;affaires</h2>
+            <span className="rounded-full bg-teal-50 px-2.5 py-1 text-[11px] font-bold text-teal-700 ring-1 ring-teal-100">
+              {fmt(stats.totalRevenue)}
+            </span>
+          </div>
+          <div className="h-[280px]">
+            <Bar
+              data={salesChartData}
+              options={{
+                ...chartOptionsBase,
+                scales: {
+                  x: { grid: { display: false }, ticks: { color: '#78716C', font: { size: 10 } } },
+                  y: {
+                    grid: { color: '#F5F5F4' },
+                    ticks: {
+                      color: '#78716C',
+                      font: { size: 10 },
+                      callback: (v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : v),
+                    },
+                  },
+                },
+              }}
+            />
+          </div>
+        </div>
+
+        <div className={cardCls}>
+          <h2 className="mb-4 text-sm font-bold text-stone-900">Catégories</h2>
+          <div className="relative h-[280px]">
+            <Doughnut
+              data={categoryChartData}
+              plugins={[centerTextPlugin]}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '68%',
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, color: '#78716C' } } },
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className={`${cardCls} lg:col-span-2`}>
+          <h2 className="mb-4 text-sm font-bold text-stone-900">Top 5 des produits vendus</h2>
+          <div className="h-[240px]">
+            <Bar
+              data={topChartData}
+              options={{
+                ...chartOptionsBase,
+                indexAxis: 'y',
+                scales: {
+                  x: { grid: { color: '#F5F5F4' }, ticks: { color: '#78716C', font: { size: 10 } } },
+                  y: { grid: { display: false }, ticks: { color: '#44403C', font: { size: 11 } } },
+                },
+              }}
+            />
+          </div>
+        </div>
+
+        <div className={cardCls}>
+          <h2 className="mb-4 text-sm font-bold text-stone-900">Autres indicateurs</h2>
+          <div className="space-y-4 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2 text-stone-500">
+                <Package className="h-4 w-4 text-stone-400" /> Produits en stock
+              </span>
+              <span className="font-bold text-stone-900">{fmtN(stats.totalProducts)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2 text-stone-500">
+                <Users className="h-4 w-4 text-stone-400" /> Utilisateurs actifs
+              </span>
+              <span className="font-bold text-stone-900">{fmtN(stats.activeUsers)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2 text-stone-500">
+                <FileText className="h-4 w-4 text-stone-400" /> Factures en attente
+              </span>
+              <span className="font-bold text-stone-900">{fmtN(stats.pendingInvoices)}</span>
+            </div>
+            <div className="flex items-center justify-between border-t border-stone-100 pt-4">
+              <span className="flex items-center gap-2 text-stone-500">
+                <AlertTriangle className="h-4 w-4 text-rose-400" /> Alertes actives
+              </span>
+              <span className="font-bold text-rose-600">{fmtN(alertCount)}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  )
-}
-
-export default DashboardPage
+  );
