@@ -3,7 +3,7 @@ Sale History API Endpoints for Pharmacie 360 Backend
 FastAPI endpoints for sale history and analytics (BKND-014)
 """
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -120,20 +120,6 @@ async def get_sale_analytics(
 
 
 @router.get(
-    "/products/{product_id}",
-    summary="Get product sales analytics",
-    description="Get sales analytics for a specific product",
-)
-async def get_product_sales(
-    product_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Get product sales analytics endpoint"""
-    return await SaleHistoryService.get_product_sales_analytics(product_id, db)
-
-
-@router.get(
     "/products/top",
     summary="Get top selling products",
     description="Get list of top selling products",
@@ -146,6 +132,12 @@ async def get_top_products(
     current_user: User = Depends(get_current_user),
 ):
     """Get top products endpoint"""
+    # Période par défaut : les 30 derniers jours (évite une erreur 500 sans dates)
+    if end_date is None:
+        end_date = date.today()
+    if start_date is None:
+        start_date = end_date - timedelta(days=29)
+
     # Get analytics for the period
     analytics = await SaleHistoryService.get_sale_analytics(
         period="custom", start_date=start_date, end_date=end_date, db=db
@@ -157,6 +149,20 @@ async def get_top_products(
         "end_date": end_date.isoformat() if end_date else None,
         "top_products": analytics.top_products[:limit],
     }
+
+
+@router.get(
+    "/products/{product_id}",
+    summary="Get product sales analytics",
+    description="Get sales analytics for a specific product",
+)
+async def get_product_sales(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get product sales analytics endpoint"""
+    return await SaleHistoryService.get_product_sales_analytics(product_id, db)
 
 
 @router.get(

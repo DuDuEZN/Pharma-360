@@ -10,6 +10,21 @@ import { Upload, FileText, Eye, Edit, Trash2, Plus, Search, Download, Camera } f
 import { api } from '@/services/api.js';
 import { toast } from 'sonner';
 
+// Le backend renvoie des listes paginées ({ suppliers: [...], total, ... }) :
+// on accepte aussi un tableau simple.
+const toList = (data, key) => {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data[key])) return data[key];
+  return [];
+};
+
+const apiErrorMessage = (error, fallback) => {
+  const detail = error?.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) return detail.map((d) => d.msg).join(' ; ');
+  return fallback;
+};
+
 const SuppliersPage = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -42,8 +57,8 @@ const SuppliersPage = () => {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await api.get('/suppliers');
-      setSuppliers(response.data || []);
+      const response = await api.get('/suppliers/', { params: { page_size: 100 } });
+      setSuppliers(toList(response.data, 'suppliers'));
     } catch (error) {
       console.error('Error fetching suppliers:', error);
       toast.error('Erreur lors du chargement des fournisseurs');
@@ -52,8 +67,8 @@ const SuppliersPage = () => {
 
   const fetchInvoices = async () => {
     try {
-      const response = await api.get('/invoices');
-      setInvoices(response.data || []);
+      const response = await api.get('/invoices/', { params: { page_size: 100 } });
+      setInvoices(toList(response.data, 'invoices'));
     } catch (error) {
       console.error('Error fetching invoices:', error);
       toast.error('Erreur lors du chargement des factures');
@@ -69,10 +84,11 @@ const SuppliersPage = () => {
     setSearchQuery(e.target.value);
   };
 
+  const query = searchQuery.toLowerCase();
   const filteredSuppliers = suppliers.filter(supplier =>
-    supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    supplier.contact.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    supplier.email.toLowerCase().includes(searchQuery.toLowerCase())
+    [supplier.name, supplier.contact, supplier.email, supplier.phone].some(
+      (value) => (value || '').toLowerCase().includes(query)
+    )
   );
 
   const handleFileChange = (e) => {
@@ -122,7 +138,7 @@ const SuppliersPage = () => {
 
   const handleCreateSupplier = async () => {
     try {
-      const response = await api.post('/suppliers', formData);
+      const response = await api.post('/suppliers/', formData);
       if (response.data) {
         toast.success('Fournisseur créé avec succès');
         setIsDialogOpen(false);
@@ -131,13 +147,13 @@ const SuppliersPage = () => {
       }
     } catch (error) {
       console.error('Error creating supplier:', error);
-      toast.error('Erreur lors de la création du fournisseur');
+      toast.error(apiErrorMessage(error, 'Erreur lors de la création du fournisseur'));
     }
   };
 
   const handleCreateInvoice = async () => {
     try {
-      const response = await api.post('/invoices', invoiceFormData);
+      const response = await api.post('/invoices/', invoiceFormData);
       if (response.data) {
         toast.success('Facture créée avec succès');
         setIsInvoiceDialogOpen(false);
@@ -317,7 +333,7 @@ const SuppliersPage = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {suppliers.map(supplier => (
-                          <SelectItem key={supplier.id} value={supplier.id}>
+                          <SelectItem key={supplier.id} value={String(supplier.id)}>
                             {supplier.name}
                           </SelectItem>
                         ))}

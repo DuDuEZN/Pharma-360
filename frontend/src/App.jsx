@@ -1,6 +1,7 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from './components/common/Toast'
+import { Toaster as SonnerToaster } from 'sonner'
 import { AuthProvider } from './hooks/useAuth'
 import { CartProvider } from './hooks/useCart'
 import { BarcodeScannerProvider } from './hooks/useBarcodeScanner'
@@ -40,6 +41,7 @@ function App() {
           <WebSocketProvider role="cashier">
             <AlertsProvider>
               <Toaster />
+              <SonnerToaster richColors position="top-right" />
               <Routes>
             <Route path="/login" element={<LoginPage />} />
             
@@ -47,6 +49,7 @@ function App() {
               <Route path="/" element={<ManagerDashboardPage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/products/new" element={<ProductFormPage />} />
+              <Route path="/products/:id/edit" element={<ProductFormPage />} />
               <Route path="/sales" element={<SalesPage />} />
               <Route path="/sales/new" element={<Navigate to="/sales" replace />} />
               <Route path="/cashier" element={<CashierPage />} />

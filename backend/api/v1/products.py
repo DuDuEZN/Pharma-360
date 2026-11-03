@@ -6,11 +6,17 @@ FastAPI endpoints for product management (CRUD + search + barcode scanning)
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db
 from ...core.logging import get_logger, log_business_event
 from ...core.security import RBACUtils, get_current_user, get_current_user_with_role
+from ...models.category import Category
+from ...models.movement import Movement
+from ...models.product import Product
+from ...models.sale_item import SaleItem
 from ...models.user import User
 from ...schemas.product import (
     BarcodeScanRequest,
@@ -27,6 +33,34 @@ from ...services.product_service import ProductService
 # Create router
 router = APIRouter(prefix="/products", tags=["products"])
 logger = get_logger("products")
+
+
+async def _ensure_category_exists(category_id: Optional[int], db: AsyncSession) -> None:
+    """Reject unknown category ids with a clear 400 instead of a database error"""
+    if category_id is None:
+        return
+    found = await db.execute(select(Category.id).where(Category.id == category_id))
+    if found.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Catégorie introuvable",
+        )
+
+
+async def _ensure_barcode_free(
+    barcode: Optional[str], db: AsyncSession, exclude_id: Optional[int] = None
+) -> None:
+    """Reject a barcode already used by another product (409)"""
+    if not barcode:
+        return
+    query = select(Product.id).where(Product.barcode == barcode)
+    if exclude_id is not None:
+        query = query.where(Product.id != exclude_id)
+    if (await db.execute(query)).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ce code-barres est déjà utilisé par un autre produit",
+        )
 
 
 @router.get(
@@ -60,6 +94,28 @@ async def list_products(
         search=search,
         db=db,
     )
+
+
+@router.get(
+    "/categories/stats",
+    summary="Product count per category",
+    description="Number of products per category (used by the dashboard)",
+)
+async def get_categories_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Categories statistics endpoint"""
+    result = await db.execute(
+        select(Category.name, func.count(Product.id))
+        .select_from(Category)
+        .outerjoin(Product, Product.category_id == Category.id)
+        .group_by(Category.id, Category.name)
+        .order_by(Category.name)
+    )
+    return [
+        {"category_name": name, "product_count": count} for name, count in result.all()
+    ]
 
 
 @router.get(
@@ -142,6 +198,9 @@ async def create_product(
             detail="Only manager or admin users can create products",
         )
 
+    await _ensure_category_exists(product_data.category_id, db)
+    await _ensure_barcode_free(product_data.barcode, db)
+
     # Create product
     new_product = Product(
         name=product_data.name,
@@ -200,33 +259,21 @@ async def update_product(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
         )
 
-    # Update fields
-    if product_data.name:
-        product.name = product_data.name
-    if product_data.dci:
-        product.dci = product_data.dci
-    if product_data.barcode:
-        product.barcode = product_data.barcode
-    if product_data.category_id:
-        product.category_id = product_data.category_id
-    if product_data.description:
-        product.description = product_data.description
-    if product_data.price:
-        product.price = product_data.price
-    if product_data.cost_price:
-        product.cost_price = product_data.cost_price
-    if product_data.stock_min:
-        product.stock_min = product_data.stock_min
-    if product_data.stock_max:
-        product.stock_max = product_data.stock_max
-    if product_data.unit:
-        product.unit = product_data.unit
-    if product_data.manufacturer:
-        product.manufacturer = product_data.manufacturer
-    if product_data.is_active is not None:
-        product.is_active = product_data.is_active
-    if product_data.requires_prescription is not None:
-        product.requires_prescription = product_data.requires_prescription
+    # Update only the fields sent by the client (0, "" and null are valid values)
+    changes = product_data.model_dump(exclude_unset=True)
+    if "name" in changes and not (changes["name"] or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Le nom du produit est obligatoire",
+        )
+    if "category_id" in changes:
+        await _ensure_category_exists(changes["category_id"], db)
+    if "barcode" in changes:
+        changes["barcode"] = changes["barcode"] or None
+        await _ensure_barcode_free(changes["barcode"], db, exclude_id=product_id)
+
+    for field, value in changes.items():
+        setattr(product, field, value)
 
     await db.flush()
     await db.refresh(product)
@@ -265,6 +312,27 @@ async def delete_product(
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
+        )
+
+    # Le schéma SQL supprime en cascade les ventes et mouvements liés :
+    # on refuse la suppression d'un produit qui a un historique.
+    sales_count = (
+        await db.execute(
+            select(func.count()).select_from(SaleItem).where(SaleItem.product_id == product_id)
+        )
+    ).scalar_one()
+    movements_count = (
+        await db.execute(
+            select(func.count()).select_from(Movement).where(Movement.product_id == product_id)
+        )
+    ).scalar_one()
+    if sales_count or movements_count:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Ce produit a un historique (ventes ou mouvements de stock) et ne peut pas "
+                "être supprimé. Désactivez-le plutôt (Modifier > décocher « Produit actif »)."
+            ),
         )
 
     await db.delete(product)

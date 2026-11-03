@@ -54,69 +54,66 @@ const DashboardPage = () => {
     to: new Date()
   });
 
-  const fetchDashboardData = async () => {
+  // Chaque bloc est indépendant : un endpoint en erreur ne vide plus tout le tableau de bord.
+  const safeGet = async (url, config) => {
     try {
-      setLoading(true);
-      
-      // Fetch statistics
-      const statsResponse = await api.get('/sale-history/stats', {
-        params: {
-          start_date: dateRange.from.toISOString(),
-          end_date: dateRange.to.toISOString()
-        }
-      });
-      
-      if (statsResponse?.data) {
-        setStats({
-          totalSales: statsResponse.data.total_sales || 0,
-          totalRevenue: statsResponse.data.total_revenue || 0,
-          totalProducts: statsResponse.data.total_products || 0,
-          lowStock: statsResponse.data.low_stock_count || 0,
-          expiringSoon: statsResponse.data.expiring_soon_count || 0,
-          activeUsers: statsResponse.data.active_users || 0,
-          pendingInvoices: statsResponse.data.pending_invoices || 0
-        });
-      }
-      
-      // Fetch sales data
-      const salesResponse = await api.get('/sale-history/daily', {
-        params: {
-          start_date: dateRange.from.toISOString(),
-          end_date: dateRange.to.toISOString()
-        }
-      });
-      
-      if (salesResponse?.data) {
-        const labels = salesResponse.data.map(item => new Date(item.date).toLocaleDateString());
-        const data = salesResponse.data.map(item => item.total_sales);
-        setSalesData({ labels, data });
-      }
-      
-      // Fetch top products
-      const productsResponse = await api.get('/sale-history/top-products', {
-        params: { limit: 5 }
-      });
-      
-      if (productsResponse?.data) {
-        const labels = productsResponse.data.map(item => item.product_name);
-        const data = productsResponse.data.map(item => item.quantity_sold);
-        setTopProducts({ labels, data });
-      }
-      
-      // Fetch category distribution
-      const categoryResponse = await api.get('/products/categories/stats');
-      
-      if (categoryResponse?.data) {
-        const labels = categoryResponse.data.map(item => item.category_name);
-        const data = categoryResponse.data.map(item => item.product_count);
-        setCategoryDistribution({ labels, data });
-      }
-      
+      const response = await api.get(url, config);
+      return response?.data ?? null;
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
+      console.error(`Dashboard: échec de ${url}`, error);
+      return null;
     }
+  };
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    const range = {
+      start_date: dateRange.from.toISOString().slice(0, 10),
+      end_date: dateRange.to.toISOString().slice(0, 10)
+    };
+
+    const [statsData, dailyData, topData, categoryData] = await Promise.all([
+      safeGet('/sale-history/stats'),
+      safeGet('/sale-history/daily'),
+      safeGet('/sale-history/products/top', { params: { limit: 5, ...range } }),
+      safeGet('/products/categories/stats')
+    ]);
+
+    if (statsData) {
+      setStats({
+        totalSales: statsData.total_sales ?? statsData.total_records ?? 0,
+        totalRevenue: statsData.total_revenue || 0,
+        totalProducts: statsData.total_products ?? statsData.unique_products ?? 0,
+        lowStock: statsData.low_stock_count || 0,
+        expiringSoon: statsData.expiring_soon_count || 0,
+        activeUsers: statsData.active_users || 0,
+        pendingInvoices: statsData.pending_invoices || 0
+      });
+    }
+
+    if (Array.isArray(dailyData)) {
+      setSalesData({
+        labels: dailyData.map(item => new Date(item.date ?? item.sale_day).toLocaleDateString()),
+        data: dailyData.map(item => item.total_revenue ?? item.total_sales ?? 0)
+      });
+    }
+
+    const topList = Array.isArray(topData) ? topData : topData?.top_products;
+    if (Array.isArray(topList)) {
+      setTopProducts({
+        labels: topList.map(item => item.product_name),
+        data: topList.map(item => item.quantity_sold ?? item.total_quantity ?? 0)
+      });
+    }
+
+    if (Array.isArray(categoryData)) {
+      setCategoryDistribution({
+        labels: categoryData.map(item => item.category_name),
+        data: categoryData.map(item => item.product_count)
+      });
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => {
