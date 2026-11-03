@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from './components/common/Toast'
 import { AuthProvider } from './hooks/useAuth'
 import { CartProvider } from './hooks/useCart'
@@ -16,6 +16,9 @@ import LoginPage from './pages/LoginPage'
 import ProductsPage from './pages/ProductsPage'
 import SalesPage from './pages/SalesPage'
 import CashierPage from './pages/CashierPage'
+import ProductFormPage from './pages/ProductFormPage'
+import HelpPage from './pages/HelpPage'
+import ComingSoonPage from './pages/ComingSoonPage'
 import {
   AdminPage,
   UsersPage,
@@ -43,8 +46,13 @@ function App() {
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="/" element={<ManagerDashboardPage />} />
               <Route path="/products" element={<ProductsPage />} />
+              <Route path="/products/new" element={<ProductFormPage />} />
               <Route path="/sales" element={<SalesPage />} />
+              <Route path="/sales/new" element={<Navigate to="/sales" replace />} />
               <Route path="/cashier" element={<CashierPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/help" element={<HelpPage />} />
               
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminPage />}>
@@ -54,6 +62,7 @@ function App() {
                 <Route path="permissions" element={<PermissionsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="reports" element={<ReportsPage />} />
+                <Route path="analytics" element={<ManagerDashboardPage />} />
               </Route>
               
               {/* Manager Routes */}
@@ -62,6 +71,19 @@ function App() {
                 <Route path="inventory" element={<InventoryPage />} />
                 <Route path="suppliers" element={<SuppliersPage />} />
                 <Route path="dashboard" element={<ManagerDashboardPage />} />
+                <Route
+                  path="orders"
+                  element={
+                    <ComingSoonPage
+                      title="Commandes d'approvisionnement"
+                      backTo="/manager"
+                      backLabel="Retour au gestionnaire"
+                    />
+                  }
+                />
+                <Route path="reports" element={<ReportsPage />} />
+                <Route path="analytics" element={<ManagerDashboardPage />} />
+                <Route path="settings" element={<SettingsPage />} />
               </Route>
               
             </Route>
