@@ -57,7 +57,7 @@ const SuppliersPage = () => {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await api.get('/suppliers/', { params: { page_size: 100 } });
+      const response = await api.get('/api/v1/suppliers/', { params: { page_size: 100 } });
       setSuppliers(toList(response.data, 'suppliers'));
     } catch (error) {
       console.error('Error fetching suppliers:', error);

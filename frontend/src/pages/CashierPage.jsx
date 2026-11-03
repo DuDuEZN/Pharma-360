@@ -100,7 +100,7 @@ function CashierPage() {
     setIsLoading(true)
 
     try {
-      const response = await api.post(`/sales/${selectedSale.id}/pay`, {
+      const response = await api.post(`/api/v1/sales/${selectedSale.id}/pay`, {
         payment_method: paymentMethod,
         change: paidAmount - totalAmount,
         cashier_id: user?.id

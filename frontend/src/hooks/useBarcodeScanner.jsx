@@ -31,7 +31,7 @@ export function BarcodeScannerProvider({ children }) {
     setError(null)
 
     try {
-      const response = await api.post('/barcode/scan', {
+      const response = await api.post('/api/v1/barcode/scan', {
         barcode: barcode.trim()
       })
 
@@ -85,7 +85,7 @@ export function BarcodeScannerProvider({ children }) {
     setError(null)
 
     try {
-      const response = await api.post('/barcode/scan-and-select', null, {
+      const response = await api.post('/api/v1/barcode/scan-and-select', null, {
         params: {
           barcode: barcode.trim(),
           quantity

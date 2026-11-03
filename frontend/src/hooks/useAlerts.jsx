@@ -76,11 +76,11 @@ export function AlertsProvider({ children }) {
     
     try {
       // Fetch all alerts
-      const alertsResponse = await api.get('/alerts')
+      const alertsResponse = await api.get('/api/v1/alerts')
       const alertsData = alertsResponse.data.alerts || []
       
       // Fetch stats
-      const statsResponse = await api.get('/alerts/stats')
+      const statsResponse = await api.get('/api/v1/alerts/stats')
       const statsData = statsResponse.data
       
       setAlerts(alertsData)

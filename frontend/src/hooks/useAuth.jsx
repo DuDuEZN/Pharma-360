@@ -15,7 +15,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (username, password) => {
     try {
       //const response = await api.post('/v1/auth/login', { username, password })
-      const response = await api.post('/auth/login', { username, password })
+      const response = await api.post('/api/v1/auth/login', { username, password })
       const { access_token, user: userData } = response.data
 
       localStorage.setItem('token', access_token)
@@ -32,7 +32,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try {
-      await api.post('/v1/auth/logout')
+      await api.post('/api/v1/auth/logout')
     } catch (error) {
       console.error('Error during logout:', error)
     } finally {
@@ -54,7 +54,7 @@ export function AuthProvider({ children }) {
 
     try {
       api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`
-      await api.get('/health')
+      await api.get('/api/v1/health')
 
       setToken(storedToken)
       setUser(JSON.parse(storedUser))

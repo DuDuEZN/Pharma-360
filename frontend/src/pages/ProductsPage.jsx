@@ -121,7 +121,7 @@ function ProductsPage() {
     const product = deletingProduct
     if (!product) return
     try {
-      await api.delete(`/products/${product.id}`)
+      await api.delete(`/api/v1/products/${product.id}`)
       setProducts((prev) => prev.filter((p) => p.id !== product.id))
             ? 'Seul un administrateur peut supprimer un produit.'
             : typeof detail === 'string'
