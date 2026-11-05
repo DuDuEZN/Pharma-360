@@ -1,0 +1,39 @@
+From: Pharma360 QA Team
+Subject: [PATCH 007/07] Fix nginx healthcheck to use curl instead of wget
+Date: 2026-11-01
+
+This patch fixes the nginx container healthcheck. The nginx:alpine image
+doesn't have wget installed by default. We use curl which is more commonly
+available or we can use a simpler check.
+
+---
+ docker/docker-compose.yml | 1 +
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/docker/docker-compose.yml b/docker/docker-compose.yml
+index abc1234..def5678 100644
+--- a/docker/docker-compose.yml
++++ b/docker/docker-compose.yml
+@@ -169,7 +169,7 @@ services:
+       - ./frontend/dist:/usr/share/nginx/html:ro
+     healthcheck:
+-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
++      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+       interval: 30s
+       timeout: 10s
+       retries: 3
+       start_period: 20s
+---
+To apply this patch:
+  cd /workspace/github__DuDuEZN__Pharma-360
+  patch -p1 < patches/007-fix-nginx-healthcheck-curl.patch
+
+OR manually apply:
+  1. Edit docker/docker-compose.yml
+  2. Change line 172 from:
+     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+     to:
+     test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+
+Note: nginx:alpine doesn't have wget installed by default. Using curl is more
+reliable. Alternatively, you could install wget in a custom nginx image.

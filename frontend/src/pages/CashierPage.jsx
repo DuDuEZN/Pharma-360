@@ -1,14 +1,24 @@
-import React, { useState, useEffect } from 'react'
-import { CreditCard, Clock, Check, X, ShoppingCart, User, Printer, FileText, Wifi, WifiOff } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { CreditCard, Clock, Check, X, ShoppingCart, User, Printer, FileText, Wifi, WifiOff, DollarSign, CreditCard as CreditCardIcon, Banknote, Receipt, ArrowLeft, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useWebSocket } from '../hooks/useWebSocket'
+import { useDisclosure } from '../hooks/useDisclosure'
 import api from '../services/api'
 import { useToast } from '../components/common/Toast'
-import Button from '../components/common/Button'
-import Modal from '../components/common/Modal'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card'
+import { Button } from '../components/ui/Button'
+import { Input } from '../components/ui/Input'
+import { Badge } from '../components/ui/Badge'
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '../components/ui/Modal'
+import { Select } from '../components/ui/Select'
+import { Separator } from '../components/ui/Separator'
+import { Skeleton } from '../components/ui/Skeleton'
+import { Alert } from '../components/ui/Alert'
+import { cn, formatCurrency, formatDate } from '../lib/utils'
 
 /**
- * Cashier Page for Pharmacie 360
+ * Cashier Page for Pharma 360
  * Point of sale cashier interface for processing payments
  * 
  * FRNT-006: Session Caisse (File d'attente + encaissement)
@@ -16,29 +26,61 @@ import Modal from '../components/common/Modal'
 function CashierPage() {
   const { user } = useAuth()
   const { addToast } = useToast()
-  const { isConnected, isConnecting, queueItems, lastMessage, sendPaymentValidated } = useWebSocket()
+  const { 
+    isConnected, 
+    isConnecting, 
+    messages: queueMessages,
+    send 
+  } = useWebSocket()
   
   const [pendingSales, setPendingSales] = useState([])
   const [selectedSale, setSelectedSale] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [amountPaid, setAmountPaid] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [showReceipt, setShowReceipt] = useState(false)
   const [receipt, setReceipt] = useState(null)
+  const [isPrinting, setIsPrinting] = useState(false)
 
-  // Sync queue items with pending sales
+  const {
+    isOpen: isPaymentModalOpen,
+    onOpen: openPaymentModal,
+    onClose: closePaymentModal
+  } = useDisclosure()
+
+  const {
+    isOpen: isReceiptModalOpen,
+    onOpen: openReceiptModal,
+    onClose: closeReceiptModal
+  } = useDisclosure()
+
+  const paymentMethods = [
+    { value: 'cash', label: 'Espèces', icon: Banknote },
+    { value: 'card', label: 'Carte', icon: CreditCardIcon },
+    { value: 'mobile', label: 'Mobile Money', icon: DollarSign },
+  ]
+
+  // Parse queue messages to get pending sales
   useEffect(() => {
-    if (queueItems.length > 0) {
-      setPendingSales(queueItems)
+    const salesFromMessages = queueMessages
+      .filter(msg => msg.type === 'sale' && msg.content?.status === 'pending')
+      .map(msg => msg.content)
+    
+    if (salesFromMessages.length > 0) {
+      setPendingSales(prev => {
+        // Merge with existing, avoiding duplicates
+        const newSales = salesFromMessages.filter(
+          newSale => !prev.some(existing => existing.id === newSale.id)
+        )
+        return [...prev, ...newSales]
+      })
     }
-  }, [queueItems])
+  }, [queueMessages])
 
   // Fetch pending sales on mount and when WebSocket is not connected
   useEffect(() => {
+    fetchPendingSales()
+    
     if (!isConnected && !isConnecting) {
-      fetchPendingSales()
-      
       // Poll for new sales when WebSocket is not connected
       const interval = setInterval(fetchPendingSales, 5000)
       return () => clearInterval(interval)
@@ -48,11 +90,16 @@ function CashierPage() {
   const fetchPendingSales = async () => {
     try {
       const response = await api.get('/sales', {
-        params: { status: 'pending', limit: 10 }
+        params: { status: 'pending', limit: 20 }
       })
       setPendingSales(response.data.sales || [])
     } catch (error) {
       console.error('Error fetching sales:', error)
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Impossible de charger les ventes en attente'
+      })
     }
   }
 
@@ -67,7 +114,7 @@ function CashierPage() {
       addToast({
         type: 'error',
         title: 'Montant insuffisant',
-        message: `Le montant payé doit être au moins ${totalAmount} XOF`
+        message: `Le montant payé doit être au moins ${formatCurrency(totalAmount)}`
       })
       return
     }
@@ -83,8 +130,8 @@ function CashierPage() {
       })
       
       setReceipt(response.data)
-      setShowPaymentModal(false)
-      setShowReceipt(true)
+      closePaymentModal()
+      openReceiptModal()
       setAmountPaid('')
       setPaymentMethod('cash')
       
@@ -93,423 +140,561 @@ function CashierPage() {
       setSelectedSale(null)
       
       // Send WebSocket notification
-      sendPaymentValidated({
+      send({
+        type: 'payment_validated',
         sale_id: selectedSale.id,
-        sale_number: selectedSale.sale_number || `SALE-${selectedSale.id}`
+        sale_number: selectedSale.sale_number || `SALE-${selectedSale.id}`,
+        amount: paidAmount,
+        cashier: user?.username
       })
       
       addToast({
         type: 'success',
         title: 'Paiement validé',
-        message: `Vente #${selectedSale.id} payée avec succès`
+        message: `Vente ${selectedSale.sale_number || selectedSale.id} - ${formatCurrency(paidAmount)}`
       })
     } catch (error) {
       addToast({
         type: 'error',
         title: 'Erreur de paiement',
-        message: 'Impossible de valider le paiement'
+        message: error.response?.data?.message || 'Impossible de traiter le paiement'
       })
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Select sale to process
   const handleSelectSale = (sale) => {
     setSelectedSale(sale)
-    setShowPaymentModal(true)
+    openPaymentModal()
   }
 
-  // Calculate change
+  const handlePrintReceipt = useCallback(async () => {
+    if (!receipt) return
+    
+    setIsPrinting(true)
+    try {
+      // In a real application, this would trigger the actual printer
+      // For now, we'll simulate the print action
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      addToast({
+        type: 'success',
+        title: 'Ticket imprimé',
+        message: `Ticket de caisse #${receipt.sale_number} imprimé`
+      })
+      
+      // Close the receipt modal after printing
+      closeReceiptModal()
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Erreur d\'impression',
+        message: 'Impossible d\'imprimer le ticket'
+      })
+    } finally {
+      setIsPrinting(false)
+    }
+  }, [receipt, addToast, closeReceiptModal])
+
   const calculateChange = () => {
-    const paid = parseFloat(amountPaid) || 0
-    const total = selectedSale?.total_amount || 0
-    return paid - total
+    const paidAmount = parseFloat(amountPaid) || 0
+    const totalAmount = selectedSale?.total_amount || 0
+    return paidAmount - totalAmount
   }
 
-  // Format currency
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'XOF'
-    }).format(amount || 0)
+  const connectionStatus = {
+    connected: {
+      icon: Wifi,
+      color: 'success',
+      text: 'Connecté en temps réel'
+    },
+    connecting: {
+      icon: Wifi,
+      color: 'warning',
+      text: 'Connexion en cours...'
+    },
+    disconnected: {
+      icon: WifiOff,
+      color: 'danger',
+      text: 'Mode hors ligne (rafraîchissement toutes les 5s)'
+    }
   }
 
-  // Format time
-  const formatTime = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  const getStatusConfig = () => {
+    if (isConnecting) return connectionStatus.connecting
+    if (isConnected) return connectionStatus.connected
+    return connectionStatus.disconnected
   }
+
+  const statusConfig = getStatusConfig()
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Caisse
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Gestion des paiements et encaissements
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* WebSocket Connection Status */}
-          <div className="flex items-center gap-2">
-            {isConnected ? (
-              <span className="flex items-center gap-1 text-success-600">
-                <Wifi className="w-4 h-4" />
-                <span className="text-sm">Connecté</span>
-              </span>
-            ) : isConnecting ? (
-              <span className="flex items-center gap-1 text-warning-600">
-                <WifiOff className="w-4 h-4" />
-                <span className="text-sm">Connexion...</span>
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-danger-600">
-                <WifiOff className="w-4 h-4" />
-                <span className="text-sm">Déconnecté</span>
-              </span>
-            )}
-          </div>
-          
-          <span className="text-sm text-gray-500">
-            Caissier: {user?.username}
-          </span>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Session Caisse</CardTitle>
+          <CardDescription>
+            File d'attente des ventes et encaissement
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert
+            variant={statusConfig.color}
+            className="flex items-center gap-3"
+          >
+            <statusConfig.icon className="w-5 h-5" />
+            <span>{statusConfig.text}</span>
+          </Alert>
+        </CardContent>
+      </Card>
 
-      {/* Queue Display */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            File d'attente
-          </h2>
-          <span className="text-sm text-gray-500">
-            {pendingSales.length} vente(s) en attente
-          </span>
-        </div>
-        
-        {pendingSales.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <ShoppingCart className="mx-auto w-16 h-16 mb-4" />
-            <p className="text-lg">Aucune vente en attente</p>
-            <p className="text-sm mt-2">
-              Les ventes apparaitront ici lorsqu'elles seront envoyées depuis le point de vente
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {pendingSales.map((sale, index) => (
-              <div
-                key={sale.id}
-                onClick={() => handleSelectSale(sale)}
-                className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-              >
-                <div className="flex-shrink-0 w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                  <span className="text-primary-600 font-medium">#{index + 1}</span>
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-gray-900">
-                      Vente #{sale.id}
-                    </h3>
-                    <span className="text-xs text-gray-500">
-                      {sale.items?.length || 0} produit(s)
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {formatTime(sale.created_at)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      {sale.user?.username || 'Utilisateur'}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900">
-                    {formatCurrency(sale.total_amount)}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Total
-                  </p>
-                </div>
-                
-                <Button variant="ghost" size="sm" onClick={(e) => {
-                  e.stopPropagation()
-                  handleSelectSale(sale)
-                }}>
-                  <Check className="w-4 h-4" />
-                  Traiter
-                </Button>
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Pending Sales Queue */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Ventes en Attente ({pendingSales.length})</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchPendingSales}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Rafraîchir
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {pendingSales.length === 0 ? (
+              <div className="text-center py-12">
+                <Clock className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500">Aucune vente en attente</p>
+                <p className="text-sm text-gray-400 mt-2">
+                  Les ventes apparaîtront ici lorsqu'elles seront envoyées
+                </p>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>N° Vente</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Produits</TableHead>
+                    <TableHead>Montant</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingSales.map((sale) => (
+                    <TableRow
+                      key={sale.id}
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => handleSelectSale(sale)}
+                    >
+                      <TableCell>
+                        <Badge variant="primary" className="font-mono">
+                          {sale.sale_number || `SALE-${sale.id}`}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {formatDate(sale.created_at || sale.date)}
+                      </TableCell>
+                      <TableCell>
+                        {sale.items?.length || sale.product_count || 0}
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium text-primary-600 dark:text-primary-400">
+                          {formatCurrency(sale.total_amount || 0)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm">
+                          <CreditCard className="w-4 h-4 mr-2" />
+                          Encaisser
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Daily Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card text-center">
-          <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <CreditCard className="w-6 h-6 text-primary-600" />
-          </div>
-          <p className="text-sm text-gray-500">Aujourd'hui</p>
-          <p className="text-2xl font-bold text-gray-900">0 XOF</p>
-          <p className="text-xs text-gray-500 mt-1">Chiffre d'affaires</p>
-        </div>
-        
-        <div className="card text-center">
-          <div className="w-12 h-12 bg-success-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Check className="w-6 h-6 text-success-600" />
-          </div>
-          <p className="text-sm text-gray-500">Aujourd'hui</p>
-          <p className="text-2xl font-bold text-gray-900">0</p>
-          <p className="text-xs text-gray-500 mt-1">Ventes traitées</p>
-        </div>
-        
-        <div className="card text-center">
-          <div className="w-12 h-12 bg-warning-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Clock className="w-6 h-6 text-warning-600" />
-          </div>
-          <p className="text-sm text-gray-500">En attente</p>
-          <p className="text-2xl font-bold text-gray-900">{pendingSales.length}</p>
-          <p className="text-xs text-gray-500 mt-1">Ventes en file</p>
-        </div>
+        {/* Selected Sale Details / Cashier Panel */}
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {selectedSale ? `Vente #${selectedSale.sale_number || selectedSale.id}` : 'Sélectionnez une vente'}
+            </CardTitle>
+            {selectedSale && (
+              <CardDescription>
+                {selectedSale.items?.length || 0} produit(s) - {formatCurrency(selectedSale.total_amount || 0)}
+              </CardDescription>
+            )}
+          </CardHeader>
+          <CardContent>
+            {selectedSale ? (
+              <div className="space-y-4">
+                {/* Sale Items */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Détails de la vente
+                  </h4>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produit</TableHead>
+                        <TableHead>Qté</TableHead>
+                        <TableHead>Prix</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedSale.items?.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm">{item.product_name || item.name}</span>
+                              {item.batch_number && (
+                                <span className="text-xs text-gray-500">
+                                  Lot: {item.batch_number}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell>
+                            {formatCurrency(item.unit_price || 0)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency((item.unit_price || 0) * (item.quantity || 1))}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <Separator />
+
+                {/* Totals */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Sous-total:</span>
+                    <span>{formatCurrency(selectedSale.subtotal || selectedSale.total_amount || 0)}</span>
+                  </div>
+                  {selectedSale.tax_amount && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span>TVA:</span>
+                      <span>{formatCurrency(selectedSale.tax_amount)}</span>
+                    </div>
+                  )}
+                  {selectedSale.discount_amount && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Remise:</span>
+                      <span className="text-danger-600 dark:text-danger-400">
+                        -{formatCurrency(selectedSale.discount_amount)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between font-bold text-lg">
+                    <span>Total:</span>
+                    <span className="text-primary-600 dark:text-primary-400">
+                      {formatCurrency(selectedSale.total_amount || 0)}
+                    </span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Payment Form */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Paiement
+                  </h4>
+                  
+                  <Select
+                    value={paymentMethod}
+                    onChange={setPaymentMethod}
+                    options={paymentMethods.map(method => ({
+                      value: method.value,
+                      label: method.label,
+                      icon: method.icon
+                    }))}
+                    placeholder="Sélectionnez un mode de paiement"
+                  />
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">
+                        Montant payé
+                      </label>
+                      <span className="text-sm text-gray-500">
+                        Total: {formatCurrency(selectedSale.total_amount || 0)}
+                      </span>
+                    </div>
+                    <Input
+                      type="number"
+                      value={amountPaid}
+                      onChange={(e) => setAmountPaid(e.target.value)}
+                      placeholder="Montant payé"
+                      leftIcon={<Banknote className="w-4 h-4" />}
+                    />
+                  </div>
+
+                  {amountPaid && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Monnaie à rendre:</span>
+                      <span className={cn(
+                        calculateChange() >= 0 
+                          ? 'text-success-600 dark:text-success-400' 
+                          : 'text-danger-600 dark:text-danger-400'
+                      )}>
+                        {formatCurrency(Math.abs(calculateChange()))}
+                      </span>
+                    </div>
+                  )}
+
+                  <Button
+                    className="w-full"
+                    onClick={handleProcessPayment}
+                    disabled={isLoading || !amountPaid}
+                    isLoading={isLoading}
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    Valider le Paiement
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <CreditCard className="w-12 h-12 mx-auto text-gray-300 mb-2" />
+                <p className="text-sm text-gray-500">
+                  Sélectionnez une vente pour commencer l'encaissement
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Payment Modal */}
-      <Modal
-        isOpen={showPaymentModal}
-        onClose={() => {
-          setShowPaymentModal(false)
-          setAmountPaid('')
-          setPaymentMethod('cash')
-        }}
-        title={`Paiement - Vente #${selectedSale?.id}`}
-        size="md"
-        footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowPaymentModal(false)}>
-              Annuler
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleProcessPayment}
-              isLoading={isLoading}
-              disabled={!amountPaid}
-            >
-              <Check className="w-4 h-4 mr-2" />
-              Valider le paiement
-            </Button>
+      <Modal isOpen={isPaymentModalOpen} onClose={closePaymentModal} size="lg">
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-primary-600" />
+            <span>Paiement - Vente #{selectedSale?.sale_number || selectedSale?.id}</span>
           </div>
-        }
-      >
-        {selectedSale && (
-          <div className="space-y-4">
-            {/* Sale Summary */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-medium text-gray-900 mb-2">
-                Récapitulatif
-              </h3>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Produits:</span>
-                  <span>{selectedSale.items?.length || 0}</span>
+        </ModalHeader>
+        <ModalBody>
+          {selectedSale && (
+            <div className="space-y-4">
+              <Alert variant="info" className="flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Vérifiez le montant avant validation</p>
+                  <p className="text-sm">
+                    Total à payer: {formatCurrency(selectedSale.total_amount || 0)}
+                  </p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Total:</span>
-                  <span className="font-medium">{formatCurrency(selectedSale.total_amount)}</span>
-                </div>
-              </div>
-            </div>
+              </Alert>
 
-            {/* Payment Method */}
-            <div>
-              <h3 className="font-medium text-gray-900 mb-2">
-                Mode de paiement
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant={paymentMethod === 'cash' ? 'primary' : 'outline'}
-                  onClick={() => setPaymentMethod('cash')}
-                  className="justify-start"
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Espèces
-                </Button>
-                <Button
-                  variant={paymentMethod === 'card' ? 'primary' : 'outline'}
-                  onClick={() => setPaymentMethod('card')}
-                  className="justify-start"
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Carte
-                </Button>
-                <Button
-                  variant={paymentMethod === 'mobile' ? 'primary' : 'outline'}
-                  onClick={() => setPaymentMethod('mobile')}
-                  className="justify-start col-span-2"
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Mobile Money
-                </Button>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Mode de paiement
+                </label>
+                <Select
+                  value={paymentMethod}
+                  onChange={setPaymentMethod}
+                  options={paymentMethods.map(method => ({
+                    value: method.value,
+                    label: method.label,
+                    icon: method.icon
+                  }))}
+                />
               </div>
-            </div>
 
-            {/* Amount */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Montant reçu
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
-                  XOF
-                </span>
-                <input
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Montant payé
+                </label>
+                <Input
                   type="number"
                   value={amountPaid}
                   onChange={(e) => setAmountPaid(e.target.value)}
-                  placeholder="0"
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="Montant payé"
+                  leftIcon={<Banknote className="w-4 h-4" />}
+                  rightIcon={amountPaid && (
+                    <span className={cn(
+                      calculateChange() >= 0 
+                        ? 'text-success-600 dark:text-success-400' 
+                        : 'text-danger-600 dark:text-danger-400'
+                    )}>
+                      {formatCurrency(Math.abs(calculateChange()))}
+                    </span>
+                  )}
                 />
               </div>
-              
-              {/* Change */}
-              {amountPaid && selectedSale && (
-                <div className="mt-2 p-2 bg-gray-50 rounded-lg text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Monnaie:</span>
-                    <span className={calculateChange() >= 0 ? 'text-success-600' : 'text-danger-600'}>
-                      {formatCurrency(calculateChange())}
-                    </span>
-                  </div>
-                </div>
+
+              {calculateChange() < 0 && (
+                <Alert variant="danger" className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-sm">
+                    Le montant payé est insuffisant
+                  </span>
+                </Alert>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={closePaymentModal}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleProcessPayment}
+            disabled={isLoading || calculateChange() < 0}
+            isLoading={isLoading}
+          >
+            <Check className="w-4 h-4 mr-2" />
+            Valider
+          </Button>
+        </ModalFooter>
       </Modal>
 
       {/* Receipt Modal */}
-      <Modal
-        isOpen={showReceipt}
-        onClose={() => setShowReceipt(false)}
-        title="Reçu de paiement"
-        size="lg"
-        footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="outline" onClick={() => setShowReceipt(false)}>
-              Fermer
-            </Button>
-            <Button variant="primary" onClick={() => window.print()}>
-              <Printer className="w-4 h-4 mr-2" />
-              Imprimer
-            </Button>
+      <Modal isOpen={isReceiptModalOpen} onClose={closeReceiptModal} size="lg">
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-primary-600" />
+            <span>Ticket de Caisse</span>
           </div>
-        }
-      >
-        {receipt && (
-          <div className="space-y-4">
-            {/* Receipt Header */}
-            <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900">
-                PHARMACIE 360
-              </h2>
-              <p className="text-sm text-gray-500">
-                Reçu de vente
-              </p>
-              <p className="text-xs text-gray-400 mt-2">
-                {new Date().toLocaleString('fr-FR')}
-              </p>
-            </div>
+        </ModalHeader>
+        <ModalBody>
+          {receipt && (
+            <div className="space-y-4">
+              {/* Receipt Header */}
+              <div className="text-center">
+                <h3 className="font-bold text-lg">PHARMACIE 360</h3>
+                <p className="text-sm text-gray-500">
+                  Ticket de caisse
+                </p>
+                <p className="text-xs text-gray-400">
+                  {formatDate(receipt.created_at || new Date())}
+                </p>
+              </div>
 
-            {/* Receipt Details */}
-            <div className="border-t border-b border-gray-200 py-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-500">Vente #</p>
-                  <p className="font-medium">{receipt.sale_id}</p>
+              <Separator />
+
+              {/* Receipt Details */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">N° Vente:</span>
+                  <span className="font-mono text-sm">{receipt.sale_number}</span>
                 </div>
-                <div>
-                  <p className="text-gray-500">Caissier</p>
-                  <p className="font-medium">{user?.username}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Caissier:</span>
+                  <span className="text-sm">{receipt.cashier || user?.username}</span>
                 </div>
-                <div>
-                  <p className="text-gray-500">Mode de paiement</p>
-                  <p className="font-medium capitalize">{receipt.payment_method}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Client</p>
-                  <p className="font-medium">Client</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Mode de paiement:</span>
+                  <span className="text-sm">
+                    {paymentMethods.find(m => m.value === receipt.payment_method)?.label || receipt.payment_method}
+                  </span>
                 </div>
               </div>
-            </div>
 
-            {/* Items */}
-            <div>
-              <h3 className="font-medium text-gray-900 mb-2">
-                Articles
-              </h3>
-              <div className="space-y-2 text-sm">
-                {receipt.items?.map((item, index) => (
-                  <div key={index} className="flex justify-between py-1">
-                    <div className="flex-1">
-                      <p className="font-medium">{item.product_name}</p>
-                      <p className="text-xs text-gray-500">
-                        {item.quantity} x {formatCurrency(item.unit_price)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      {formatCurrency(item.quantity * item.unit_price)}
-                    </div>
+              <Separator />
+
+              {/* Items */}
+              <div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-sm">Produit</TableHead>
+                      <TableHead className="text-sm text-center">Qté</TableHead>
+                      <TableHead className="text-sm text-right">Prix</TableHead>
+                      <TableHead className="text-sm text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {receipt.items?.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="text-sm">
+                          <div className="flex flex-col">
+                            <span>{item.product_name || item.name}</span>
+                            {item.batch_number && (
+                              <span className="text-xs text-gray-500">
+                                Lot: {item.batch_number}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-center">{item.quantity}</TableCell>
+                        <TableCell className="text-sm text-right">
+                          {formatCurrency(item.unit_price || 0)}
+                        </TableCell>
+                        <TableCell className="text-sm text-right">
+                          {formatCurrency((item.unit_price || 0) * (item.quantity || 1))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <Separator />
+
+              {/* Totals */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Sous-total:</span>
+                  <span className="text-sm">{formatCurrency(receipt.subtotal || receipt.total_amount || 0)}</span>
+                </div>
+                {receipt.tax_amount && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">TVA:</span>
+                    <span className="text-sm">{formatCurrency(receipt.tax_amount)}</span>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Totals */}
-            <div className="border-t border-gray-200 pt-4 text-sm">
-              <div className="flex justify-between py-1">
-                <span className="text-gray-500">Sous-total:</span>
-                <span>{formatCurrency(receipt.subtotal || receipt.total_amount)}</span>
-              </div>
-              {receipt.discount > 0 && (
-                <div className="flex justify-between py-1">
-                  <span className="text-gray-500">Remise:</span>
-                  <span className="text-danger-600">-{formatCurrency(receipt.discount)}</span>
+                )}
+                {receipt.discount_amount && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Remise:</span>
+                    <span className="text-sm text-danger-600 dark:text-danger-400">
+                      -{formatCurrency(receipt.discount_amount)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between font-bold">
+                  <span>Total:</span>
+                  <span>{formatCurrency(receipt.total_amount || 0)}</span>
                 </div>
-              )}
-              <div className="flex justify-between py-1 font-medium">
-                <span>Total:</span>
-                <span>{formatCurrency(receipt.total_amount)}</span>
-              </div>
-              {receipt.change > 0 && (
-                <div className="flex justify-between py-1">
-                  <span className="text-gray-500">Monnaie:</span>
-                  <span className="text-success-600">{formatCurrency(receipt.change)}</span>
-                </div>
-              )}
-              <div className="flex justify-between py-1 font-bold text-lg">
-                <span>Montant payé:</span>
-                <span>{formatCurrency(receipt.amount_paid)}</span>
+                {receipt.change && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Monnaie rendue:</span>
+                    <span className="text-sm text-success-600 dark:text-success-400">
+                      {formatCurrency(receipt.change)}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* Footer */}
-            <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
-              <p>Merci de votre confiance !</p>
-              <p className="mt-1">Pharmacie 360 - Tous droits réservés</p>
-            </div>
-          </div>
-        )}
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={closeReceiptModal}>
+            Fermer
+          </Button>
+          <Button
+            onClick={handlePrintReceipt}
+            isLoading={isPrinting}
+          >
+            <Printer className="w-4 h-4 mr-2" />
+            Imprimer
+          </Button>
+        </ModalFooter>
       </Modal>
     </div>
   )

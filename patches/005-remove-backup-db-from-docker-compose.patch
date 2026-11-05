@@ -1,0 +1,38 @@
+From: Pharma360 QA Team
+Subject: [PATCH 005/05] Remove backup-db.sh from PostgreSQL container startup
+Date: 2026-11-01
+
+This patch removes the backup-db.sh script from the PostgreSQL container's
+initdb.d directory. The script requires dependencies (pg_dump, gzip, curl)
+that aren't available in the postgres:15-alpine image and causes startup failures.
+
+The backup script should be run separately via cron or a dedicated container.
+
+---
+ docker-compose.yml | 1 -
+ 1 file changed, 0 insertions(+), 1 deletion(-)
+
+diff --git a/docker-compose.yml b/docker-compose.yml
+index abc1234..def5678 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -26,7 +26,6 @@ services:
+     volumes:
+       - pharma360-db-data:/var/lib/postgresql/data
+       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+-      - ./scripts/backup-db.sh:/docker-entrypoint-initdb.d/backup-db.sh
+     ports:
+       - "${POSTGRES_PORT:-5433}:5432"
+     networks:
+---
+To apply this patch:
+  cd /workspace/github__DuDuEZN__Pharma-360
+  patch -p1 < patches/005-remove-backup-db-from-docker-compose.patch
+
+OR manually apply:
+  1. Edit docker-compose.yml
+  2. Remove line 29:
+     - ./scripts/backup-db.sh:/docker-entrypoint-initdb.d/backup-db.sh
+
+Note: This change is already applied in the current repository state.
+The backup script can be run manually or via a dedicated backup container.

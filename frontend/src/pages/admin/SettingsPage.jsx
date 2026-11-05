@@ -1,14 +1,24 @@
 import React, { useState, useEffect } from 'react'
-import { Settings, Save, Plus, Trash2, Edit, Image, Upload, Palette, Globe, Clock, Mail } from 'lucide-react'
+import { Settings, Save, Plus, Trash2, Edit, Image, Upload, Palette, Globe, Clock, Mail, Bell, Shield, Database, User, Store } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import api from '../../services/api'
 import { useToast } from '../../components/common/Toast'
-import Button from '../../components/common/Button'
-import Input from '../../components/common/Input'
-import Modal from '../../components/common/Modal'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../components/ui/Card'
+import { Button } from '../../components/ui/Button'
+import { Input } from '../../components/ui/Input'
+import { Label } from '../../components/ui/Label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select'
+import { Switch } from '../../components/ui/Switch'
+import { Badge } from '../../components/ui/Badge'
+import { Separator } from '../../components/ui/Separator'
+import { Skeleton } from '../../components/ui/Skeleton'
+import { Alert } from '../../components/ui/Alert'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/ui/Modal'
+import { cn, formatDate } from '../../lib/utils'
 
 /**
- * Settings Page for Pharmacie 360
+ * Settings Page for Pharma 360
  * System configuration and preferences
  * 
  * FRNT-004: Session Administrateur (Gestion utilisateurs/roles)
@@ -21,18 +31,44 @@ function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('general')
+  const [backupList, setBackupList] = useState([])
+  const [isBackupLoading, setIsBackupLoading] = useState(false)
+  const [isCreatingBackup, setIsCreatingBackup] = useState(false)
 
   // Tabs
   const tabs = [
     { id: 'general', label: 'Général', icon: Settings },
     { id: 'appearance', label: 'Apparence', icon: Palette },
-    { id: 'pharmacy', label: 'Pharmacie', icon: Globe },
-    { id: 'notifications', label: 'Notifications', icon: Mail },
+    { id: 'pharmacy', label: 'Pharmacie', icon: Store },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'security', label: 'Sécurité', icon: Shield },
+    { id: 'backup', label: 'Sauvegardes', icon: Database },
+  ]
+
+  // Theme options
+  const themeOptions = [
+    { value: 'light', label: 'Clair' },
+    { value: 'dark', label: 'Sombre' },
+    { value: 'system', label: 'Système' },
+  ]
+
+  // Language options
+  const languageOptions = [
+    { value: 'fr', label: 'Français' },
+    { value: 'en', label: 'English' },
+  ]
+
+  // Currency options
+  const currencyOptions = [
+    { value: 'XOF', label: 'XOF (CFA)' },
+    { value: 'EUR', label: 'EUR (Euro)' },
+    { value: 'USD', label: 'USD (Dollar)' },
   ]
 
   // Fetch settings
   useEffect(() => {
     fetchSettings()
+    fetchBackups()
   }, [])
 
   const fetchSettings = async () => {
@@ -51,6 +87,18 @@ function SettingsPage() {
     }
   }
 
+  const fetchBackups = async () => {
+    try {
+      setIsBackupLoading(true)
+      const response = await api.get('/settings/backups')
+      setBackupList(response.data.backups || [])
+    } catch (error) {
+      console.error('Error fetching backups:', error)
+    } finally {
+      setIsBackupLoading(false)
+    }
+  }
+
   // Save settings
   const handleSave = async () => {
     setIsSaving(true)
@@ -65,7 +113,7 @@ function SettingsPage() {
       addToast({
         type: 'error',
         title: 'Erreur',
-        message: 'Impossible de sauvegarder les paramètres'
+        message: error.response?.data?.message || 'Impossible de sauvegarder les paramètres'
       })
     } finally {
       setIsSaving(false)
@@ -81,35 +129,86 @@ function SettingsPage() {
     }))
   }
 
-  // Handle file upload
-  const handleFileUpload = async (e, field) => {
-    const file = e.target.files[0]
-    if (!file) return
-    
+  // Handle select change
+  const handleSelectChange = (name, value) => {
+    setSettings(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  // Handle switch change
+  const handleSwitchChange = (name, checked) => {
+    setSettings(prev => ({
+      ...prev,
+      [name]: checked
+    }))
+  }
+
+  // Create backup
+  const handleCreateBackup = async () => {
+    setIsCreatingBackup(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('field', field)
-      
-      const response = await api.post('/settings/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      
-      setSettings(prev => ({
-        ...prev,
-        [field]: response.data.url
-      }))
-      
+      await api.post('/settings/backup')
       addToast({
         type: 'success',
-        title: 'Fichier téléchargé',
-        message: 'Le fichier a été téléchargé avec succès'
+        title: 'Sauvegarde créée',
+        message: 'Une nouvelle sauvegarde a été créée avec succès'
       })
+      fetchBackups()
     } catch (error) {
       addToast({
         type: 'error',
         title: 'Erreur',
-        message: 'Impossible de télécharger le fichier'
+        message: error.response?.data?.message || 'Impossible de créer la sauvegarde'
+      })
+    } finally {
+      setIsCreatingBackup(false)
+    }
+  }
+
+  // Restore backup
+  const handleRestoreBackup = async (backupId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir restaurer cette sauvegarde ? Cette action est irréversible.')) {
+      return
+    }
+    
+    try {
+      await api.post(`/settings/restore/${backupId}`)
+      addToast({
+        type: 'success',
+        title: 'Restauration réussie',
+        message: 'La sauvegarde a été restaurée avec succès'
+      })
+      fetchBackups()
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: error.response?.data?.message || 'Impossible de restaurer la sauvegarde'
+      })
+    }
+  }
+
+  // Delete backup
+  const handleDeleteBackup = async (backupId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette sauvegarde ?')) {
+      return
+    }
+    
+    try {
+      await api.delete(`/settings/backups/${backupId}`)
+      addToast({
+        type: 'success',
+        title: 'Sauvegarde supprimée',
+        message: 'La sauvegarde a été supprimée avec succès'
+      })
+      fetchBackups()
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: error.response?.data?.message || 'Impossible de supprimer la sauvegarde'
       })
     }
   }
@@ -117,468 +216,754 @@ function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">
-            Paramètres Système
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Configurez les paramètres de votre pharmacie
-          </p>
-        </div>
-        <Button
-          variant="primary"
-          onClick={handleSave}
-          isLoading={isSaving}
-          disabled={isLoading}
-        >
-          <Save className="w-4 h-4 mr-2" />
-          Sauvegarder
-        </Button>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Paramètres Système</CardTitle>
+          <CardDescription>
+            Configuration et préférences de l'application
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="info" className="flex items-start gap-3">
+            <Settings className="w-4 h-4 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Configuration de Pharma 360</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Modifiez les paramètres de votre application. N'oubliez pas de sauvegarder après vos modifications.
+              </p>
+            </div>
+          </Alert>
+        </CardContent>
+      </Card>
 
       {/* Tabs */}
-      <div className="card">
-        <div className="border-b border-gray-200">
-          <nav className="flex gap-1 overflow-x-auto">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-primary-50 text-primary-700 border border-primary-200'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-        
-        {/* Tab Content */}
-        <div className="pt-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600"></div>
-            </div>
-          ) : activeTab === 'general' ? (
-            <GeneralSettings
-              settings={settings}
-              onChange={handleChange}
-            />
-          ) : activeTab === 'appearance' ? (
-            <AppearanceSettings
-              settings={settings}
-              onChange={handleChange}
-              onFileUpload={handleFileUpload}
-            />
-          ) : activeTab === 'pharmacy' ? (
-            <PharmacySettings
-              settings={settings}
-              onChange={handleChange}
-            />
-          ) : (
-            <NotificationSettings
-              settings={settings}
-              onChange={handleChange}
-            />
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          {tabs.map((tab) => (
+            <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
+              <tab.icon className="w-4 h-4" />
+              <span>{tab.label}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-// General Settings Tab
-function GeneralSettings({ settings, onChange }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Informations générales
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Nom de la pharmacie"
-            name="pharmacy_name"
-            value={settings.pharmacy_name || ''}
-            onChange={onChange}
-            placeholder="Nom de votre pharmacie"
-          />
-          <Input
-            label="Description"
-            name="pharmacy_description"
-            value={settings.pharmacy_description || ''}
-            onChange={onChange}
-            placeholder="Brève description"
-          />
-          <Input
-            label="Email"
-            name="pharmacy_email"
-            type="email"
-            value={settings.pharmacy_email || ''}
-            onChange={onChange}
-            placeholder="contact@pharmacie.com"
-          />
-          <Input
-            label="Téléphone"
-            name="pharmacy_phone"
-            type="tel"
-            value={settings.pharmacy_phone || ''}
-            onChange={onChange}
-            placeholder="+229 XX XX XX XX"
-          />
-          <Input
-            label="Adresse"
-            name="pharmacy_address"
-            value={settings.pharmacy_address || ''}
-            onChange={onChange}
-            placeholder="Adresse physique"
-          />
-        </div>
-      </div>
+        {/* General Tab */}
+        <TabsContent value="general" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Paramètres Généraux</CardTitle>
+              <CardDescription>
+                Configuration de base de l'application
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="app_name">Nom de l'Application</Label>
+                      <Input
+                        id="app_name"
+                        name="app_name"
+                        value={settings.app_name || 'Pharma 360'}
+                        onChange={handleChange}
+                        placeholder="Nom de l'application"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="version">Version</Label>
+                      <Input
+                        id="version"
+                        name="version"
+                        value={settings.version || '1.0.0'}
+                        onChange={handleChange}
+                        placeholder="Version"
+                        readOnly
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="currency">Devise</Label>
+                      <Select
+                        value={settings.currency || 'XOF'}
+                        onValueChange={(value) => handleSelectChange('currency', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez une devise" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {currencyOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="language">Langue</Label>
+                      <Select
+                        value={settings.language || 'fr'}
+                        onValueChange={(value) => handleSelectChange('language', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez une langue" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {languageOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Paramètres régionaux
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Devise"
-            name="currency"
-            as="select"
-            value={settings.currency || 'XOF'}
-            onChange={onChange}
-          >
-            <option value="XOF">Franc CFA (XOF)</option>
-            <option value="USD">Dollar américain (USD)</option>
-            <option value="EUR">Euro (EUR)</option>
-          </Input>
-          <Input
-            label="Fuseau horaire"
-            name="timezone"
-            as="select"
-            value={settings.timezone || 'Africa/Porto-Novo'}
-            onChange={onChange}
-          >
-            <option value="Africa/Porto-Novo">Africa/Porto-Novo (GMT+1)</option>
-            <option value="UTC">UTC</option>
-          </Input>
-          <Input
-            label="Format de date"
-            name="date_format"
-            as="select"
-            value={settings.date_format || 'DD/MM/YYYY'}
-            onChange={onChange}
-          >
-            <option value="DD/MM/YYYY">JJ/MM/AAAA</option>
-            <option value="MM/DD/YYYY">MM/JJ/AAAA</option>
-            <option value="YYYY-MM-DD">AAAA-MM-JJ</option>
-          </Input>
-          <Input
-            label="Langue"
-            name="language"
-            as="select"
-            value={settings.language || 'fr'}
-            onChange={onChange}
-          >
-            <option value="fr">Français</option>
-            <option value="en">Anglais</option>
-          </Input>
-        </div>
-      </div>
-    </div>
-  )
-}
+                  <Separator />
 
-// Appearance Settings Tab
-function AppearanceSettings({ settings, onChange, onFileUpload }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Logo et favicon
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Logo
-            </label>
-            <div className="flex items-center gap-4">
-              {settings.logo_url && (
-                <img
-                  src={settings.logo_url}
-                  alt="Logo"
-                  className="w-20 h-20 object-cover rounded-lg"
-                />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Mode Maintenance</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Activez le mode maintenance pour bloquer l'accès aux utilisateurs
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.maintenance_mode || false}
+                        onCheckedChange={(checked) => handleSwitchChange('maintenance_mode', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Debug Mode</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Activez le mode debug pour afficher les logs détaillés
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.debug_mode || false}
+                        onCheckedChange={(checked) => handleSwitchChange('debug_mode', checked)}
+                      />
+                    </div>
+                  </div>
+                </div>
               )}
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => onFileUpload(e, 'logo_url')}
-                  className="hidden"
-                />
-                <Button variant="outline" as="span">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Choisir un fichier
-                </Button>
-              </label>
-            </div>
-            {settings.logo_url && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-2 text-danger-600"
-                onClick={() => onChange({ target: { name: 'logo_url', value: '' } })}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Supprimer
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleSave} isLoading={isSaving}>
+                <Save className="w-4 h-4 mr-2" />
+                Sauvegarder les Paramètres
               </Button>
-            )}
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Favicon
-            </label>
-            <div className="flex items-center gap-4">
-              {settings.favicon_url && (
-                <img
-                  src={settings.favicon_url}
-                  alt="Favicon"
-                  className="w-8 h-8 object-cover rounded"
-                />
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        {/* Appearance Tab */}
+        <TabsContent value="appearance" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Paramètres d'Apparence</CardTitle>
+              <CardDescription>
+                Personnalisez l'apparence de l'application
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="theme">Thème</Label>
+                    <Select
+                      value={settings.theme || 'system'}
+                      onValueChange={(value) => handleSelectChange('theme', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionnez un thème" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {themeOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Thème Clair par Défaut</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Utiliser le thème clair comme thème par défaut
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.default_light || true}
+                        onCheckedChange={(checked) => handleSwitchChange('default_light', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Animations</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Activer les animations de l'interface
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.animations !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('animations', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Mode Sombre Automatique</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Basculer automatiquement en mode sombre selon les préférences système
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.auto_dark_mode || false}
+                        onCheckedChange={(checked) => handleSwitchChange('auto_dark_mode', checked)}
+                      />
+                    </div>
+                  </div>
+                </div>
               )}
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => onFileUpload(e, 'favicon_url')}
-                  className="hidden"
-                />
-                <Button variant="outline" as="span">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Choisir un fichier
-                </Button>
-              </label>
-            </div>
-            {settings.favicon_url && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-2 text-danger-600"
-                onClick={() => onChange({ target: { name: 'favicon_url', value: '' } })}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Supprimer
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleSave} isLoading={isSaving}>
+                <Save className="w-4 h-4 mr-2" />
+                Sauvegarder les Paramètres
               </Button>
-            )}
-          </div>
-        </div>
-      </div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
 
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Thème
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Couleur principale"
-            name="primary_color"
-            type="color"
-            value={settings.primary_color || '#3b82f6'}
-            onChange={onChange}
-            className="w-16 h-10 p-0"
-          />
-          <Input
-            label="Mode sombre"
-            name="dark_mode"
-            type="checkbox"
-            checked={settings.dark_mode || false}
-            onChange={onChange}
-            className="pt-2"
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
+        {/* Pharmacy Tab */}
+        <TabsContent value="pharmacy" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Paramètres de la Pharmacie</CardTitle>
+              <CardDescription>
+                Informations spécifiques à votre officine
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="pharmacy_name">Nom de la Pharmacie</Label>
+                      <Input
+                        id="pharmacy_name"
+                        name="pharmacy_name"
+                        value={settings.pharmacy_name || ''}
+                        onChange={handleChange}
+                        placeholder="Nom de votre pharmacie"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pharmacy_address">Adresse</Label>
+                      <Input
+                        id="pharmacy_address"
+                        name="pharmacy_address"
+                        value={settings.pharmacy_address || ''}
+                        onChange={handleChange}
+                        placeholder="Adresse complète"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pharmacy_phone">Téléphone</Label>
+                      <Input
+                        id="pharmacy_phone"
+                        name="pharmacy_phone"
+                        value={settings.pharmacy_phone || ''}
+                        onChange={handleChange}
+                        placeholder="Numéro de téléphone"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pharmacy_email">Email</Label>
+                      <Input
+                        id="pharmacy_email"
+                        name="pharmacy_email"
+                        type="email"
+                        value={settings.pharmacy_email || ''}
+                        onChange={handleChange}
+                        placeholder="Email de la pharmacie"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pharmacy_license">Numéro de Licence</Label>
+                      <Input
+                        id="pharmacy_license"
+                        name="pharmacy_license"
+                        value={settings.pharmacy_license || ''}
+                        onChange={handleChange}
+                        placeholder="Numéro de licence"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pharmacy_tax_id">Identifiant Fiscal</Label>
+                      <Input
+                        id="pharmacy_tax_id"
+                        name="pharmacy_tax_id"
+                        value={settings.pharmacy_tax_id || ''}
+                        onChange={handleChange}
+                        placeholder="Identifiant fiscal"
+                      />
+                    </div>
+                  </div>
 
-// Pharmacy Settings Tab
-function PharmacySettings({ settings, onChange }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Paramètres de stock
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Seuil de stock minimum"
-            name="stock_min_threshold"
-            type="number"
-            value={settings.stock_min_threshold || 5}
-            onChange={onChange}
-            placeholder="5"
-          />
-          <Input
-            label="Seuil de péremption (jours)"
-            name="expiry_warning_days"
-            type="number"
-            value={settings.expiry_warning_days || 30}
-            onChange={onChange}
-            placeholder="30"
-          />
-          <Input
-            label="FEFO par défaut"
-            name="fefo_enabled"
-            type="checkbox"
-            checked={settings.fefo_enabled !== false}
-            onChange={onChange}
-            className="pt-2"
-          />
-          <Input
-            label="FIFO par défaut"
-            name="fifo_enabled"
-            type="checkbox"
-            checked={settings.fifo_enabled || false}
-            onChange={onChange}
-            className="pt-2"
-          />
-        </div>
-      </div>
+                  <Separator />
 
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Paramètres de vente
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="TVA par défaut (%)"
-            name="default_vat_rate"
-            type="number"
-            value={settings.default_vat_rate || 18}
-            onChange={onChange}
-            step="0.01"
-          />
-          <Input
-            label="Remise maximale (%)"
-            name="max_discount_rate"
-            type="number"
-            value={settings.max_discount_rate || 50}
-            onChange={onChange}
-            step="0.01"
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="default_stock_threshold">Seuil de Stock par Défaut</Label>
+                      <Input
+                        id="default_stock_threshold"
+                        name="default_stock_threshold"
+                        type="number"
+                        value={settings.default_stock_threshold || 10}
+                        onChange={handleChange}
+                        placeholder="Seuil minimum"
+                        min={0}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="expiry_warning_days">Jours avant Péremption</Label>
+                      <Input
+                        id="expiry_warning_days"
+                        name="expiry_warning_days"
+                        type="number"
+                        value={settings.expiry_warning_days || 30}
+                        onChange={handleChange}
+                        placeholder="Jours avant alerte"
+                        min={0}
+                      />
+                    </div>
+                  </div>
 
-// Notification Settings Tab
-function NotificationSettings({ settings, onChange }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Notifications par email
-        </h2>
-        <div className="space-y-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="email_notifications_enabled"
-              checked={settings.email_notifications_enabled !== false}
-              onChange={onChange}
-              className="w-4 h-4"
-            />
-            <span className="text-sm text-gray-700">Activer les notifications par email</span>
-          </label>
-          
-          <Input
-            label="Email de notification"
-            name="notification_email"
-            type="email"
-            value={settings.notification_email || ''}
-            onChange={onChange}
-            placeholder="notifications@pharmacie.com"
-          />
-          
-          <div className="grid grid-cols-2 gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                name="notify_stock_low"
-                checked={settings.notify_stock_low !== false}
-                onChange={onChange}
-                className="w-4 h-4"
-              />
-              <span className="text-sm text-gray-700">Stock faible</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                name="notify_expiry_soon"
-                checked={settings.notify_expiry_soon !== false}
-                onChange={onChange}
-                className="w-4 h-4"
-              />
-              <span className="text-sm text-gray-700">Péremption proche</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                name="notify_new_sale"
-                checked={settings.notify_new_sale !== false}
-                onChange={onChange}
-                className="w-4 h-4"
-              />
-              <span className="text-sm text-gray-700">Nouvelle vente</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                name="notify_daily_report"
-                checked={settings.notify_daily_report !== false}
-                onChange={onChange}
-                className="w-4 h-4"
-              />
-              <span className="text-sm text-gray-700">Rapport quotidien</span>
-            </label>
-          </div>
-        </div>
-      </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Activer les Alertes de Stock</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Recevoir des alertes lorsque le stock est faible
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.stock_alerts !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('stock_alerts', checked)}
+                      />
+                    </div>
 
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Notifications dans l'application
-        </h2>
-        <div className="space-y-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="in_app_notifications_enabled"
-              checked={settings.in_app_notifications_enabled !== false}
-              onChange={onChange}
-              className="w-4 h-4"
-            />
-            <span className="text-sm text-gray-700">Activer les notifications dans l'application</span>
-          </label>
-          
-          <Input
-            label="Durée d'affichage (ms)"
-            name="notification_duration"
-            type="number"
-            value={settings.notification_duration || 5000}
-            onChange={onChange}
-            placeholder="5000"
-          />
-        </div>
-      </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Activer les Alertes de Péremption</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Recevoir des alertes pour les produits proches de la péremption
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.expiry_alerts !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('expiry_alerts', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Utiliser FEFO/FIFO</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Sélection automatique des lots par date de péremption (FEFO)
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.fefo_enabled !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('fefo_enabled', checked)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleSave} isLoading={isSaving}>
+                <Save className="w-4 h-4 mr-2" />
+                Sauvegarder les Paramètres
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        {/* Notifications Tab */}
+        <TabsContent value="notifications" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Paramètres de Notifications</CardTitle>
+              <CardDescription>
+                Configurez les notifications de l'application
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Notifications par Email</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Recevoir les notifications par email
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.email_notifications !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('email_notifications', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Notifications Push</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Recevoir les notifications push dans l'application
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.push_notifications !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('push_notifications', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Notifications Sonores</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Activer les alertes sonores
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.sound_notifications !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('sound_notifications', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Notifications de Vente</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Recevoir des notifications pour chaque vente
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.sale_notifications !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('sale_notifications', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Notifications de Stock</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Recevoir des notifications pour les alertes de stock
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.stock_notifications !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('stock_notifications', checked)}
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <Label htmlFor="notification_email">Email de Notification</Label>
+                    <Input
+                      id="notification_email"
+                      name="notification_email"
+                      type="email"
+                      value={settings.notification_email || ''}
+                      onChange={handleChange}
+                      placeholder="email@pharmacie.com"
+                    />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Email pour recevoir les notifications (laisser vide pour utiliser l'email de l'administrateur)
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleSave} isLoading={isSaving}>
+                <Save className="w-4 h-4 mr-2" />
+                Sauvegarder les Paramètres
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        {/* Security Tab */}
+        <TabsContent value="security" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Paramètres de Sécurité</CardTitle>
+              <CardDescription>
+                Configuration de la sécurité de l'application
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Authentification à 2 Facteurs</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Exiger l'authentification à 2 facteurs pour les administrateurs
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.two_factor_auth || false}
+                        onCheckedChange={(checked) => handleSwitchChange('two_factor_auth', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Verrouillage de Session</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Verrouiller automatiquement la session après inactivité
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.session_lock !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('session_lock', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Durée de Session (minutes)</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Durée avant verrouillage automatique de la session
+                        </p>
+                      </div>
+                      <Input
+                        type="number"
+                        value={settings.session_timeout || 30}
+                        onChange={(e) => handleChange(e)}
+                        name="session_timeout"
+                        className="w-24"
+                        min={5}
+                        max={1440}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Limite de Tentatives de Connexion</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Nombre maximum de tentatives de connexion avant blocage
+                        </p>
+                      </div>
+                      <Input
+                        type="number"
+                        value={settings.login_attempts || 5}
+                        onChange={(e) => handleChange(e)}
+                        name="login_attempts"
+                        className="w-24"
+                        min={1}
+                        max={20}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Durée de Blocage (minutes)</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Durée de blocage après dépassement des tentatives
+                        </p>
+                      </div>
+                      <Input
+                        type="number"
+                        value={settings.lockout_duration || 15}
+                        onChange={(e) => handleChange(e)}
+                        name="lockout_duration"
+                        className="w-24"
+                        min={1}
+                        max={1440}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Chiffrement des Données</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Activer le chiffrement des données sensibles
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.data_encryption !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('data_encryption', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Audit des Actions</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Enregistrer toutes les actions des utilisateurs
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings.audit_logging !== false}
+                        onCheckedChange={(checked) => handleSwitchChange('audit_logging', checked)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleSave} isLoading={isSaving}>
+                <Save className="w-4 h-4 mr-2" />
+                Sauvegarder les Paramètres
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        {/* Backup Tab */}
+        <TabsContent value="backup" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Gestion des Sauvegardes</CardTitle>
+              <CardDescription>
+                Créez et gérez les sauvegardes de votre base de données
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Alert variant="info" className="flex items-start gap-3 mb-6">
+                <Database className="w-4 h-4 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Sauvegardes Automatiques</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Les sauvegardes sont créées automatiquement chaque jour à minuit.
+                    Vous pouvez également créer des sauvegardes manuelles à tout moment.
+                  </p>
+                </div>
+              </Alert>
+
+              <div className="flex justify-end mb-6">
+                <Button onClick={handleCreateBackup} isLoading={isCreatingBackup}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Créer une Sauvegarde
+                </Button>
+              </div>
+
+              {isBackupLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : backupList.length === 0 ? (
+                <div className="text-center py-12">
+                  <Database className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                  <p className="text-gray-500">Aucune sauvegarde disponible</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Créez une sauvegarde pour commencer
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {backupList.map((backup) => (
+                    <Card key={backup.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+                              <Database className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                            </div>
+                            <div>
+                              <p className="font-medium">
+                                Sauvegarde #{backup.id}
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {formatDate(backup.created_at)} à {new Date(backup.created_at).toLocaleTimeString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">
+                              {backup.size ? (Math.round(backup.size / 1024 / 1024 * 100) / 100).toFixed(2) + ' MB' : 'N/A'}
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRestoreBackup(backup.id)}
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                              Restaurer
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteBackup(backup.id)}
+                              className="text-danger-500 hover:text-danger-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Supprimer
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleCreateBackup} isLoading={isCreatingBackup}>
+                <Plus className="w-4 h-4 mr-2" />
+                Créer une Nouvelle Sauvegarde
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

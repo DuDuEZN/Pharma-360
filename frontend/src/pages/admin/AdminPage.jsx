@@ -1,10 +1,12 @@
 import React from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Users, Settings, Shield, Key, FileText, BarChart3 } from 'lucide-react'
-import { clsx } from 'clsx'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
+import { Button } from '../../components/ui/Button'
+import { cn } from '../../lib/utils'
 
 /**
- * Admin Page for Pharmacie 360
+ * Admin Page for Pharma 360
  * Administration dashboard with user and role management
  * 
  * FRNT-004: Session Administrateur (Gestion utilisateurs/roles)
@@ -54,49 +56,72 @@ function AdminPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Administration
-        </h1>
-        <p className="text-gray-500 mt-1">
-          Gestion des utilisateurs, rôles et paramètres système
-        </p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Administration</CardTitle>
+          <CardDescription>
+            Gestion des utilisateurs, rôles et paramètres système
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
-      {/* Navigation */}
-      <div className="card">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {adminNav.map((item) => {
-            const isActive = location.pathname === item.path || 
-                             location.pathname.startsWith(item.path + '/')
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={clsx(
-                  'flex items-center gap-4 p-4 rounded-lg transition-all duration-200',
-                  isActive
-                    ? 'bg-primary-50 border border-primary-200'
-                    : 'hover:bg-gray-50 border border-transparent'
-                )}
-              >
-                <div className={`p-3 rounded-full ${isActive ? 'bg-primary-100' : 'bg-gray-100'}`}>
-                  <item.icon className={`w-5 h-5 ${isActive ? 'text-primary-600' : 'text-gray-600'}`} />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{item.name}</p>
-                  <p className="text-xs text-gray-500">{item.description}</p>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      </div>
+      {/* Navigation Cards */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {adminNav.map((item) => {
+              const isActive = location.pathname === item.path || 
+                               location.pathname.startsWith(item.path + '/')
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={cn(
+                    'group flex flex-col gap-4 p-4 rounded-lg border transition-all duration-200 hover:shadow-md',
+                    isActive
+                      ? 'border-primary-200 bg-primary-50 dark:bg-primary-900/20' 
+                      : 'border-gray-200 dark:border-gray-700 hover:border-primary-200'
+                  )}
+                >
+                  <div className={cn(
+                    'flex items-center justify-center w-12 h-12 rounded-full transition-colors',
+                    isActive
+                      ? 'bg-primary-100 dark:bg-primary-900/30' 
+                      : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/30'
+                  )}>
+                    <item.icon className={cn(
+                      'w-6 h-6 transition-colors',
+                      isActive
+                        ? 'text-primary-600 dark:text-primary-400' 
+                        : 'text-gray-600 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-400'
+                    )} />
+                  </div>
+                  <div>
+                    <p className={cn(
+                      'font-medium transition-colors',
+                      isActive
+                        ? 'text-primary-900 dark:text-primary-100' 
+                        : 'text-gray-900 dark:text-white group-hover:text-primary-900 dark:group-hover:text-primary-100'
+                    )}>
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {item.description}
+                    </p>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Content */}
-      <div className="card">
-        <Outlet />
-      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Outlet />
+        </CardContent>
+      </Card>
     </div>
   )
 }

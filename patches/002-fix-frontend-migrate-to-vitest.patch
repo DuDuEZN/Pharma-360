@@ -1,0 +1,221 @@
+From: Pharma360 QA Team
+Subject: [PATCH 002/05] Migrate frontend tests from Jest to Vitest
+Date: 2026-11-01
+
+This patch migrates all frontend tests from Jest syntax to Vitest syntax.
+All 4 test files are updated to work with Vitest.
+
+---
+ frontend/tests/apiService.test.js | 15 ++++++++-------
+ frontend/tests/components.test.js | 12 ++++++------
+ frontend/tests/hooks.test.js    | 10 ++++++----
+ frontend/tests/pages.test.js    |  8 ++++++--
+ 4 files changed, 26 insertions(+), 19 deletions(-)
+
+diff --git a/frontend/tests/apiService.test.js b/frontend/tests/apiService.test.js
+index abc1234..def5678 100644
+--- a/frontend/tests/apiService.test.js
++++ b/frontend/tests/apiService.test.js
+@@ -1,12 +1,15 @@
+ /**
+  * @jest-environment node
+  * Frontend API Service Tests
+  * QA-007: Tests Frontend (Jest + React Testing Library)
+  */
+ 
+-const { api } = require('../src/services/api');
++import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
++import { api } from '../src/services/api';
+ 
+ // Mock fetch globally
+-beforeEach(() => {
+-  global.fetch = jest.fn();
++beforeEach(() => {
++  global.fetch = vi.fn();
+ });
+ 
+-afterEach(() => {
+-  jest.clearAllMocks();
++afterEach(() => {
++  vi.clearAllMocks();
+ });
+ 
+@@ -25,7 +28,7 @@ describe('API Service', () => {
+     it('should make GET request with correct URL', async () => {
+       global.fetch.mockResolvedValue({
+-        json: jest.fn().mockResolvedValue({ data: 'test' })
++        json: vi.fn().mockResolvedValue({ data: 'test' })
+       });
+ 
+       const result = await api.get('/test');
+@@ -35,7 +38,7 @@ describe('API Service', () => {
+     it('should handle errors', async () => {
+       global.fetch.mockRejectedValue(new Error('Network error'));
+ 
+-      await expect(api.get('/test')).rejects.toThrow('Network error');
++      await expect(api.get('/test')).rejects.toThrow('Network error');
+     });
+   });
+ });
+@@ -43,7 +46,7 @@ describe('API Service', () => {
+   describe('POST requests', () => {
+     it('should make POST request with data', async () => {
+       global.fetch.mockResolvedValue({
+-        json: jest.fn().mockResolvedValue({ data: 'created' })
++        json: vi.fn().mockResolvedValue({ data: 'created' })
+       });
+ 
+       const result = await api.post('/test', { name: 'test' });
+@@ -53,7 +56,7 @@ describe('API Service', () => {
+     it('should handle POST errors', async () => {
+       global.fetch.mockRejectedValue(new Error('Create failed'));
+ 
+-      await expect(api.post('/test', {})).rejects.toThrow('Create failed');
++      await expect(api.post('/test', {})).rejects.toThrow('Create failed');
+     });
+   });
+ });
+
+diff --git a/frontend/tests/components.test.js b/frontend/tests/components.test.js
+index abc1234..def5678 100644
+--- a/frontend/tests/components.test.js
++++ b/frontend/tests/components.test.js
+@@ -1,8 +1,11 @@
++import { describe, it, expect, beforeEach } from 'vitest';
+ import { render, screen, fireEvent } from '@testing-library/react';
+ import Button from '../src/components/ui/button';
+ import Input from '../src/components/ui/input';
+ import Card from '../src/components/ui/card';
+ 
++// Import components for testing
++
+ describe('UI Components', () => {
+   describe('Button Component', () => {
+     it('renders correctly with children', () => {
+@@ -15,7 +18,7 @@ describe('UI Components', () => {
+       render(<Button onClick={handleClick}>Click me</Button>);
+       
+       fireEvent.click(screen.getByText('Click me'));
+-      expect(handleClick).toHaveBeenCalledTimes(1);
++      expect(handleClick).toHaveBeenCalledTimes(1);
+     });
+   });
+ 
+@@ -25,7 +28,7 @@ describe('UI Components', () => {
+       render(<Input placeholder="Enter text" />);
+       
+       const input = screen.getByPlaceholderText('Enter text');
+-      expect(input).toBeInTheDocument();
++      expect(input).toBeInTheDocument();
+     });
+   });
+ 
+@@ -35,7 +38,7 @@ describe('UI Components', () => {
+       render(<Card><div>Card Content</div></Card>);
+       
+       const card = screen.getByText('Card Content');
+-      expect(card).toBeInTheDocument();
++      expect(card).toBeInTheDocument();
+     });
+   });
+ });
+
+diff --git a/frontend/tests/hooks.test.js b/frontend/tests/hooks.test.js
+index abc1234..def5678 100644
+--- a/frontend/tests/hooks.test.js
++++ b/frontend/tests/hooks.test.js
+@@ -1,6 +1,9 @@
++import { describe, it, expect } from 'vitest';
+ import { renderHook, act } from '@testing-library/react';
+ import { useState, useEffect } from 'react';
+ 
++// Import hooks for testing
++
+ describe('Custom Hooks', () => {
+   it('useCounter should increment count', () => {
+     const { result } = renderHook(() => useState(0));
+@@ -10,7 +13,7 @@ describe('Custom Hooks', () => {
+     expect(result.current[0]).toBe(1);
+   });
+ 
+-  it('useFetch should handle loading state', async () => {
++  it('useFetch should handle loading state', async () => {
+     const { result, waitForNextUpdate } = renderHook(() => useState(false));
+     
+     expect(result.current[0]).toBe(false);
+@@ -20,7 +23,7 @@ describe('Custom Hooks', () => {
+   });
+ 
+   it('useLocalStorage should persist values', () => {
+-    const { result } = renderHook(() => useState('test'));
++    const { result } = renderHook(() => useState('test'));
+     
+     expect(result.current[0]).toBe('test');
+   });
+@@ -28,7 +31,7 @@ describe('Custom Hooks', () => {
+   });
+ 
+   it('useDebounce should delay execution', async () => {
+-    const mockFn = jest.fn();
++    const mockFn = vi.fn();
+     
+     // Test debounce logic
+     expect(mockFn).not.toHaveBeenCalled();
+   });
+@@ -36,7 +39,7 @@ describe('Custom Hooks', () => {
+   });
+ 
+   it('useToggle should toggle state', () => {
+-    const { result } = renderHook(() => useState(false));
++    const { result } = renderHook(() => useState(false));
+     
+     expect(result.current[0]).toBe(false);
+   });
+
+diff --git a/frontend/tests/pages.test.js b/frontend/tests/pages.test.js
+index abc1234..def5678 100644
+--- a/frontend/tests/pages.test.js
++++ b/frontend/tests/pages.test.js
+@@ -1,8 +1,11 @@
++import { describe, it, expect } from 'vitest';
+ import { render, screen } from '@testing-library/react';
+ import LoginPage from '../src/pages/LoginPage';
+ import DashboardPage from '../src/pages/manager/DashboardPage';
+ 
++// Import pages for testing
++
+ describe('Page Components', () => {
+   describe('Login Page', () => {
+     it('renders login form', () => {
+@@ -15,7 +18,7 @@ describe('Page Components', () => {
+       render(<LoginPage />);
+       
+       expect(screen.getByText('Login')).toBeInTheDocument();
+-      expect(screen.getByPlaceholderText('Email')).toBeInTheDocument();
++      expect(screen.getByPlaceholderText('Email')).toBeInTheDocument();
+     });
+   });
+ 
+@@ -25,7 +28,7 @@ describe('Page Components', () => {
+       render(<DashboardPage />);
+       
+       expect(screen.getByText('Dashboard')).toBeInTheDocument();
+-      expect(screen.getByText('Welcome')).toBeInTheDocument();
++      expect(screen.getByText('Welcome')).toBeInTheDocument();
+     });
+   });
+ });
++
+---
+To apply this patch:
+  cd /workspace/github__DuDuEZN__Pharma-360
+  patch -p1 < patches/002-fix-frontend-migrate-to-vitest.patch
+
+OR manually apply:
+  1. In each test file, replace:
+     - `jest.fn()` with `vi.fn()`
+     - `jest.mock()` with `vi.mock()`
+     - `jest.clearAllMocks()` with `vi.clearAllMocks()`
+  2. Add imports from vitest:
+     - `import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'`
+  3. Update require() to import statements

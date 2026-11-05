@@ -1,15 +1,26 @@
-import React, { useState, useEffect } from 'react'
-import { Shield, Plus, Search, Edit, Trash2, Users, Settings, Key } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { Shield, Plus, Search, Edit, Trash2, Users, Settings, Key, Check, X, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { useDisclosure } from '../../hooks/useDisclosure'
+import { useTable } from '../../hooks/useTable'
 import api from '../../services/api'
 import { useToast } from '../../components/common/Toast'
-import Button from '../../components/common/Button'
-import Input from '../../components/common/Input'
-import Modal, { ConfirmModal } from '../../components/common/Modal'
-import { AlertBadge as Badge } from '../../components/common'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
+import { Button } from '../../components/ui/Button'
+import { Input } from '../../components/ui/Input'
+import { Select } from '../../components/ui/Select'
+import { Badge } from '../../components/ui/Badge'
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/Table'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/ui/Modal'
+import { Separator } from '../../components/ui/Separator'
+import { Skeleton } from '../../components/ui/Skeleton'
+import { Alert } from '../../components/ui/Alert'
+import { Switch } from '../../components/ui/Switch'
+import { Checkbox } from '../../components/ui/Checkbox'
+import { cn, formatDate } from '../../lib/utils'
 
 /**
- * Roles Management Page for Pharmacie 360
+ * Roles Management Page for Pharma 360
  * CRUD operations for user roles and permissions
  * 
  * FRNT-004: Session Administrateur (Gestion utilisateurs/roles)
@@ -21,9 +32,6 @@ function RolesPage() {
   const [roles, setRoles] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedRole, setSelectedRole] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
@@ -32,6 +40,37 @@ function RolesPage() {
     is_default: false
   })
   const [allPermissions, setAllPermissions] = useState([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deleteRoleId, setDeleteRoleId] = useState(null)
+
+  const {
+    isOpen: isCreateModalOpen,
+    onOpen: openCreateModal,
+    onClose: closeCreateModal
+  } = useDisclosure()
+
+  const {
+    isOpen: isEditModalOpen,
+    onOpen: openEditModal,
+    onClose: closeEditModal
+  } = useDisclosure()
+
+  const {
+    isOpen: isDeleteModalOpen,
+    onOpen: openDeleteModal,
+    onClose: closeDeleteModal
+  } = useDisclosure()
+
+  const {
+    paginatedData: paginatedRoles,
+    handleSearch,
+    handlePageChange,
+    totalPages,
+    currentPage
+  } = useTable(roles, { 
+    searchKeys: ['name', 'description'],
+    initialPageSize: 10
+  })
 
   // Fetch roles and permissions
   useEffect(() => {
@@ -39,16 +78,20 @@ function RolesPage() {
     fetchPermissions()
   }, [])
 
+  useEffect(() => {
+    handleSearch()
+  }, [searchQuery])
+
   const fetchRoles = async () => {
     try {
       setIsLoading(true)
       const response = await api.get('/roles', {
         params: {
           search: searchQuery || undefined,
-          limit: 50
+          limit: 100
         }
       })
-      setRoles(response.data.roles || [])
+      setRoles(response?.data?.roles || [])
     } catch (error) {
       addToast({
         type: 'error',
@@ -63,20 +106,46 @@ function RolesPage() {
   const fetchPermissions = async () => {
     try {
       const response = await api.get('/permissions')
-      setAllPermissions(response.data.permissions || [])
+      setAllPermissions(response?.data?.permissions || [])
     } catch (error) {
       console.error('Error fetching permissions:', error)
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Impossible de charger les permissions'
+      })
     }
   }
 
-  // Handle search
-  const handleSearch = (e) => {
-    e.preventDefault()
-    fetchRoles()
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
+  }
+
+  const handlePermissionToggle = (permissionId) => {
+    setFormData(prev => {
+      const permissions = prev.permissions.includes(permissionId)
+        ? prev.permissions.filter(id => id !== permissionId)
+        : [...prev.permissions, permissionId]
+      return { ...prev, permissions }
+    })
   }
 
   // Create role
   const handleCreate = async () => {
+    if (!formData.name) {
+      addToast({
+        type: 'error',
+        title: 'Champ requis',
+        message: 'Le nom du rôle est obligatoire'
+      })
+      return
+    }
+
+    setIsSubmitting(true)
     try {
       await api.post('/roles', formData)
       addToast({
@@ -84,7 +153,7 @@ function RolesPage() {
         title: 'Rôle créé',
         message: `Le rôle ${formData.name} a été créé avec succès`
       })
-      setShowCreateModal(false)
+      closeCreateModal()
       setFormData({
         name: '',
         description: '',
@@ -98,11 +167,16 @@ function RolesPage() {
         title: 'Erreur',
         message: error.response?.data?.detail || 'Impossible de créer le rôle'
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   // Update role
   const handleUpdate = async () => {
+    if (!selectedRole || !formData.name) return
+
+    setIsSubmitting(true)
     try {
       await api.put(`/roles/${selectedRole.id}`, formData)
       addToast({
@@ -110,7 +184,7 @@ function RolesPage() {
         title: 'Rôle mis à jour',
         message: `Le rôle ${formData.name} a été mis à jour`
       })
-      setShowEditModal(false)
+      closeEditModal()
       fetchRoles()
     } catch (error) {
       addToast({
@@ -118,19 +192,25 @@ function RolesPage() {
         title: 'Erreur',
         message: error.response?.data?.detail || 'Impossible de mettre à jour le rôle'
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   // Delete role
   const handleDelete = async () => {
+    if (!deleteRoleId) return
+
+    setIsSubmitting(true)
     try {
-      await api.delete(`/roles/${selectedRole.id}`)
+      await api.delete(`/roles/${deleteRoleId}`)
       addToast({
         type: 'success',
         title: 'Rôle supprimé',
-        message: `Le rôle ${selectedRole.name} a été supprimé`
+        message: 'Le rôle a été supprimé avec succès'
       })
-      setShowDeleteModal(false)
+      closeDeleteModal()
+      setDeleteRoleId(null)
       fetchRoles()
     } catch (error) {
       addToast({
@@ -138,11 +218,12 @@ function RolesPage() {
         title: 'Erreur',
         message: error.response?.data?.detail || 'Impossible de supprimer le rôle'
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  // Open edit modal
-  const openEditModal = (role) => {
+  const handleOpenEditModal = (role) => {
     setSelectedRole(role)
     setFormData({
       name: role.name,
@@ -150,356 +231,393 @@ function RolesPage() {
       permissions: role.permissions?.map(p => p.id) || [],
       is_default: role.is_default || false
     })
-    setShowEditModal(true)
+    openEditModal()
   }
 
-  // Open delete modal
-  const openDeleteModal = (role) => {
-    setSelectedRole(role)
-    setShowDeleteModal(true)
+  const handleOpenDeleteModal = (roleId) => {
+    setDeleteRoleId(roleId)
+    openDeleteModal()
   }
 
-  // Handle form change
-  const handleFormChange = (e) => {
-    const { name, value, type, checked } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }))
-  }
-
-  // Handle permission toggle
-  const togglePermission = (permissionId) => {
-    setFormData(prev => {
-      const permissions = [...prev.permissions]
-      const index = permissions.indexOf(permissionId)
-      
-      if (index >= 0) {
-        permissions.splice(index, 1)
-      } else {
-        permissions.push(permissionId)
+  // Organize permissions by category
+  const permissionCategories = useMemo(() => {
+    const categories = {}
+    allPermissions.forEach(permission => {
+      const category = permission.category || 'Autres'
+      if (!categories[category]) {
+        categories[category] = []
       }
-      
-      return { ...prev, permissions }
+      categories[category].push(permission)
     })
-  }
-
-  // Format date
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('fr-FR')
-  }
-
-  // Permission groups
-  const permissionGroups = {
-    'Produits': allPermissions.filter(p => p.category === 'products'),
-    'Ventes': allPermissions.filter(p => p.category === 'sales'),
-    'Stock': allPermissions.filter(p => p.category === 'inventory'),
-    'Utilisateurs': allPermissions.filter(p => p.category === 'users'),
-    'Rapports': allPermissions.filter(p => p.category === 'reports'),
-    'Système': allPermissions.filter(p => p.category === 'system'),
-  }
+    return categories
+  }, [allPermissions])
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">
-            Gestion des Rôles
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Configurez les rôles et leurs permissions
-          </p>
-        </div>
-        <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nouveau rôle
-        </Button>
-      </div>
-
-      {/* Search */}
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <Input
-          type="text"
-          placeholder="Rechercher un rôle..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1"
-        />
-        <Button type="submit" variant="primary" isLoading={isLoading}>
-          <Search className="w-4 h-4" />
-        </Button>
-      </form>
+      <Card>
+        <CardHeader>
+          <CardTitle>Gestion des Rôles</CardTitle>
+          <CardDescription>
+            Créer, modifier et supprimer les rôles avec leurs permissions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Search and Actions */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Rechercher un rôle..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Button onClick={openCreateModal}>
+              <Plus className="w-4 h-4 mr-2" />
+              Ajouter un Rôle
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Roles Table */}
-      <div className="overflow-x-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600"></div>
-          </div>
-        ) : roles.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <Shield className="mx-auto w-12 h-12 mb-4" />
-            <p>Aucun rôle trouvé</p>
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                  Rôle
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                  Description
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                  Permissions
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                  Utilisateurs
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                  Par défaut
-                </th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {roles.map((role) => (
-                <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="font-medium text-gray-900">{role.name}</p>
-                        <p className="text-xs text-gray-500">{role.id}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">
-                    {role.description || 'Aucune description'}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-600">
-                      {role.permissions?.length || 0} permission(s)
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-600">
-                      {role.user_count || 0}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    {role.is_default && (
-                      <span className="badge badge-success">Oui</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEditModal(role)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDeleteModal(role)}
-                        disabled={role.is_default}
-                        className="text-danger-600"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Liste des Rôles ({roles.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            </div>
+          ) : paginatedRoles.length === 0 ? (
+            <div className="text-center py-12">
+              <Shield className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500">Aucun rôle trouvé</p>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nom</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Permissions</TableHead>
+                    <TableHead>Par défaut</TableHead>
+                    <TableHead>Date de création</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedRoles.map((role) => (
+                    <TableRow key={role.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-5 h-5 text-gray-600" />
+                          <span className="font-medium">{role.name}</span>
+                          {role.is_default && (
+                            <Badge variant="primary" size="xs">
+                              Par défaut
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {role.description || <span className="text-gray-400">-</span>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {role.permissions?.length || 0}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {role.is_default ? (
+                          <Badge variant="success" size="xs">Oui</Badge>
+                        ) : (
+                          <Badge variant="secondary" size="xs">Non</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {formatDate(role.created_at || role.date_created)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenEditModal(role)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenDeleteModal(role.id)}
+                            className="text-danger-500 hover:text-danger-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-gray-500">
+                    Page {currentPage} sur {totalPages}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage <= 1}
+                    >
+                      Précédent
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                    >
+                      Suivant
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Create Role Modal */}
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="Créer un nouveau rôle"
-        size="lg"
-        footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
-              Annuler
-            </Button>
-            <Button variant="primary" onClick={handleCreate} disabled={!formData.name}>
-              <Plus className="w-4 h-4 mr-2" />
-              Créer le rôle
-            </Button>
+      <Modal isOpen={isCreateModalOpen} onClose={closeCreateModal} size="xl">
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary-600" />
+            <span>Ajouter un Rôle</span>
           </div>
-        }
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Nom du rôle"
-              name="name"
-              value={formData.name}
-              onChange={handleFormChange}
-              required
-              placeholder="Ex: Vendeur"
-            />
-            <Input
-              label="Rôle par défaut"
-              name="is_default"
-              type="checkbox"
-              checked={formData.is_default}
-              onChange={handleFormChange}
-              className="pt-2"
-            />
-          </div>
-          
-          <Input
-            label="Description"
-            name="description"
-            value={formData.description}
-            onChange={handleFormChange}
-            placeholder="Description des responsabilités de ce rôle"
-            as="textarea"
-            rows={3}
-          />
-          
-          {/* Permissions */}
-          <div>
-            <h3 className="font-medium text-gray-900 mb-3">
-              Permissions
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(permissionGroups).map(([category, permissions]) => (
-                permissions.length > 0 && (
-                  <div key={category} className="space-y-2">
-                    <h4 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-1">
-                      {category}
-                    </h4>
-                    <div className="space-y-1">
-                      {permissions.map((permission) => (
-                        <label
-                          key={permission.id}
-                          className="flex items-center gap-2 cursor-pointer text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={formData.permissions.includes(permission.id)}
-                            onChange={() => togglePermission(permission.id)}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-gray-700">{permission.name}</span>
-                        </label>
-                      ))}
-                    </div>
+        </ModalHeader>
+        <ModalBody>
+          <div className="space-y-4">
+            <Alert variant="info" className="flex items-start gap-3">
+              <Key className="w-4 h-4 flex-shrink-0" />
+              <div>
+                <p className="text-sm">
+                  Le nom du rôle est obligatoire. Sélectionnez les permissions appropriées.
+                </p>
+              </div>
+            </Alert>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Nom du Rôle *
+                </label>
+                <Input
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="nom_du_role"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Description
+                </label>
+                <Input
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="Description du rôle"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Rôle par défaut
+                </label>
+                <Switch
+                  checked={formData.is_default}
+                  onChange={(checked) => setFormData(prev => ({ ...prev, is_default: checked }))}
+                  label={formData.is_default ? 'Oui' : 'Non'}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Permissions
+              </h4>
+              
+              {Object.entries(permissionCategories).map(([category, permissions]) => (
+                <div key={category} className="space-y-3">
+                  <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    {category}
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    {permissions.map((permission) => (
+                      <Checkbox
+                        key={permission.id}
+                        checked={formData.permissions.includes(permission.id)}
+                        onChange={() => handlePermissionToggle(permission.id)}
+                        label={permission.name}
+                        className="text-sm"
+                      />
+                    ))}
                   </div>
-                )
+                </div>
               ))}
             </div>
           </div>
-        </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={closeCreateModal}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleCreate}
+            isLoading={isSubmitting}
+          >
+            <Check className="w-4 h-4 mr-2" />
+            Créer le Rôle
+          </Button>
+        </ModalFooter>
       </Modal>
 
       {/* Edit Role Modal */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        title={`Modifier le rôle: ${selectedRole?.name}`}
-        size="lg"
-        footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
-              Annuler
-            </Button>
-            <Button variant="primary" onClick={handleUpdate} disabled={!formData.name}>
-              <Edit className="w-4 h-4 mr-2" />
-              Mettre à jour
-            </Button>
+      <Modal isOpen={isEditModalOpen} onClose={closeEditModal} size="xl">
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <Edit className="w-5 h-5 text-primary-600" />
+            <span>Modifier le Rôle</span>
           </div>
-        }
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Nom du rôle"
-              name="name"
-              value={formData.name}
-              onChange={handleFormChange}
-              required
-            />
-            <Input
-              label="Rôle par défaut"
-              name="is_default"
-              type="checkbox"
-              checked={formData.is_default}
-              onChange={handleFormChange}
-              className="pt-2"
-            />
-          </div>
-          
-          <Input
-            label="Description"
-            name="description"
-            value={formData.description}
-            onChange={handleFormChange}
-            as="textarea"
-            rows={3}
-          />
-          
-          {/* Permissions */}
-          <div>
-            <h3 className="font-medium text-gray-900 mb-3">
-              Permissions
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(permissionGroups).map(([category, permissions]) => (
-                permissions.length > 0 && (
-                  <div key={category} className="space-y-2">
-                    <h4 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-1">
-                      {category}
-                    </h4>
-                    <div className="space-y-1">
-                      {permissions.map((permission) => (
-                        <label
-                          key={permission.id}
-                          className="flex items-center gap-2 cursor-pointer text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={formData.permissions.includes(permission.id)}
-                            onChange={() => togglePermission(permission.id)}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-gray-700">{permission.name}</span>
-                        </label>
-                      ))}
-                    </div>
+        </ModalHeader>
+        <ModalBody>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Nom du Rôle
+                </label>
+                <Input
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="nom_du_role"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Description
+                </label>
+                <Input
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="Description du rôle"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Rôle par défaut
+                </label>
+                <Switch
+                  checked={formData.is_default}
+                  onChange={(checked) => setFormData(prev => ({ ...prev, is_default: checked }))}
+                  label={formData.is_default ? 'Oui' : 'Non'}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Permissions
+              </h4>
+              
+              {Object.entries(permissionCategories).map(([category, permissions]) => (
+                <div key={category} className="space-y-3">
+                  <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    {category}
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    {permissions.map((permission) => (
+                      <Checkbox
+                        key={permission.id}
+                        checked={formData.permissions.includes(permission.id)}
+                        onChange={() => handlePermissionToggle(permission.id)}
+                        label={permission.name}
+                        className="text-sm"
+                      />
+                    ))}
                   </div>
-                )
+                </div>
               ))}
             </div>
           </div>
-        </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={closeEditModal}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleUpdate}
+            isLoading={isSubmitting}
+          >
+            <Check className="w-4 h-4 mr-2" />
+            Mettre à jour
+          </Button>
+        </ModalFooter>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={handleDelete}
-        title={`Supprimer le rôle: ${selectedRole?.name}`}
-        message={`Êtes-vous sûr de vouloir supprimer le rôle ${selectedRole?.name} ? Les utilisateurs avec ce rôle perdront leurs permissions.`}
-        confirmText="Supprimer"
-        confirmVariant="danger"
-        cancelText="Annuler"
-      />
+      {/* Delete Role Modal */}
+      <Modal isOpen={isDeleteModalOpen} onClose={closeDeleteModal}>
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-5 h-5 text-danger-600" />
+            <span>Supprimer le Rôle</span>
+          </div>
+        </ModalHeader>
+        <ModalBody>
+          <Alert variant="danger" className="flex items-start gap-3">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Êtes-vous sûr de vouloir supprimer ce rôle ?</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Cette action est irréversible. Les utilisateurs ayant ce rôle seront affectés.
+              </p>
+            </div>
+          </Alert>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={closeDeleteModal}>
+            Annuler
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDelete}
+            isLoading={isSubmitting}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Supprimer
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   )
 }

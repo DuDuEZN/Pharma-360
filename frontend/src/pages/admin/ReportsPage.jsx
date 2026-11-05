@@ -1,32 +1,54 @@
-import React, { useState, useEffect } from 'react'
-import { FileText, Download, Calendar, BarChart3, PieChart, TrendingUp, TrendingDown, Filter, Search } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { FileText, Download, Calendar, BarChart3, PieChart, TrendingUp, TrendingDown, Filter, Search, RefreshCw, Printer, Eye, File, Xlsx, Pdf } from 'lucide-react'
 import api from '../../services/api'
 import { useToast } from '../../components/common/Toast'
-import Button from '../../components/common/Button'
-import Input from '../../components/common/Input'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../components/ui/Card'
+import { Button } from '../../components/ui/Button'
+import { Input } from '../../components/ui/Input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select'
+import { Badge } from '../../components/ui/Badge'
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/Table'
+import { Separator } from '../../components/ui/Separator'
+import { Skeleton } from '../../components/ui/Skeleton'
+import { Alert } from '../../components/ui/Alert'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/ui/Modal'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs'
+import { cn, formatCurrency, formatDate } from '../../lib/utils'
 
 /**
- * Reports Page for Pharmacie 360
+ * Reports Page for Pharma 360
  * Sales, stock, and financial reports
  * 
  * FRNT-004: Session Administrateur (Gestion utilisateurs/roles)
+ * BKND-015: Module Rapports (ventes, stocks, caisse)
  */
 function ReportsPage() {
   const { addToast } = useToast()
   
   const [reports, setReports] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [dateRange, setDateRange] = useState('today')
+  const [dateRange, setDateRange] = useState('this_month')
   const [reportType, setReportType] = useState('sales')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
+  const [selectedReport, setSelectedReport] = useState(null)
+  const [reportDetails, setReportDetails] = useState(null)
+  const [isDetailsLoading, setIsDetailsLoading] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+
+  const {
+    isOpen: isDetailsModalOpen,
+    onOpen: openDetailsModal,
+    onClose: closeDetailsModal
+  } = useDisclosure()
 
   // Report types
   const reportTypes = [
-    { value: 'sales', label: 'Ventes', icon: TrendingUp },
-    { value: 'stock', label: 'Stock', icon: BarChart3 },
-    { value: 'financial', label: 'Financier', icon: PieChart },
-    { value: 'returns', label: 'Retours', icon: TrendingDown },
+    { value: 'sales', label: 'Ventes', icon: TrendingUp, description: 'Rapport des ventes et revenus' },
+    { value: 'stock', label: 'Stock', icon: BarChart3, description: 'Rapport des stocks et mouvements' },
+    { value: 'financial', label: 'Financier', icon: PieChart, description: 'Rapport financier et comptabilité' },
+    { value: 'returns', label: 'Retours', icon: TrendingDown, description: 'Rapport des retours et annulations' },
+    { value: 'cash', label: 'Caisse', icon: FileText, description: 'Rapport de caisse et encaissements' },
   ]
 
   // Date ranges
@@ -37,7 +59,16 @@ function ReportsPage() {
     { value: 'last_week', label: 'Semaine dernière' },
     { value: 'this_month', label: 'Ce mois' },
     { value: 'last_month', label: 'Mois dernier' },
+    { value: 'this_year', label: 'Cette année' },
+    { value: 'last_year', label: 'Année dernière' },
     { value: 'custom', label: 'Personnalisé' },
+  ]
+
+  // Export formats
+  const exportFormats = [
+    { value: 'pdf', label: 'PDF', icon: Pdf },
+    { value: 'xlsx', label: 'Excel', icon: Xlsx },
+    { value: 'csv', label: 'CSV', icon: File },
   ]
 
   // Fetch reports
@@ -61,16 +92,34 @@ function ReportsPage() {
       addToast({
         type: 'error',
         title: 'Erreur',
-        message: 'Impossible de générer les rapports'
+        message: error.response?.data?.message || 'Impossible de générer les rapports'
       })
     } finally {
       setIsLoading(false)
     }
   }
 
+  // Fetch report details
+  const fetchReportDetails = async (reportId) => {
+    try {
+      setIsDetailsLoading(true)
+      const response = await api.get(`/reports/${reportId}`)
+      setReportDetails(response.data)
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: error.response?.data?.message || 'Impossible de charger les détails du rapport'
+      })
+    } finally {
+      setIsDetailsLoading(false)
+    }
+  }
+
   // Export report
   const handleExport = async (format = 'pdf') => {
     try {
+      setIsExporting(true)
       const params = {
         type: reportType,
         range: dateRange,
@@ -88,7 +137,7 @@ function ReportsPage() {
       const url = window.URL.createObjectURL(new Blob([response.data]))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `rapport_${reportType}_${new Date().toISOString().slice(0, 10)}.${format}`)
+      link.setAttribute('download', `rapport_${reportType}_${format}_${formatDate(new Date(), 'yyyy-MM-dd')}.${format}`)
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -102,288 +151,516 @@ function ReportsPage() {
       addToast({
         type: 'error',
         title: 'Erreur',
-        message: 'Impossible d\'exporter le rapport'
+        message: error.response?.data?.message || `Impossible d'exporter en format ${format}`
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Print report
+  const handlePrint = async () => {
+    try {
+      setIsExporting(true)
+      const params = {
+        type: reportType,
+        range: dateRange,
+        start_date: dateRange === 'custom' ? customStartDate : undefined,
+        end_date: dateRange === 'custom' ? customEndDate : undefined,
+        format: 'print',
+      }
+      
+      const response = await api.get('/reports/export', { 
+        params,
+        responseType: 'blob'
+      })
+      
+      // Open in new tab for printing
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const printWindow = window.open(url, '_blank')
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print()
+        }
+      }
+      
+      addToast({
+        type: 'success',
+        title: 'Impression',
+        message: 'Le rapport est prêt pour l\'impression'
+      })
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: error.response?.data?.message || 'Impossible d\'imprimer le rapport'
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Delete report
+  const handleDeleteReport = async (reportId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce rapport ?')) {
+      return
+    }
+    
+    try {
+      await api.delete(`/reports/${reportId}`)
+      addToast({
+        type: 'success',
+        title: 'Rapport supprimé',
+        message: 'Le rapport a été supprimé avec succès'
+      })
+      fetchReports()
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: error.response?.data?.message || 'Impossible de supprimer le rapport'
       })
     }
   }
 
-  // Format currency
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'XOF'
-    }).format(amount || 0)
+  // View report details
+  const handleViewDetails = async (report) => {
+    setSelectedReport(report)
+    openDetailsModal()
+    await fetchReportDetails(report.id)
   }
 
-  // Format date
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('fr-FR')
+  // Get report type config
+  const getReportTypeConfig = (type) => {
+    return reportTypes.find(rt => rt.value === type) || reportTypes[0]
   }
+
+  // Get date range label
+  const getDateRangeLabel = (range) => {
+    return dateRanges.find(dr => dr.value === range)?.label || range
+  }
+
+  // Calculate summary statistics
+  const summaryStats = useMemo(() => {
+    if (reports.length === 0) return {}
+    
+    const stats = {
+      total: reports.length,
+      total_amount: 0,
+      by_type: {}
+    }
+    
+    reports.forEach(report => {
+      stats.total_amount += report.total_amount || 0
+      if (report.type) {
+        stats.by_type[report.type] = (stats.by_type[report.type] || 0) + 1
+      }
+    })
+    
+    return stats
+  }, [reports])
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">
-          Rapports
-        </h1>
-        <p className="text-gray-500 mt-1">
-          Générez et exportez des rapports sur les ventes, stocks et performances
-        </p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Rapports</CardTitle>
+          <CardDescription>
+            Générez et consultez les rapports de ventes, stocks et finances
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="info" className="flex items-start gap-3">
+            <FileText className="w-4 h-4 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Génération de Rapports</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Sélectionnez le type de rapport et la période pour générer des rapports détaillés.
+                Vous pouvez exporter les rapports dans différents formats.
+              </p>
+            </div>
+          </Alert>
+        </CardContent>
+      </Card>
 
-      {/* Filters */}
-      <div className="card">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Input
-            label="Type de rapport"
-            as="select"
-            value={reportType}
-            onChange={(e) => setReportType(e.target.value)}
-          >
-            {reportTypes.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
+      {/* Filters and Controls */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label>Type de Rapport</Label>
+              <Select value={reportType} onValueChange={setReportType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionnez un type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {reportTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      <div className="flex items-center gap-2">
+                        <type.icon className="w-4 h-4" />
+                        <span>{type.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Période</Label>
+              <Select value={dateRange} onValueChange={setDateRange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionnez une période" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dateRanges.map((range) => (
+                    <SelectItem key={range.value} value={range.value}>
+                      {range.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {dateRange === 'custom' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Date de Début</Label>
+                  <Input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Date de Fin</Label>
+                  <Input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="flex items-end">
+              <Button onClick={fetchReports}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Générer
+              </Button>
+            </div>
+          </div>
+
+          <Separator className="my-6" />
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium mr-2">Exporter:</span>
+            {exportFormats.map((format) => (
+              <Button
+                key={format.value}
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport(format.value)}
+                isLoading={isExporting}
+                className="flex items-center gap-1"
+              >
+                <format.icon className="w-4 h-4" />
+                <span className="hidden sm:inline">{format.label}</span>
+              </Button>
             ))}
-          </Input>
-          
-          <Input
-            label="Période"
-            as="select"
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-          >
-            {dateRanges.map((range) => (
-              <option key={range.value} value={range.value}>
-                {range.label}
-              </option>
-            ))}
-          </Input>
-          
-          {dateRange === 'custom' && (
-            <>
-              <Input
-                label="Date de début"
-                type="date"
-                value={customStartDate}
-                onChange={(e) => setCustomStartDate(e.target.value)}
-              />
-              <Input
-                label="Date de fin"
-                type="date"
-                value={customEndDate}
-                onChange={(e) => setCustomEndDate(e.target.value)}
-              />
-            </>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrint}
+              isLoading={isExporting}
+              className="flex items-center gap-1"
+            >
+              <Printer className="w-4 h-4" />
+              <span className="hidden sm:inline">Imprimer</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary Stats */}
+      {reports.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Statistiques</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {summaryStats.total}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Total Rapports
+                </p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+                  {formatCurrency(summaryStats.total_amount || 0)}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Montant Total
+                </p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p className="text-2xl font-bold text-success-600 dark:text-success-400">
+                  {Object.keys(summaryStats.by_type || {}).length}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Types de Rapports
+                </p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {getDateRangeLabel(dateRange)}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Période Sélectionnée
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reports List */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Liste des Rapports ({reports.length})</CardTitle>
+          <Button variant="outline" size="sm" onClick={fetchReports}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Rafraîchir
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : reports.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500">Aucun rapport généré</p>
+              <p className="text-sm text-gray-400 mt-2">
+                Sélectionnez un type de rapport et une période, puis cliquez sur Générer
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Période</TableHead>
+                  <TableHead>Date de Génération</TableHead>
+                  <TableHead>Montant</TableHead>
+                  <TableHead>Nombre d'Enregistrements</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reports.map((report) => {
+                  const reportConfig = getReportTypeConfig(report.type)
+                  const dateRangeLabel = getDateRangeLabel(report.range || dateRange)
+                  
+                  return (
+                    <TableRow key={report.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <reportConfig.icon className="w-4 h-4 text-gray-600" />
+                          <span>{reportConfig.label}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {dateRangeLabel}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {formatDate(report.created_at || report.generated_at)}
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium text-primary-600 dark:text-primary-400">
+                          {formatCurrency(report.total_amount || 0)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="info">
+                          {report.total_records || report.record_count || 0}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleViewDetails(report)}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleExport('pdf', report.id)}
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteReport(report.id)}
+                            className="text-danger-500 hover:text-danger-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
           )}
-        </div>
-        
-        <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-gray-200">
-          <Button variant="outline" onClick={() => handleExport('csv')}>
-            <Download className="w-4 h-4 mr-2" />
-            CSV
+        </CardContent>
+      </Card>
+
+      {/* Report Details Modal */}
+      <Modal isOpen={isDetailsModalOpen} onClose={closeDetailsModal} size="xl">
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary-600" />
+            <span>Détails du Rapport</span>
+          </div>
+        </ModalHeader>
+        <ModalBody>
+          {isDetailsLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ) : reportDetails ? (
+            <div className="space-y-6">
+              {/* Report Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Informations du Rapport</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Type</p>
+                      <p className="font-medium">{getReportTypeConfig(reportDetails.type).label}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Période</p>
+                      <p className="font-medium">{getDateRangeLabel(reportDetails.range)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Date de Génération</p>
+                      <p className="font-medium">{formatDate(reportDetails.created_at)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Résumé</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+                        {formatCurrency(reportDetails.total_amount || 0)}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Montant Total
+                      </p>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <p className="text-2xl font-bold text-success-600 dark:text-success-400">
+                        {reportDetails.total_records || 0}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Enregistrements
+                      </p>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <p className="text-2xl font-bold text-warning-600 dark:text-warning-400">
+                        {reportDetails.average_amount ? formatCurrency(reportDetails.average_amount) : 'N/A'}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Moyenne
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Details Table */}
+              {reportDetails.items && reportDetails.items.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Détails ({reportDetails.items.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Produit</TableHead>
+                          <TableHead>Quantité</TableHead>
+                          <TableHead>Prix Unitaire</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {reportDetails.items.map((item, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{item.product_name || item.name || 'N/A'}</TableCell>
+                            <TableCell>{item.quantity || 0}</TableCell>
+                            <TableCell>{formatCurrency(item.unit_price || 0)}</TableCell>
+                            <TableCell className="text-right">
+                              {formatCurrency((item.quantity || 0) * (item.unit_price || 0))}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          ) : (
+            <Alert variant="warning" className="flex items-center gap-3">
+              <FileText className="w-4 h-4 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Aucun détail disponible</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Les détails de ce rapport ne sont pas disponibles
+                </p>
+              </div>
+            </Alert>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={closeDetailsModal}>
+            Fermer
           </Button>
-          <Button variant="outline" onClick={() => handleExport('excel')}>
+          <Button onClick={() => handleExport('pdf', selectedReport?.id)}>
             <Download className="w-4 h-4 mr-2" />
-            Excel
+            Exporter
           </Button>
-          <Button variant="primary" onClick={() => handleExport('pdf')}>
-            <Download className="w-4 h-4 mr-2" />
-            PDF
-          </Button>
-        </div>
-      </div>
-
-      {/* Reports Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="card text-center">
-          <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <TrendingUp className="w-6 h-6 text-primary-600" />
-          </div>
-          <p className="text-sm text-gray-500">Ventes totales</p>
-          <p className="text-2xl font-bold text-gray-900">1,234</p>
-          <p className="text-xs text-gray-500 mt-1">Nombre de ventes</p>
-        </div>
-        
-        <div className="card text-center">
-          <div className="w-12 h-12 bg-success-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <PieChart className="w-6 h-6 text-success-600" />
-          </div>
-          <p className="text-sm text-gray-500">Chiffre d'affaires</p>
-          <p className="text-2xl font-bold text-gray-900">2,345,000 XOF</p>
-          <p className="text-xs text-gray-500 mt-1">Total des ventes</p>
-        </div>
-        
-        <div className="card text-center">
-          <div className="w-12 h-12 bg-warning-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <BarChart3 className="w-6 h-6 text-warning-600" />
-          </div>
-          <p className="text-sm text-gray-500">Produits en stock</p>
-          <p className="text-2xl font-bold text-gray-900">856</p>
-          <p className="text-xs text-gray-500 mt-1">Articles disponibles</p>
-        </div>
-        
-        <div className="card text-center">
-          <div className="w-12 h-12 bg-danger-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <TrendingDown className="w-6 h-6 text-danger-600" />
-          </div>
-          <p className="text-sm text-gray-500">Alertes</p>
-          <p className="text-2xl font-bold text-gray-900">12</p>
-          <p className="text-xs text-gray-500 mt-1">Stocks critiques</p>
-        </div>
-      </div>
-
-      {/* Reports Content */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {reportTypes.find(r => r.value === reportType)?.label || reportType}
-          </h2>
-          <span className="text-sm text-gray-500">
-            {dateRanges.find(r => r.value === dateRange)?.label || dateRange}
-          </span>
-        </div>
-        
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600"></div>
-          </div>
-        ) : reports.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <FileText className="mx-auto w-12 h-12 mb-4" />
-            <p>Aucune donnée disponible pour cette période</p>
-          </div>
-        ) : reportType === 'sales' ? (
-          <SalesReport reports={reports} formatCurrency={formatCurrency} formatDate={formatDate} />
-        ) : reportType === 'stock' ? (
-          <StockReport reports={reports} formatCurrency={formatCurrency} formatDate={formatDate} />
-        ) : reportType === 'financial' ? (
-          <FinancialReport reports={reports} formatCurrency={formatCurrency} formatDate={formatDate} />
-        ) : (
-          <ReturnsReport reports={reports} formatCurrency={formatCurrency} formatDate={formatDate} />
-        )}
-      </div>
-    </div>
-  )
-}
-
-// Sales Report Component
-function SalesReport({ reports, formatCurrency, formatDate }) {
-  return (
-    <div className="space-y-4">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-gray-200">
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Date</th>
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">N° Vente</th>
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Client</th>
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Produits</th>
-            <th className="text-right py-2 px-4 text-sm font-semibold text-gray-600">Montant</th>
-          </tr>
-        </thead>
-        <tbody>
-          {reports.map((report, index) => (
-            <tr key={index} className="border-b border-gray-100">
-              <td className="py-2 px-4 text-sm">{formatDate(report.date)}</td>
-              <td className="py-2 px-4 text-sm">#{report.id || report.sale_id}</td>
-              <td className="py-2 px-4 text-sm">{report.customer || 'Client'}</td>
-              <td className="py-2 px-4 text-sm">{report.items_count || report.product_count}</td>
-              <td className="py-2 px-4 text-sm text-right">{formatCurrency(report.total || report.amount)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// Stock Report Component
-function StockReport({ reports, formatCurrency, formatDate }) {
-  return (
-    <div className="space-y-4">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-gray-200">
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Produit</th>
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Code-barres</th>
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Catégorie</th>
-            <th className="text-right py-2 px-4 text-sm font-semibold text-gray-600">Stock</th>
-            <th className="text-right py-2 px-4 text-sm font-semibold text-gray-600">Péremption</th>
-          </tr>
-        </thead>
-        <tbody>
-          {reports.map((report, index) => (
-            <tr key={index} className="border-b border-gray-100">
-              <td className="py-2 px-4 text-sm">{report.product_name || report.name}</td>
-              <td className="py-2 px-4 text-sm">{report.barcode || 'N/A'}</td>
-              <td className="py-2 px-4 text-sm">{report.category || 'Non classé'}</td>
-              <td className="py-2 px-4 text-sm text-right">{report.stock || report.quantity}</td>
-              <td className="py-2 px-4 text-sm text-right">{formatDate(report.expiry_date)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// Financial Report Component
-function FinancialReport({ reports, formatCurrency, formatDate }) {
-  return (
-    <div className="space-y-4">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-gray-200">
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Date</th>
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Type</th>
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Description</th>
-            <th className="text-right py-2 px-4 text-sm font-semibold text-gray-600">Montant</th>
-          </tr>
-        </thead>
-        <tbody>
-          {reports.map((report, index) => (
-            <tr key={index} className="border-b border-gray-100">
-              <td className="py-2 px-4 text-sm">{formatDate(report.date)}</td>
-              <td className="py-2 px-4 text-sm">{report.type || 'Transaction'}</td>
-              <td className="py-2 px-4 text-sm">{report.description || report.details}</td>
-              <td className="py-2 px-4 text-sm text-right">
-                {formatCurrency(report.amount)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// Returns Report Component
-function ReturnsReport({ reports, formatCurrency, formatDate }) {
-  return (
-    <div className="space-y-4">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-gray-200">
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Date</th>
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">N° Retour</th>
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Produit</th>
-            <th className="text-left py-2 px-4 text-sm font-semibold text-gray-600">Raison</th>
-            <th className="text-right py-2 px-4 text-sm font-semibold text-gray-600">Montant</th>
-          </tr>
-        </thead>
-        <tbody>
-          {reports.map((report, index) => (
-            <tr key={index} className="border-b border-gray-100">
-              <td className="py-2 px-4 text-sm">{formatDate(report.date)}</td>
-              <td className="py-2 px-4 text-sm">#{report.id || report.return_id}</td>
-              <td className="py-2 px-4 text-sm">{report.product_name || report.product}</td>
-              <td className="py-2 px-4 text-sm">{report.reason || 'Non spécifié'}</td>
-              <td className="py-2 px-4 text-sm text-right">{formatCurrency(report.amount)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        </ModalFooter>
+      </Modal>
     </div>
   )
 }

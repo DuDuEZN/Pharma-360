@@ -3,19 +3,19 @@ OCR Integration API Endpoints for Pharmacie 360
 Integrates IA OCR module with backend
 """
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
-from typing import Optional, List
+
 from backend.core.config import settings
+
 from ...core.logging import get_logger
 
-# Make OCR import optional
-try:
-    from ia.services.ocr_service import ocr_service
-    OCR_AVAILABLE = True
-except ImportError:
-    OCR_AVAILABLE = False
-    ocr_service = None
+# IA is now a separate service - disable OCR integration in backend
+# to avoid dependency issues
+OCR_AVAILABLE = False
+ocr_service = None
 
 router = APIRouter(prefix="/invoices", tags=["OCR"])
 

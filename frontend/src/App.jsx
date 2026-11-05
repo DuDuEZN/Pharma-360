@@ -7,6 +7,10 @@ import { BarcodeScannerProvider } from './hooks/useBarcodeScanner'
 import { WebSocketProvider } from './hooks/useWebSocket'
 import { AlertsProvider } from './hooks/useAlerts'
 
+// Design System Providers
+import { ThemeProvider } from './providers/ThemeProvider'
+import { AlertProvider } from './providers/AlertProvider'
+
 // Layout
 import Layout from './components/layout/Layout'
 
@@ -31,48 +35,52 @@ import ProtectedRoute from './components/common/ProtectedRoute'
 
 function App() {
   return (
-    <AuthProvider>
-      <BarcodeScannerProvider>
-        <CartProvider>
-          <WebSocketProvider role="cashier">
-            <AlertsProvider>
-              <Toaster />
-              <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            
-            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route path="/" element={<ManagerDashboardPage />} />
-              <Route path="/products" element={<ProductsPage />} />
-              <Route path="/sales" element={<SalesPage />} />
-              <Route path="/cashier" element={<CashierPage />} />
-              
-              {/* Admin Routes */}
-              <Route path="/admin" element={<AdminPage />}>
-                <Route index element={<UsersPage />} />
-                <Route path="users" element={<UsersPage />} />
-                <Route path="roles" element={<RolesPage />} />
-                <Route path="permissions" element={<PermissionsPage />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="reports" element={<ReportsPage />} />
-              </Route>
-              
-              {/* Manager Routes */}
-              <Route path="/manager" element={<ManagerPage />}>
-                <Route index element={<InventoryPage />} />
-                <Route path="inventory" element={<InventoryPage />} />
-                <Route path="suppliers" element={<SuppliersPage />} />
-                <Route path="dashboard" element={<ManagerDashboardPage />} />
-              </Route>
-              
-            </Route>
-            
-            <Route path="*" element={<div>404 - Page non trouvée</div>} />
-          </Routes>
-            </AlertsProvider>
-          </WebSocketProvider>
-        </CartProvider>
-      </BarcodeScannerProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BarcodeScannerProvider>
+          <CartProvider>
+            <WebSocketProvider role="cashier">
+              <AlertsProvider>
+                <AlertProvider>
+                  <Toaster />
+                  <Routes>
+                    <Route path="/login" element={<LoginPage />} />
+                    
+                    <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                      <Route path="/" element={<ManagerDashboardPage />} />
+                      <Route path="/products" element={<ProductsPage />} />
+                      <Route path="/sales" element={<SalesPage />} />
+                      <Route path="/cashier" element={<CashierPage />} />
+                      
+                      {/* Admin Routes */}
+                      <Route path="/admin" element={<AdminPage />}>
+                        <Route index element={<UsersPage />} />
+                        <Route path="users" element={<UsersPage />} />
+                        <Route path="roles" element={<RolesPage />} />
+                        <Route path="permissions" element={<PermissionsPage />} />
+                        <Route path="settings" element={<SettingsPage />} />
+                        <Route path="reports" element={<ReportsPage />} />
+                      </Route>
+                      
+                      {/* Manager Routes */}
+                      <Route path="/manager" element={<ManagerPage />}>
+                        <Route index element={<InventoryPage />} />
+                        <Route path="inventory" element={<InventoryPage />} />
+                        <Route path="suppliers" element={<SuppliersPage />} />
+                        <Route path="dashboard" element={<ManagerDashboardPage />} />
+                      </Route>
+                      
+                    </Route>
+                    
+                    <Route path="*" element={<div>404 - Page non trouve</div>} />
+                  </Routes>
+                </AlertProvider>
+              </AlertsProvider>
+            </WebSocketProvider>
+          </CartProvider>
+        </BarcodeScannerProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

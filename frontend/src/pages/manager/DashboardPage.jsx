@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement } from 'chart.js';
 import { Bar, Pie, Line } from 'react-chartjs-2';
-import { Calendar, DollarSign, Package, AlertTriangle, TrendingUp, TrendingDown, Users, FileText } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DatePickerWithRange } from '@/components/ui/date-range-picker';
-import { api } from '@/lib/api';
+import { Calendar, DollarSign, Package, AlertTriangle, TrendingUp, TrendingDown, Users, FileText, RefreshCw, Clock, ShoppingCart } from 'lucide-react';
+import { Button } from '../../components/ui/Button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
+import { Skeleton } from '../../components/ui/Skeleton';
+import { Badge } from '../../components/ui/Badge';
+import { Separator } from '../../components/ui/Separator';
+import { api } from '../../lib/api';
+import { cn, formatCurrency, formatDate } from '../../lib/utils';
+//import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card.jsx';
 
 // Register ChartJS components
 ChartJS.register(
@@ -20,6 +24,20 @@ ChartJS.register(
   PointElement,
   LineElement
 );
+
+// Color palette for charts
+const chartColors = {
+  primary: '#3b82f6',
+  secondary: '#6b7280',
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  info: '#06b6d4',
+  purple: '#8b5cf6',
+  pink: '#ec4899',
+  background: '#f8fafc',
+  text: '#1e293b'
+};
 
 const DashboardPage = () => {
   const [stats, setStats] = useState({
@@ -54,6 +72,14 @@ const DashboardPage = () => {
     to: new Date()
   });
 
+  const timeRangeOptions = [
+    { value: 'week', label: '7 jours' },
+    { value: 'month', label: '30 jours' },
+    { value: 'quarter', label: '90 jours' },
+    { value: 'year', label: '1 an' },
+    { value: 'custom', label: 'Personnalisé' }
+  ];
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -66,7 +92,7 @@ const DashboardPage = () => {
         }
       });
       
-      if (statsResponse.data) {
+      if (statsResponse?.data) {
         setStats({
           totalSales: statsResponse.data.total_sales || 0,
           totalRevenue: statsResponse.data.total_revenue || 0,
@@ -87,7 +113,10 @@ const DashboardPage = () => {
       });
       
       if (salesResponse.data) {
-        const labels = salesResponse.data.map(item => new Date(item.date).toLocaleDateString());
+        const labels = salesResponse.data.map(item => new Date(item.date).toLocaleDateString('fr-FR', { 
+          day: '2-digit', 
+          month: 'short' 
+        }));
         const data = salesResponse.data.map(item => item.total_sales);
         setSalesData({ labels, data });
       }
@@ -98,17 +127,18 @@ const DashboardPage = () => {
       });
       
       if (productsResponse.data) {
-        const labels = productsResponse.data.map(item => item.product_name);
-        const data = productsResponse.data.map(item => item.quantity_sold);
+        const labels = productsResponse.data.map(item => item.product_name || item.name);
+        const data = productsResponse.data.map(item => item.total_quantity);
         setTopProducts({ labels, data });
       }
       
       // Fetch category distribution
       const categoryResponse = await api.get('/products/categories/stats');
       
+      //if (categoryResponse?.data) {
       if (categoryResponse.data) {
-        const labels = categoryResponse.data.map(item => item.category_name);
-        const data = categoryResponse.data.map(item => item.product_count);
+        const labels = categoryResponse.data.map(item => item.category);
+        const data = categoryResponse.data.map(item => item.count);
         setCategoryDistribution({ labels, data });
       }
       
@@ -121,317 +151,514 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [dateRange, timeRange]);
+  }, [dateRange]);
 
   const handleTimeRangeChange = (value) => {
     setTimeRange(value);
-    const now = new Date();
     
-    if (value === 'week') {
-      setDateRange({
-        from: new Date(now.setDate(now.getDate() - 7)),
-        to: new Date()
-      });
-    } else if (value === 'month') {
-      setDateRange({
-        from: new Date(now.setDate(now.getDate() - 30)),
-        to: new Date()
-      });
-    } else if (value === 'quarter') {
-      setDateRange({
-        from: new Date(now.setDate(now.getDate() - 90)),
-        to: new Date()
-      });
-    } else if (value === 'year') {
-      setDateRange({
-        from: new Date(now.setDate(now.getDate() - 365)),
-        to: new Date()
-      });
+    const now = new Date();
+    let fromDate = new Date();
+    
+    switch (value) {
+      case 'week':
+        fromDate.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        fromDate.setDate(now.getDate() - 30);
+        break;
+      case 'quarter':
+        fromDate.setDate(now.getDate() - 90);
+        break;
+      case 'year':
+        fromDate.setDate(now.getDate() - 365);
+        break;
+      default:
+        fromDate = dateRange.from;
     }
+    
+    setDateRange({
+      from: fromDate,
+      to: now
+    });
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'XOF'
-    }).format(amount);
+  const handleRefresh = () => {
+    fetchDashboardData();
   };
 
-  // Bar chart data for sales
+  // Chart data configurations
   const salesChartData = {
     labels: salesData.labels,
     datasets: [
       {
         label: 'Ventes par jour',
         data: salesData.data,
-        backgroundColor: 'rgba(59, 130, 246, 0.5)',
-        borderColor: 'rgba(59, 130, 246, 1)',
-        borderWidth: 1
+        backgroundColor: chartColors.primary,
+        borderColor: chartColors.primary,
+        borderWidth: 1,
       }
-    ]
+    ],
   };
 
-  // Pie chart data for top products
-  const productsChartData = {
+  const topProductsChartData = {
     labels: topProducts.labels,
     datasets: [
       {
-        label: 'Top Produits',
+        label: 'Top Produits Vendus',
         data: topProducts.data,
         backgroundColor: [
-          'rgba(59, 130, 246, 0.5)',
-          'rgba(16, 185, 129, 0.5)',
-          'rgba(245, 158, 11, 0.5)',
-          'rgba(239, 68, 68, 0.5)',
-          'rgba(139, 92, 246, 0.5)'
+          chartColors.primary,
+          chartColors.success,
+          chartColors.warning,
+          chartColors.danger,
+          chartColors.info
         ],
-        borderColor: [
-          'rgba(59, 130, 246, 1)',
-          'rgba(16, 185, 129, 1)',
-          'rgba(245, 158, 11, 1)',
-          'rgba(239, 68, 68, 1)',
-          'rgba(139, 92, 246, 1)'
-        ],
-        borderWidth: 1
+        borderWidth: 1,
       }
-    ]
+    ],
   };
 
-  // Pie chart data for category distribution
   const categoryChartData = {
     labels: categoryDistribution.labels,
     datasets: [
       {
-        label: 'Répartition par catégorie',
+        label: 'Répartition par Catégorie',
         data: categoryDistribution.data,
         backgroundColor: [
-          'rgba(59, 130, 246, 0.5)',
-          'rgba(16, 185, 129, 0.5)',
-          'rgba(245, 158, 11, 0.5)',
-          'rgba(239, 68, 68, 0.5)',
-          'rgba(139, 92, 246, 0.5)'
+          chartColors.primary,
+          chartColors.success,
+          chartColors.warning,
+          chartColors.danger,
+          chartColors.info,
+          chartColors.purple
         ],
-        borderColor: [
-          'rgba(59, 130, 246, 1)',
-          'rgba(16, 185, 129, 1)',
-          'rgba(245, 158, 11, 1)',
-          'rgba(239, 68, 68, 1)',
-          'rgba(139, 92, 246, 1)'
-        ],
-        borderWidth: 1
+        borderWidth: 1,
       }
-    ]
+    ],
   };
 
-  const statCards = [
-    {
-      title: 'Ventes Totales',
-      value: stats.totalSales,
-      icon: <TrendingUp className="h-6 w-6 text-blue-500" />,
-      color: 'blue',
-      subtitle: 'Nombre de ventes'
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          color: chartColors.text,
+          padding: 15,
+          font: {
+            size: 12
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleFont: {
+          size: 14
+        },
+        bodyFont: {
+          size: 12
+        },
+        padding: 10,
+        displayColors: true,
+        callbacks: {
+          label: function(context) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += context.parsed.y;
+            }
+            return label;
+          }
+        }
+      }
     },
-    {
-      title: 'Chiffre d\'affaires',
-      value: formatCurrency(stats.totalRevenue),
-      icon: <DollarSign className="h-6 w-6 text-green-500" />,
-      color: 'green',
-      subtitle: 'Revenu total'
-    },
-    {
-      title: 'Produits',
-      value: stats.totalProducts,
-      icon: <Package className="h-6 w-6 text-orange-500" />,
-      color: 'orange',
-      subtitle: 'Produits en stock'
-    },
-    {
-      title: 'Stock Faible',
-      value: stats.lowStock,
-      icon: <AlertTriangle className="h-6 w-6 text-red-500" />,
-      color: 'red',
-      subtitle: 'Produits en rupture'
-    },
-    {
-      title: 'Péremption Proche',
-      value: stats.expiringSoon,
-      icon: <Calendar className="h-6 w-6 text-yellow-500" />,
-      color: 'yellow',
-      subtitle: 'Lots expirant bientôt'
-    },
-    {
-      title: 'Utilisateurs Actifs',
-      value: stats.activeUsers,
-      icon: <Users className="h-6 w-6 text-purple-500" />,
-      color: 'purple',
-      subtitle: 'Utilisateurs connectés'
-    },
-    {
-      title: 'Factures en attente',
-      value: stats.pendingInvoices,
-      icon: <FileText className="h-6 w-6 text-indigo-500" />,
-      color: 'indigo',
-      subtitle: 'Factures à traiter'
+    scales: {
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          color: chartColors.text,
+          font: {
+            size: 11
+          }
+        }
+      },
+      y: {
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)'
+        },
+        ticks: {
+          color: chartColors.text,
+          font: {
+            size: 11
+          },
+          callback: function(value) {
+            return value;
+          }
+        }
+      }
     }
-  ];
+  };
+
+  const pieChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: {
+          color: chartColors.text,
+          padding: 15,
+          font: {
+            size: 11
+          },
+          usePointStyle: true
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: 10,
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.parsed || 0;
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = Math.round((value / total) * 100);
+            return `${label}: ${value} (${percentage}%)`;
+          }
+        }
+      }
+    }
+  };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Tableau de Bord</h1>
-          <p className="text-muted-foreground">Vue d'ensemble de la pharmacie</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <DatePickerWithRange
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-          />
-          <Select value={timeRange} onValueChange={handleTimeRangeChange}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Période" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="week">7 jours</SelectItem>
-              <SelectItem value="month">30 jours</SelectItem>
-              <SelectItem value="quarter">90 jours</SelectItem>
-              <SelectItem value="year">1 an</SelectItem>
-              <SelectItem value="custom">Personnalisé</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={fetchDashboardData} disabled={loading}>
-            {loading ? 'Chargement...' : 'Rafraîchir'}
-          </Button>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Tableau de Bord Gestionnaire</CardTitle>
+          <CardDescription>
+            Vue d'ensemble des ventes, stocks et performances
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Time Range Selector */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <Select value={timeRange} onValueChange={handleTimeRangeChange}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Sélectionner une période" />
+                </SelectTrigger>
+                <SelectContent>
+                  {timeRangeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Rafraîchir
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-        {statCards.map((card, index) => (
-          <Card key={index} className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-              {card.icon}
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" style={{ color: `var(--${card.color}-500)` }}>
-                {card.value}
-              </div>
-              <p className="text-xs text-muted-foreground">{card.subtitle}</p>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {loading ? (
+          [1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-20 w-full" />
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <>
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Ventes Totales
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                      {stats.totalSales.toLocaleString('fr-FR')}
+                    </p>
+                    <p className="text-xs text-success-600 dark:text-success-400 mt-1">
+                      +12% par rapport à la période précédente
+                    </p>
+                  </div>
+                  <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+                    <ShoppingCart className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Chiffre d'Affaires
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                      {formatCurrency(stats.totalRevenue)}
+                    </p>
+                    <p className="text-xs text-success-600 dark:text-success-400 mt-1">
+                      +8% par rapport à la période précédente
+                    </p>
+                  </div>
+                  <div className="p-3 bg-success-100 dark:bg-success-900/30 rounded-lg">
+                    <DollarSign className="w-6 h-6 text-success-600 dark:text-success-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Produits en Stock
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                      {stats.totalProducts.toLocaleString('fr-FR')}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {stats.lowStock} en rupture ou stock faible
+                    </p>
+                  </div>
+                  <div className="p-3 bg-warning-100 dark:bg-warning-900/30 rounded-lg">
+                    <Package className="w-6 h-6 text-warning-600 dark:text-warning-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Alertes
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                      {stats.expiringSoon + stats.lowStock}
+                    </p>
+                    <p className="text-xs text-danger-600 dark:text-danger-400 mt-1">
+                      {stats.expiringSoon} péremptions proches, {stats.lowStock} stocks faibles
+                    </p>
+                  </div>
+                  <div className="p-3 bg-danger-100 dark:bg-danger-900/30 rounded-lg">
+                    <AlertTriangle className="w-6 h-6 text-danger-600 dark:text-danger-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
-      {/* Charts Row 1 */}
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {loading ? (
+          [1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <Skeleton className="h-16 w-full" />
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <>
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-info-100 dark:bg-info-900/30 rounded-lg">
+                    <Users className="w-5 h-5 text-info-600 dark:text-info-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Utilisateurs Actifs
+                    </p>
+                    <p className="font-bold text-gray-900 dark:text-white">
+                      {stats.activeUsers.toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-warning-100 dark:bg-warning-900/30 rounded-lg">
+                    <FileText className="w-5 h-5 text-warning-600 dark:text-warning-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Factures en Attente
+                    </p>
+                    <p className="font-bold text-gray-900 dark:text-white">
+                      {stats.pendingInvoices.toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-success-100 dark:bg-success-900/30 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-success-600 dark:text-success-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Meilleure Vente
+                    </p>
+                    <p className="font-bold text-gray-900 dark:text-white">
+                      {topProducts.labels[0] || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                    <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Dernière Mise à Jour
+                    </p>
+                    <p className="font-bold text-gray-900 dark:text-white">
+                      {formatDate(new Date())}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-sm">
+        {/* Sales Chart */}
+        <Card>
           <CardHeader>
-            <CardTitle>Ventes Quotidiennes</CardTitle>
+            <CardTitle>Ventes par Jour</CardTitle>
+            <CardDescription>
+              Évolution des ventes sur la période sélectionnée
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <Bar
-                data={salesChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'top'
-                    },
-                    title: {
-                      display: false
-                    }
-                  }
-                }}
-              />
+            <div className="h-64">
+              {loading ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <Bar options={chartOptions} data={salesChartData} />
+              )}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        {/* Top Products Chart */}
+        <Card>
           <CardHeader>
             <CardTitle>Top 5 Produits Vendus</CardTitle>
+            <CardDescription>
+              Produits les plus vendus sur la période
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <Pie
-                data={productsChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'right'
-                    },
-                    title: {
-                      display: false
-                    }
-                  }
-                }}
-              />
+            <div className="h-64">
+              {loading ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <Pie options={pieChartOptions} data={topProductsChartData} />
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Répartition par Catégorie</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <Pie
-                data={categoryChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'right'
-                    },
-                    title: {
-                      display: false
-                    }
-                  }
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Category Distribution Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Répartition par Catégorie</CardTitle>
+          <CardDescription>
+            Distribution des produits par catégorie
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64">
+            {loading ? (
+              <Skeleton className="h-full w-full" />
+            ) : (
+              <Doughnut options={pieChartOptions} data={categoryChartData} />
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Statistiques Supplémentaires</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span>Ventes ce mois</span>
-                <span className="font-semibold">{stats.totalSales}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Revenu ce mois</span>
-                <span className="font-semibold">{formatCurrency(stats.totalRevenue)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Produits en stock</span>
-                <span className="font-semibold">{stats.totalProducts}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Alertes actives</span>
-                <span className="font-semibold text-red-500">{stats.lowStock + stats.expiringSoon}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Actions Rapides</CardTitle>
+          <CardDescription>
+            Accès rapide aux fonctionnalités fréquentes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Link to="/manager/inventory">
+              <Button variant="outline" className="w-full justify-start">
+                <Package className="w-4 h-4 mr-2" />
+                Vérifier l'Inventaire
+              </Button>
+            </Link>
+            <Link to="/manager/suppliers">
+              <Button variant="outline" className="w-full justify-start">
+                <Users className="w-4 h-4 mr-2" />
+                Gérer les Fournisseurs
+              </Button>
+            </Link>
+            <Link to="/manager/orders">
+              <Button variant="outline" className="w-full justify-start">
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                Passer une Commande
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
+
+// Doughnut chart component (re-export from react-chartjs-2)
+import { Doughnut } from 'react-chartjs-2';
 
 export default DashboardPage;

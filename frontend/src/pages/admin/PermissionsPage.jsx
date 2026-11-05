@@ -1,14 +1,24 @@
-import React, { useState, useEffect } from 'react'
-import { Key, Plus, Search, Edit, Trash2, Shield, List, Tag } from 'lucide-react'
-import { useAuth } from '../../hooks/useAuth'
+import React, { useState, useEffect, useMemo } from 'react'
+import { Key, Plus, Search, Edit, Trash2, Shield, List, Tag, Check, X, AlertTriangle } from 'lucide-react'
+import { useDisclosure } from '../../hooks/useDisclosure'
+import { useTable } from '../../hooks/useTable'
 import api from '../../services/api'
 import { useToast } from '../../components/common/Toast'
-import Button from '../../components/common/Button'
-import Input from '../../components/common/Input'
-import Modal, { ConfirmModal } from '../../components/common/Modal'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
+import { Button } from '../../components/ui/Button'
+import { Input } from '../../components/ui/Input'
+import { Select } from '../../components/ui/Select'
+import { Badge } from '../../components/ui/Badge'
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/Table'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/ui/Modal'
+import { Separator } from '../../components/ui/Separator'
+import { Skeleton } from '../../components/ui/Skeleton'
+import { Alert } from '../../components/ui/Alert'
+import { Switch } from '../../components/ui/Switch'
+import { cn, formatDate } from '../../lib/utils'
 
 /**
- * Permissions Management Page for Pharmacie 360
+ * Permissions Management Page for Pharma 360
  * CRUD operations for system permissions
  * 
  * FRNT-004: Session Administrateur (Gestion utilisateurs/roles)
@@ -20,9 +30,6 @@ function PermissionsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedPermission, setSelectedPermission] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
@@ -31,10 +38,30 @@ function PermissionsPage() {
     category: 'products',
     is_active: true
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deletePermissionId, setDeletePermissionId] = useState(null)
+
+  const {
+    isOpen: isCreateModalOpen,
+    onOpen: openCreateModal,
+    onClose: closeCreateModal
+  } = useDisclosure()
+
+  const {
+    isOpen: isEditModalOpen,
+    onOpen: openEditModal,
+    onClose: closeEditModal
+  } = useDisclosure()
+
+  const {
+    isOpen: isDeleteModalOpen,
+    onOpen: openDeleteModal,
+    onClose: closeDeleteModal
+  } = useDisclosure()
 
   // Categories
-  const categories = [
-    { value: 'all', label: 'Tous' },
+  const categoryOptions = [
+    { value: 'all', label: 'Toutes les catégories' },
     { value: 'products', label: 'Produits' },
     { value: 'sales', label: 'Ventes' },
     { value: 'inventory', label: 'Stock/Inventaire' },
@@ -43,10 +70,25 @@ function PermissionsPage() {
     { value: 'system', label: 'Système' },
   ]
 
+  const {
+    paginatedData: paginatedPermissions,
+    handleSearch,
+    handlePageChange,
+    totalPages,
+    currentPage
+  } = useTable(permissions, { 
+    searchKeys: ['name', 'code', 'description', 'category'],
+    initialPageSize: 10
+  })
+
   // Fetch permissions
   useEffect(() => {
     fetchPermissions()
   }, [categoryFilter])
+
+  useEffect(() => {
+    handleSearch()
+  }, [searchQuery, categoryFilter])
 
   const fetchPermissions = async () => {
     try {
@@ -58,7 +100,7 @@ function PermissionsPage() {
           limit: 100
         }
       })
-      setPermissions(response.data.permissions || [])
+      setPermissions(response?.data?.permissions || [])
     } catch (error) {
       addToast({
         type: 'error',
@@ -70,14 +112,26 @@ function PermissionsPage() {
     }
   }
 
-  // Handle search
-  const handleSearch = (e) => {
-    e.preventDefault()
-    fetchPermissions()
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
   }
 
   // Create permission
   const handleCreate = async () => {
+    if (!formData.name || !formData.code) {
+      addToast({
+        type: 'error',
+        title: 'Champs requis',
+        message: 'Le nom et le code de la permission sont obligatoires'
+      })
+      return
+    }
+
+    setIsSubmitting(true)
     try {
       await api.post('/permissions', formData)
       addToast({
@@ -85,7 +139,7 @@ function PermissionsPage() {
         title: 'Permission créée',
         message: `La permission ${formData.name} a été créée avec succès`
       })
-      setShowCreateModal(false)
+      closeCreateModal()
       setFormData({
         name: '',
         code: '',
@@ -100,11 +154,16 @@ function PermissionsPage() {
         title: 'Erreur',
         message: error.response?.data?.detail || 'Impossible de créer la permission'
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   // Update permission
   const handleUpdate = async () => {
+    if (!selectedPermission || !formData.name || !formData.code) return
+
+    setIsSubmitting(true)
     try {
       await api.put(`/permissions/${selectedPermission.id}`, formData)
       addToast({
@@ -112,7 +171,7 @@ function PermissionsPage() {
         title: 'Permission mise à jour',
         message: `La permission ${formData.name} a été mise à jour`
       })
-      setShowEditModal(false)
+      closeEditModal()
       fetchPermissions()
     } catch (error) {
       addToast({
@@ -120,19 +179,25 @@ function PermissionsPage() {
         title: 'Erreur',
         message: error.response?.data?.detail || 'Impossible de mettre à jour la permission'
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   // Delete permission
   const handleDelete = async () => {
+    if (!deletePermissionId) return
+
+    setIsSubmitting(true)
     try {
-      await api.delete(`/permissions/${selectedPermission.id}`)
+      await api.delete(`/permissions/${deletePermissionId}`)
       addToast({
         type: 'success',
         title: 'Permission supprimée',
-        message: `La permission ${selectedPermission.name} a été supprimée`
+        message: 'La permission a été supprimée avec succès'
       })
-      setShowDeleteModal(false)
+      closeDeleteModal()
+      setDeletePermissionId(null)
       fetchPermissions()
     } catch (error) {
       addToast({
@@ -140,339 +205,400 @@ function PermissionsPage() {
         title: 'Erreur',
         message: error.response?.data?.detail || 'Impossible de supprimer la permission'
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  // Open edit modal
-  const openEditModal = (permission) => {
+  const handleOpenEditModal = (permission) => {
     setSelectedPermission(permission)
     setFormData({
       name: permission.name,
       code: permission.code,
       description: permission.description || '',
       category: permission.category || 'products',
-      is_active: permission.is_active !== false
+      is_active: permission.is_active
     })
-    setShowEditModal(true)
+    openEditModal()
   }
 
-  // Open delete modal
-  const openDeleteModal = (permission) => {
-    setSelectedPermission(permission)
-    setShowDeleteModal(true)
+  const handleOpenDeleteModal = (permissionId) => {
+    setDeletePermissionId(permissionId)
+    openDeleteModal()
   }
 
-  // Handle form change
-  const handleFormChange = (e) => {
-    const { name, value, type, checked } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }))
-  }
-
-  // Get category label
   const getCategoryLabel = (category) => {
-    const found = categories.find(c => c.value === category)
-    return found ? found.label : category
+    const option = categoryOptions.find(opt => opt.value === category)
+    return option ? option.label : category
+  }
+
+  const getStatusColor = (isActive) => {
+    return isActive ? 'success' : 'secondary'
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">
-            Gestion des Permissions
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Configurez les permissions du système
-          </p>
-        </div>
-        <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nouvelle permission
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-          <Input
-            type="text"
-            placeholder="Rechercher une permission..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1"
-          />
-          <Button type="submit" variant="primary" isLoading={isLoading}>
-            <Search className="w-4 h-4" />
-          </Button>
-        </form>
-        
-        <Input
-          as="select"
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="w-48"
-        >
-          {categories.map((cat) => (
-            <option key={cat.value} value={cat.value}>
-              {cat.label}
-            </option>
-          ))}
-        </Input>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Gestion des Permissions</CardTitle>
+          <CardDescription>
+            Créer, modifier et supprimer les permissions du système
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Rechercher une permission..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              options={categoryOptions}
+              placeholder="Filtrer par catégorie"
+              className="w-48"
+            />
+            <Button onClick={openCreateModal}>
+              <Plus className="w-4 h-4 mr-2" />
+              Ajouter
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Permissions Table */}
-      <div className="overflow-x-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600"></div>
-          </div>
-        ) : permissions.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <Key className="mx-auto w-12 h-12 mb-4" />
-            <p>Aucune permission trouvée</p>
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                  Permission
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                  Code
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                  Catégorie
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                  Description
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                  Statut
-                </th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {permissions.map((permission) => (
-                <tr key={permission.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <Key className="w-5 h-5 text-gray-400" />
-                      <span className="font-medium text-gray-900">{permission.name}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <code className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                      {permission.code}
-                    </code>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-600">
-                      {getCategoryLabel(permission.category)}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">
-                    {permission.description || 'Aucune description'}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`badge ${permission.is_active ? 'badge-success' : 'badge-danger'}`}>
-                      {permission.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEditModal(permission)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDeleteModal(permission)}
-                        className="text-danger-600"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Liste des Permissions ({permissions.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            </div>
+          ) : paginatedPermissions.length === 0 ? (
+            <div className="text-center py-12">
+              <Key className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500">Aucune permission trouvée</p>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nom</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Catégorie</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead>Date de création</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedPermissions.map((permission) => (
+                    <TableRow key={permission.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Key className="w-5 h-5 text-gray-600" />
+                          <span className="font-medium">{permission.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <code className="text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                          {permission.code}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {getCategoryLabel(permission.category)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {permission.description || <span className="text-gray-400">-</span>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusColor(permission.is_active)}>
+                          {permission.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {formatDate(permission.created_at || permission.date_created)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenEditModal(permission)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenDeleteModal(permission.id)}
+                            className="text-danger-500 hover:text-danger-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-gray-500">
+                    Page {currentPage} sur {totalPages}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage <= 1}
+                    >
+                      Précédent
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                    >
+                      Suivant
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Create Permission Modal */}
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="Créer une nouvelle permission"
-        size="md"
-        footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
-              Annuler
-            </Button>
-            <Button variant="primary" onClick={handleCreate} disabled={!formData.name || !formData.code}>
-              <Plus className="w-4 h-4 mr-2" />
-              Créer
-            </Button>
+      <Modal isOpen={isCreateModalOpen} onClose={closeCreateModal} size="lg">
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <Key className="w-5 h-5 text-primary-600" />
+            <span>Ajouter une Permission</span>
           </div>
-        }
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Nom"
-              name="name"
-              value={formData.name}
-              onChange={handleFormChange}
-              required
-              placeholder="Ex: Créer produit"
-            />
-            <Input
-              label="Code"
-              name="code"
-              value={formData.code}
-              onChange={handleFormChange}
-              required
-              placeholder="Ex: product:create"
-            />
+        </ModalHeader>
+        <ModalBody>
+          <div className="space-y-4">
+            <Alert variant="info" className="flex items-start gap-3">
+              <Shield className="w-4 h-4 flex-shrink-0" />
+              <div>
+                <p className="text-sm">
+                  Le nom et le code de la permission sont obligatoires.
+                </p>
+              </div>
+            </Alert>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Nom *
+                </label>
+                <Input
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="Nom de la permission"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Code *
+                </label>
+                <Input
+                  name="code"
+                  value={formData.code}
+                  onChange={handleInputChange}
+                  placeholder="code_permission"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Catégorie
+                </label>
+                <Select
+                  value={formData.category}
+                  onChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                  options={categoryOptions.slice(1)} // Remove 'all' option
+                  placeholder="Sélectionnez une catégorie"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Statut
+                </label>
+                <Switch
+                  checked={formData.is_active}
+                  onChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+                  label={formData.is_active ? 'Active' : 'Inactive'}
+                />
+              </div>
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-medium">
+                  Description
+                </label>
+                <Input
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="Description de la permission"
+                />
+              </div>
+            </div>
           </div>
-          
-          <Input
-            label="Catégorie"
-            name="category"
-            as="select"
-            value={formData.category}
-            onChange={handleFormChange}
-            required
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={closeCreateModal}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleCreate}
+            isLoading={isSubmitting}
           >
-            {categories.slice(1).map((cat) => (
-              <option key={cat.value} value={cat.value}>
-                {cat.label}
-              </option>
-            ))}
-          </Input>
-          
-          <Input
-            label="Description"
-            name="description"
-            value={formData.description}
-            onChange={handleFormChange}
-            placeholder="Description de ce que permet cette permission"
-            as="textarea"
-            rows={3}
-          />
-          
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="is_active"
-              checked={formData.is_active}
-              onChange={handleFormChange}
-              className="w-4 h-4"
-            />
-            <span className="text-sm text-gray-700">Permission active</span>
-          </label>
-        </div>
+            <Check className="w-4 h-4 mr-2" />
+            Créer la Permission
+          </Button>
+        </ModalFooter>
       </Modal>
 
       {/* Edit Permission Modal */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        title={`Modifier: ${selectedPermission?.name}`}
-        size="md"
-        footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
-              Annuler
-            </Button>
-            <Button variant="primary" onClick={handleUpdate} disabled={!formData.name || !formData.code}>
-              <Edit className="w-4 h-4 mr-2" />
-              Mettre à jour
-            </Button>
+      <Modal isOpen={isEditModalOpen} onClose={closeEditModal} size="lg">
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <Edit className="w-5 h-5 text-primary-600" />
+            <span>Modifier la Permission</span>
           </div>
-        }
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Nom"
-              name="name"
-              value={formData.name}
-              onChange={handleFormChange}
-              required
-            />
-            <Input
-              label="Code"
-              name="code"
-              value={formData.code}
-              onChange={handleFormChange}
-              required
-              disabled
-            />
+        </ModalHeader>
+        <ModalBody>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Nom
+                </label>
+                <Input
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="Nom de la permission"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Code
+                </label>
+                <Input
+                  name="code"
+                  value={formData.code}
+                  onChange={handleInputChange}
+                  placeholder="code_permission"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Catégorie
+                </label>
+                <Select
+                  value={formData.category}
+                  onChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                  options={categoryOptions.slice(1)}
+                  placeholder="Sélectionnez une catégorie"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Statut
+                </label>
+                <Switch
+                  checked={formData.is_active}
+                  onChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+                  label={formData.is_active ? 'Active' : 'Inactive'}
+                />
+              </div>
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-medium">
+                  Description
+                </label>
+                <Input
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="Description de la permission"
+                />
+              </div>
+            </div>
           </div>
-          
-          <Input
-            label="Catégorie"
-            name="category"
-            as="select"
-            value={formData.category}
-            onChange={handleFormChange}
-            required
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={closeEditModal}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleUpdate}
+            isLoading={isSubmitting}
           >
-            {categories.slice(1).map((cat) => (
-              <option key={cat.value} value={cat.value}>
-                {cat.label}
-              </option>
-            ))}
-          </Input>
-          
-          <Input
-            label="Description"
-            name="description"
-            value={formData.description}
-            onChange={handleFormChange}
-            as="textarea"
-            rows={3}
-          />
-          
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="is_active"
-              checked={formData.is_active}
-              onChange={handleFormChange}
-              className="w-4 h-4"
-            />
-            <span className="text-sm text-gray-700">Permission active</span>
-          </label>
-        </div>
+            <Check className="w-4 h-4 mr-2" />
+            Mettre à jour
+          </Button>
+        </ModalFooter>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={handleDelete}
-        title={`Supprimer: ${selectedPermission?.name}`}
-        message={`Êtes-vous sûr de vouloir supprimer la permission ${selectedPermission?.name} ? Cette action est irréversible et peut affecter les rôles existants.`}
-        confirmText="Supprimer"
-        confirmVariant="danger"
-        cancelText="Annuler"
-      />
+      {/* Delete Permission Modal */}
+      <Modal isOpen={isDeleteModalOpen} onClose={closeDeleteModal}>
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-5 h-5 text-danger-600" />
+            <span>Supprimer la Permission</span>
+          </div>
+        </ModalHeader>
+        <ModalBody>
+          <Alert variant="danger" className="flex items-start gap-3">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Êtes-vous sûr de vouloir supprimer cette permission ?</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Cette action est irréversible. Les rôles utilisant cette permission seront affectés.
+              </p>
+            </div>
+          </Alert>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={closeDeleteModal}>
+            Annuler
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDelete}
+            isLoading={isSubmitting}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Supprimer
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   )
 }

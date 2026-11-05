@@ -1,19 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingCart, Plus, Search, Barcode, Trash2, Check, X, Package, Clock, AlertTriangle } from 'lucide-react'
+import { ShoppingCart, Plus, Search, Barcode, Trash2, Check, X, Package, Clock, AlertTriangle, ArrowRight, Minus, Plus as PlusIcon } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useCart } from '../hooks/useCart'
 import { useBarcodeScanner } from '../hooks/useBarcodeScanner'
+import { useDisclosure } from '../hooks/useDisclosure'
 import api from '../services/api'
 import { useToast } from '../components/common/Toast'
-import Button from '../components/common/Button'
-import Input from '../components/common/Input'
-import BarcodeInput from '../components/common/BarcodeInput'
-import ProductCard from '../components/common/ProductCard'
-import Modal, { ConfirmModal } from '../components/common/Modal'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card'
+import { Button } from '../components/ui/Button'
+import { Input } from '../components/ui/Input'
+import { Badge } from '../components/ui/Badge'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '../components/ui/Modal'
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table'
+import { Skeleton } from '../components/ui/Skeleton'
+import { Select } from '../components/ui/Select'
+import { Separator } from '../components/ui/Separator'
+import { cn, formatCurrency, formatDate } from '../lib/utils'
 
 /**
- * Sales Page for Pharmacie 360
+ * Sales Page for Pharma 360
  * Point of sale interface with barcode scanning and FEFO selection
  * 
  * FRNT-005: Session Vente (Recherche + FEFO + envoi Caisse)
@@ -27,11 +33,10 @@ function SalesPage() {
     items: cartItems,
     addItem,
     removeItem,
-    incrementQuantity,
-    decrementQuantity,
+    updateItemQuantity,
     clearCart,
-    getSummary,
-    prepareForSubmission
+    cartTotal,
+    cartCount,
   } = useCart()
   
   const { scanBarcode, isScanning } = useBarcodeScanner()
@@ -40,16 +45,34 @@ function SalesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [barcode, setBarcode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [showProductModal, setShowProductModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [quantity, setQuantity] = useState(1)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const {
+    isOpen: isProductModalOpen,
+    onOpen: openProductModal,
+    onClose: closeProductModal
+  } = useDisclosure()
+
+  const {
+    isOpen: isConfirmOpen,
+    onOpen: openConfirm,
+    onClose: closeConfirm
+  } = useDisclosure()
 
   // Fetch products
   useEffect(() => {
     fetchProducts()
   }, [])
+
+  useEffect(() => {
+    if (searchQuery) {
+      const timer = setTimeout(() => fetchProducts(), 500)
+      return () => clearTimeout(timer)
+    }
+  }, [searchQuery])
 
   const fetchProducts = async () => {
     try {
@@ -57,7 +80,7 @@ function SalesPage() {
       const response = await api.get('/products', {
         params: {
           search: searchQuery || undefined,
-          limit: 50
+          limit: 20
         }
       })
       setProducts(response.data.products || [])
@@ -84,10 +107,15 @@ function SalesPage() {
         if (result.batch) {
           // Add directly to cart
           addItem(result.product, result.batch, 1)
+          addToast({
+            type: 'success',
+            title: 'Produit ajouté',
+            message: `${result.product.name} - ${result.batch.batch_number}`
+          })
         } else {
           // No batch available, show product for manual selection
           setSelectedProduct(result.product)
-          setShowProductModal(true)
+          openProductModal()
         }
       }
       
@@ -96,497 +124,558 @@ function SalesPage() {
     } catch (error) {
       // Error is already handled by scanBarcode
     }
-  }, [scanBarcode, addItem])
+  }, [scanBarcode, addItem, openProductModal])
 
-  // Handle search
-  const handleSearch = (e) => {
-    e.preventDefault()
-    fetchProducts()
+  const handleBarcodeInput = (e) => {
+    if (e.key === 'Enter' && barcode.trim()) {
+      handleBarcodeScan(barcode.trim())
+    }
   }
 
-  // Handle product selection from list
-  const handleProductSelect = (product) => {
-    setSelectedProduct(product)
-    setSelectedBatch(product.batches?.[0] || null)
-    setQuantity(1)
-    setShowProductModal(true)
+  const handleSelectBatch = (batch) => {
+    setSelectedBatch(batch)
   }
 
-  // Handle add to cart from modal
   const handleAddToCart = () => {
-    if (!selectedProduct) return
-    
-    addItem(selectedProduct, selectedBatch, quantity)
-    setShowProductModal(false)
-    setSelectedProduct(null)
-    setSelectedBatch(null)
-    setQuantity(1)
+    if (selectedProduct && selectedBatch && quantity > 0) {
+      addItem(selectedProduct, selectedBatch, quantity)
+      addToast({
+        type: 'success',
+        title: 'Produit ajouté',
+        message: `${selectedProduct.name} x${quantity}`
+      })
+      closeProductModal()
+      setQuantity(1)
+      setSelectedBatch(null)
+    }
   }
 
-  // Handle clear barcode
-  const handleClearBarcode = () => {
-    setBarcode('')
+  const handleUpdateQuantity = (productId, batchId, delta) => {
+    const currentItem = cartItems.find(
+      item => item.product.id === productId && item.batch?.id === batchId
+    )
+    if (currentItem) {
+      const newQuantity = currentItem.quantity + delta
+      if (newQuantity > 0) {
+        updateItemQuantity(productId, batchId, newQuantity)
+      } else {
+        removeItem(productId, batchId)
+      }
+    }
   }
 
-  // Submit sale to cashier
-  const handleSubmit = () => {
+  const handleSendToCashier = async () => {
     if (cartItems.length === 0) {
       addToast({
-        type: 'error',
+        type: 'warning',
         title: 'Panier vide',
-        message: 'Ajoutez des produits avant de valider'
+        message: 'Ajoutez des produits avant de envoyer à la caisse'
       })
       return
     }
-    
-    setShowConfirm(true)
-  }
 
-  const confirmSubmit = async () => {
+    setIsSubmitting(true)
     try {
-      const saleData = prepareForSubmission()
-      saleData.user_id = user?.id
-      
-      // Create sale
-      const response = await api.post('/sales', saleData)
-      
+      // Prepare cart data for submission
+      const saleData = cartItems.map(item => ({
+        product_id: item.product.id,
+        batch_id: item.batch?.id,
+        quantity: item.quantity,
+        unit_price: item.batch?.selling_price || item.product.selling_price
+      }))
+
+      // Send to backend
+      const response = await api.post('/sales/prepare', {
+        items: saleData,
+        user_id: user.id
+      })
+
+      // Clear cart and redirect to cashier
+      clearCart()
       addToast({
         type: 'success',
-        title: 'Vente créée',
-        message: `Vente #${response.data.id} envoyée à la caisse`
+        title: 'Vente préparée',
+        message: 'Les produits ont été envoyés à la caisse'
       })
       
-      // Clear cart and navigate
-      clearCart()
-      setBarcode('')
-      setShowConfirm(false)
-      
-      // Navigate to cashier
-      navigate('/cashier')
+      navigate('/cashier', {
+        state: { saleId: response.data.sale_id }
+      })
     } catch (error) {
-      const message = error.response?.data?.detail || 
-                     error.response?.data?.message ||
-                     'Impossible de créer la vente'
       addToast({
         type: 'error',
         title: 'Erreur',
-        message
+        message: error.response?.data?.message || 'Impossible de préparer la vente'
       })
+    } finally {
+      setIsSubmitting(false)
+      closeConfirm()
     }
   }
 
-  // Format currency
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'XOF'
-    }).format(amount || 0)
-  }
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        product.name.toLowerCase().includes(query) ||
+        product.barcode.toLowerCase().includes(query) ||
+        (product.category && product.category.toLowerCase().includes(query))
+      )
+    })
+  }, [products, searchQuery])
 
-  // Get stock status for a product/batch
-  const getStockStatus = (product, batch) => {
-    if (!batch) return { label: 'Pas de lot', color: 'danger' }
+  const getBatchStatus = (batch) => {
+    const expiryDate = new Date(batch.expiry_date)
+    const today = new Date()
+    const daysDiff = (expiryDate - today) / (1000 * 60 * 60 * 24)
     
-    if (batch.quantity === 0) return { label: 'Rupture', color: 'danger' }
-    if (batch.quantity <= (product?.stock_min || 5)) return { label: 'Stock faible', color: 'warning' }
-    if (batch.days_until_expiry && batch.days_until_expiry <= 30) {
-      return { label: `Péremption ${batch.days_until_expiry}j`, color: 'danger' }
-    }
-    if (batch.days_until_expiry && batch.days_until_expiry <= 60) {
-      return { label: `Péremption ${batch.days_until_expiry}j`, color: 'warning' }
-    }
-    
-    return { label: 'OK', color: 'success' }
+    if (daysDiff <= 30) return { text: 'Péremption proche', variant: 'warning' }
+    if (daysDiff <= 0) return { text: 'Périmé', variant: 'danger' }
+    return { text: 'OK', variant: 'success' }
   }
 
-  const cartSummary = getSummary()
+//  const cartSummary = getSummary ? getSummary() : { itemCount: 0, totalItems: 0, subtotal: 0, tax: 0, discount: 0, total: 0 }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Point de Vente
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Scannez ou recherchez des produits pour créer une vente
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={clearCart} disabled={cartItems.length === 0}>
-            <Trash2 className="w-4 h-4 mr-2" />
-            Vider
-          </Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={cartItems.length === 0}>
-            <Check className="w-4 h-4 mr-2" />
-            Valider ({cartSummary.itemCount})
-          </Button>
-        </div>
-      </div>
-
-      {/* Barcode Scanner */}
-      <div className="card">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <BarcodeInput
-              value={barcode}
-              onChange={(e) => setBarcode(e.target.value)}
-              onScan={handleBarcodeScan}
-              onClear={handleClearBarcode}
-              placeholder="Scanner un code-barres..."
-              disabled={isScanning}
-              className="w-full"
-            />
-          </div>
-          <div className="flex-1">
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <Input
-                type="text"
-                placeholder="Rechercher un produit..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1"
-              />
-              <Button type="submit" variant="primary" isLoading={isLoading}>
-                <Search className="w-4 h-4" />
-              </Button>
-            </form>
-          </div>
-        </div>
-        
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200">
-          <Button variant="outline" size="sm" onClick={() => fetchProducts()}>
-            <Package className="w-4 h-4 mr-2" />
-            Tous les produits
-          </Button>
-          <Button variant="outline" size="sm">
-            <AlertTriangle className="w-4 h-4 mr-2" />
-            Stock faible
-          </Button>
-          <Button variant="outline" size="sm">
-            <Clock className="w-4 h-4 mr-2" />
-            Péremption proche
-          </Button>
-        </div>
-      </div>
-
-      {/* Cart Summary */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Panier de vente
-          </h2>
-          <span className="text-sm text-gray-500">
-            {cartSummary.itemCount} produit(s) | {cartSummary.totalItems} unités
-          </span>
-        </div>
-        
-        {cartItems.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <ShoppingCart className="mx-auto w-12 h-12 mb-4" />
-            <p>Le panier est vide</p>
-            <p className="text-xs mt-1">Scannez ou recherchez un produit pour commencer</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {cartItems.map((item, index) => {
-              const status = getStockStatus(item.product, item.batch)
-              
-              return (
-                <div
-                  key={`${item.product.id}-${index}`}
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                >
-                  <img
-                    src={item.product.image || `/placeholder-product.png`}
-                    alt={item.product.name}
-                    className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center object-cover"
-                  >
-                    {!item.product.image && <Package className="w-6 h-6 text-primary-600" />}
-                  </img>
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{item.product.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {item.batch?.batch_number ? `Lot: ${item.batch.batch_number}` : item.product.barcode}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs mt-1">
-                      <span className={`badge badge-${status.color}`}>
-                        {status.label}
-                      </span>
-                      {item.batch?.expiry_date && (
-                        <span className="text-gray-500">
-                          Péremption: {new Date(item.batch.expiry_date).toLocaleDateString('fr-FR')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => decrementQuantity(index)}
-                      disabled={item.quantity <= 1}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                    <span className="min-w-[2rem] text-center font-medium">{item.quantity}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => incrementQuantity(index)}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeItem(index)}
-                      className="text-danger-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="text-right">
-                    <p className="font-medium">
-                      {formatCurrency((item.batch?.selling_price || item.product.price) * item.quantity)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      x {formatCurrency(item.batch?.selling_price || item.product.price)}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-            
-            <div className="pt-4 border-t border-gray-200 flex items-center justify-end gap-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Sous-total</p>
-                <p className="text-xl font-bold text-gray-900">
-                  {formatCurrency(cartSummary.total)}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Products List */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Produits disponibles
-          </h2>
-          <span className="text-sm text-gray-500">
-            {products.length} produit(s)
-          </span>
-        </div>
-        
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600"></div>
-          </div>
-        ) : products.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Package className="mx-auto w-12 h-12 mb-4" />
-            <p>Aucun produit trouvé</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {products.map((product) => {
-              const status = getStockStatus(product, product.batches?.[0])
-              
-              return (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  batch={product.batches?.[0]}
-                  onClick={() => handleProductSelect(product)}
-                  showBatch={true}
-                  showBarcode={true}
+      <Card>
+        <CardHeader>
+          <CardTitle>Session Vente</CardTitle>
+          <CardDescription>
+            Recherchez et ajoutez des produits à la vente - Sélection automatique FEFO
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Barcode Scanner */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Scanner le code-barres..."
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  onKeyDown={handleBarcodeInput}
+                  className="pl-10"
+                  disabled={isScanning}
                 />
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Product Selection Modal */}
-      <Modal
-        isOpen={showProductModal}
-        onClose={() => setShowProductModal(false)}
-        title={selectedProduct?.name || 'Sélectionner un produit'}
-        size="lg"
-        footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowProductModal(false)}>
-              Annuler
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleAddToCart}
-              disabled={!selectedProduct || quantity <= 0}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Ajouter au panier
-            </Button>
-          </div>
-        }
-      >
-        {selectedProduct && (
-          <div className="space-y-4">
-            <div className="flex gap-4">
-              <div className="w-24 h-24 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Package className="w-12 h-12 text-primary-600" />
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">{selectedProduct.name}</h3>
-                {selectedProduct.dci && (
-                  <p className="text-sm text-gray-500">DCI: {selectedProduct.dci}</p>
-                )}
-                {selectedProduct.barcode && (
-                  <p className="text-sm text-gray-500">Code-barres: {selectedProduct.barcode}</p>
-                )}
-                <p className="text-sm text-gray-600 mt-2">
-                  {selectedProduct.description}
+              {isScanning && (
+                <p className="text-sm text-primary-600 mt-1">
+                  Scan en cours...
                 </p>
+              )}
+            </div>
+            
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Rechercher un produit..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
 
-            {/* Batch Selection */}
-            <div>
-              <h4 className="font-medium text-gray-900 mb-2">
-                Sélectionner un lot (FEFO)
-              </h4>
-              {selectedProduct.batches && selectedProduct.batches.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {selectedProduct.batches.map((batch) => {
-                    const status = getStockStatus(selectedProduct, batch)
-                    const isSelected = selectedBatch?.id === batch.id
-                    
-                    return (
-                      <div
-                        key={batch.id}
-                        onClick={() => {
-                          if (batch.quantity > 0 && !batch.is_expired) {
-                            setSelectedBatch(batch)
-                          }
-                        }}
-                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                          isSelected
-                            ? 'border-primary-500 bg-primary-50'
-                            : batch.quantity > 0 && !batch.is_expired
-                              ? 'border-gray-200 hover:border-primary-300'
-                              : 'border-gray-200 opacity-50 cursor-not-allowed'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900">{batch.batch_number}</p>
-                            <p className="text-xs text-gray-500">
-                              Stock: {batch.quantity} {selectedProduct.unit}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Péremption: {new Date(batch.expiry_date).toLocaleDateString('fr-FR')}
-                            </p>
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Products List */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Produits Disponibles ({filteredProducts.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-12">
+                <Package className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500">Aucun produit trouvé</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredProducts.map((product) => {
+                  // Find the FEFO batch (nearest expiry date with stock)
+                  const fefoBatch = product.batches?.reduce((nearest, batch) => {
+                    if (batch.current_stock > 0) {
+                      const expiryDate = new Date(batch.expiry_date)
+                      const nearestExpiry = new Date(nearest?.expiry_date || '9999-12-31')
+                      return expiryDate < nearestExpiry ? batch : nearest
+                    }
+                    return nearest
+                  }, null)
+
+                  return (
+                    <Card
+                      key={product.id}
+                      className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => {
+                        setSelectedProduct(product)
+                        setSelectedBatch(fefoBatch)
+                        openProductModal()
+                      }}
+                    >
+                      <div className="flex items-start gap-4">
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="w-16 h-16 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                            <Package className="w-8 h-8 text-gray-400" />
                           </div>
-                          <div className="text-right">
-                            <p className="font-medium text-gray-900">
-                              {formatCurrency(batch.selling_price)}
-                            </p>
-                            <span className={`badge badge-${status.color} mt-1`}>
-                              {status.label}
-                            </span>
+                        )}
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                                {product.name}
+                              </h3>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {product.barcode}
+                              </p>
+                            </div>
+                            
+                            <Badge variant="secondary">
+                              {product.category}
+                            </Badge>
+                          </div>
+                          
+                          <div className="mt-2 flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Stock: {product.current_stock || 0}
+                              </p>
+                              {fefoBatch && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                  Lot: {fefoBatch.batch_number} - Péremption: {formatDate(fefoBatch.expiry_date)}
+                                </p>
+                              )}
+                            </div>
+                            
+                            <div className="text-right">
+                              <p className="font-bold text-primary-600 dark:text-primary-400">
+                                {formatCurrency(product.selling_price || 0)}
+                              </p>
+                              {fefoBatch && (
+                                <Badge 
+                                  variant={getBatchStatus(fefoBatch).variant}
+                                  size="xs"
+                                  className="mt-1"
+                                >
+                                  {getBatchStatus(fefoBatch).text}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-4 text-gray-500">
-                  <AlertTriangle className="mx-auto w-8 h-8 mb-2" />
-                  <p>Aucun lot disponible pour ce produit</p>
-                </div>
-              )}
-            </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-            {/* Quantity */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Quantité
-              </label>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={quantity <= 1}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-                <Input
-                  type="number"
-                  value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                  min={1}
-                  className="w-20 text-center"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (selectedBatch) {
-                      const max = selectedBatch.quantity
-                      setQuantity(Math.min(quantity + 1, max))
-                    } else {
-                      setQuantity(quantity + 1)
-                    }
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
+        {/* Cart */}
+        <Card className="sticky top-6 h-fit">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Panier de Vente</span>
+              <Badge variant={cartCount > 0 ? 'primary' : 'secondary'}>
+                {cartCount}
+              </Badge>
+            </CardTitle>
+            <CardDescription>
+              {cartItems.length} produit(s) - {formatCurrency(cartTotal)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {cartItems.length === 0 ? (
+              <div className="text-center py-8">
+                <ShoppingCart className="w-12 h-12 mx-auto text-gray-300 mb-2" />
+                <p className="text-sm text-gray-500">Panier vide</p>
               </div>
-              {selectedBatch && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Maximum disponible: {selectedBatch.quantity}
-                </p>
-              )}
-            </div>
+            ) : (
+              <>
+                <Table>
+                  <TableBody>
+                    {cartItems.map((item) => (
+                      <TableRow key={`${item.product.id}-${item.batch?.id}`}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleUpdateQuantity(item.product.id, item.batch?.id, -1)
+                              }}
+                              className="h-6 w-6"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <span>{item.quantity}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleUpdateQuantity(item.product.id, item.batch?.id, 1)
+                              }}
+                              className="h-6 w-6"
+                            >
+                              <PlusIcon className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-sm">{item.product.name}</span>
+                            {item.batch && (
+                              <span className="text-xs text-gray-500">
+                                Lot: {item.batch.batch_number}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency((item.batch?.selling_price || item.product.selling_price || 0) * item.quantity)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              removeItem(item.product.id, item.batch?.id)
+                            }}
+                            className="h-6 w-6 text-danger-500 hover:text-danger-600"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                
+                <Separator className="my-4" />
+                
+                <div className="flex items-center justify-between text-sm">
+                  <span>Sous-total:</span>
+                  <span className="font-medium">{formatCurrency(cartTotal)}</span>
+                </div>
+              </>
+            )}
+          </CardContent>
+          <CardFooter>
+            <Button
+              className="w-full"
+              onClick={openConfirm}
+              disabled={cartItems.length === 0 || isSubmitting}
+            >
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Envoyer à la Caisse
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
 
-            {/* Summary */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Prix unitaire:</span>
-                <span className="font-medium">
-                  {formatCurrency(selectedBatch?.selling_price || selectedProduct.price)}
-                </span>
-              </div>
-              <div className="flex justify-between text-lg font-bold mt-1">
-                <span>Total:</span>
-                <span>
-                  {formatCurrency((selectedBatch?.selling_price || selectedProduct.price) * quantity)}
-                </span>
-              </div>
-            </div>
+      {/* Product Modal */}
+      <Modal isOpen={isProductModalOpen} onClose={closeProductModal} size="lg">
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-primary-600" />
+            <span>Sélectionner un Lot</span>
           </div>
-        )}
+        </ModalHeader>
+        <ModalBody>
+          {selectedProduct && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-4">
+                {selectedProduct.image_url ? (
+                  <img
+                    src={selectedProduct.image_url}
+                    alt={selectedProduct.name}
+                    className="w-20 h-20 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                    <Package className="w-10 h-10 text-gray-400" />
+                  </div>
+                )}
+                
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">
+                    {selectedProduct.name}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Code: {selectedProduct.barcode}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Catégorie: {selectedProduct.category}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Prix: {formatCurrency(selectedProduct.selling_price || 0)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Lots Disponibles (Sélection FEFO automatique)
+                </h4>
+                
+                {selectedProduct.batches && selectedProduct.batches.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2">
+                    {selectedProduct.batches
+                      .filter(batch => batch.current_stock > 0)
+                      .sort((a, b) => {
+                        const dateA = new Date(a.expiry_date)
+                        const dateB = new Date(b.expiry_date)
+                        return dateA - dateB // Sort by nearest expiry date
+                      })
+                      .map((batch) => {
+                        const expiryDate = new Date(batch.expiry_date)
+                        const today = new Date()
+                        const daysDiff = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24))
+                        
+                        return (
+                          <Card
+                            key={batch.id}
+                            className={cn(
+                              'p-3 cursor-pointer transition-all',
+                              selectedBatch?.id === batch.id 
+                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' 
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                            )}
+                            onClick={() => handleSelectBatch(batch)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-sm">
+                                  Lot: {batch.batch_number}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  Péremption: {formatDate(batch.expiry_date)}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  Stock: {batch.current_stock}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium text-sm">
+                                  {formatCurrency(batch.selling_price || selectedProduct.selling_price || 0)}
+                                </p>
+                                {daysDiff <= 30 && (
+                                  <Badge variant={daysDiff <= 0 ? 'danger' : 'warning'} size="xs" className="mt-1">
+                                    {daysDiff <= 0 ? 'Périmé' : `${daysDiff} jours`}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </Card>
+                        )
+                      })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Aucun lot disponible
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      disabled={quantity <= 1}
+                    >
+                      <Minus className="w-4 h-4" />
+                    </Button>
+                    <Input
+                      type="number"
+                      value={quantity}
+                      onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-16 text-center"
+                      min={1}
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setQuantity(quantity + 1)}
+                    >
+                      <PlusIcon className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={closeProductModal}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleAddToCart}
+            disabled={!selectedBatch}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Ajouter au Panier
+          </Button>
+        </ModalFooter>
       </Modal>
 
       {/* Confirm Modal */}
-      <ConfirmModal
-        isOpen={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        onConfirm={confirmSubmit}
-        title="Confirmer la vente"
-        message={`Vous allez envoyer ${cartSummary.itemCount} produit(s) pour un total de ${formatCurrency(cartSummary.total)} à la caisse. Confirmez-vous ?`}
-        confirmText="Confirmer"
-        cancelText="Annuler"
-      />
+      <Modal isOpen={isConfirmOpen} onClose={closeConfirm}>
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <ShoppingCart className="w-5 h-5 text-primary-600" />
+            <span>Confirmer l'envoi à la caisse</span>
+          </div>
+        </ModalHeader>
+        <ModalBody>
+          <p className="text-gray-600 dark:text-gray-400">
+            Vous allez envoyer {cartItems.length} produit(s) à la caisse pour un total de {formatCurrency(cartTotal)}.
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            La sélection FEFO a été appliquée automatiquement pour chaque produit.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={closeConfirm}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleSendToCashier}
+            isLoading={isSubmitting}
+          >
+            <Check className="w-4 h-4 mr-2" />
+            Confirmer
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: '/api/v1',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -51,4 +51,5 @@ api.interceptors.response.use(
   }
 )
 
+export { api }
 export default api
