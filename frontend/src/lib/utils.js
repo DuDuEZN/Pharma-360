@@ -1,0 +1,86 @@
+import { clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+/**
+ * Utility function to merge Tailwind CSS classes
+ * Combines clsx for conditional classes with tailwind-merge for deduplication
+ */
+export function cn(...inputs) {
+  return twMerge(clsx(inputs))
+}
+
+/**
+ * Format currency in XOF (West African CFA Franc)
+ */
+export function formatCurrency(amount, currency = 'XOF') {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount)
+}
+
+/**
+ * Format date for display
+ */
+export function formatDate(dateString, locale = 'fr-FR') {
+  const date = new Date(dateString)
+  return date.toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+/**
+ * Format date with time
+ */
+export function formatDateTime(dateString, locale = 'fr-FR') {
+  const date = new Date(dateString)
+  return date.toLocaleString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+/**
+ * Truncate text with ellipsis
+ */
+export function truncate(text, maxLength) {
+  if (!text) return ''
+  if (text.length <= maxLength) return text
+  return text.slice(0, maxLength) + '...'
+}
+
+/**
+ * Generate unique ID
+ */
+export function generateId() {
+  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36)
+}
+
+/**
+ * Debounce function for performance optimization
+ */
+export function debounce(func, wait) {
+  let timeout
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout)
+      func(...args)
+    }
+    clearTimeout(timeout)
+    timeout = setTimeout(later, wait)
+  }
+}
+
+/**
+ * Sleep function for async operations
+ */
+export function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
