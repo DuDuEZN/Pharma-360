@@ -9,7 +9,7 @@
 # ===========================================
 
 # Étape 1: Build (Node.js pour compiler l'application)
-FROM node:18-alpine as builder
+FROM node:18-alpine AS builder
 
 # Configuration du builder
 WORKDIR /app

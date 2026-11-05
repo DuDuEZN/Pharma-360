@@ -189,7 +189,7 @@ function CashierPage() {
     } catch (error) {
       addToast({
         type: 'error',
-        title: 'Erreur d'impression',
+        title: 'Erreur d\'impression',
         message: 'Impossible d\'imprimer le ticket'
       })
     } finally {
