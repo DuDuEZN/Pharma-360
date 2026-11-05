@@ -43,7 +43,7 @@ function Header() {
         {/* Search */}
         <div className="hidden md:flex items-center flex-1 max-w-md">
           <Input
-            leftIcon={<Search className="w-4 h-4 text-gray-400" />}
+            leftIcon={Search}
             placeholder="Rechercher un produit..."
             className="w-full"
           />

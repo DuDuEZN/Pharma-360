@@ -191,7 +191,7 @@ function ProductsPage() {
                   value={barcodeInput}
                   onChange={(e) => setBarcodeInput(e.target.value)}
                   onKeyDown={handleBarcodeScan}
-                  leftIcon={<Barcode className="w-4 h-4" />}
+                  leftIcon={Barcode}
                   className="w-48"
                 />
               </div>

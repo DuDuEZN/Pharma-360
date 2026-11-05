@@ -440,7 +440,7 @@ function CashierPage() {
                       value={amountPaid}
                       onChange={(e) => setAmountPaid(e.target.value)}
                       placeholder="Montant payé"
-                      leftIcon={<Banknote className="w-4 h-4" />}
+                      leftIcon={Banknote}
                     />
                   </div>
 

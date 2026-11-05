@@ -6,8 +6,8 @@ describe('API client', () => {
     localStorage.clear()
   })
 
-  it('uses /api as the base URL', () => {
-    expect(api.defaults.baseURL).toBe('/api')
+  it('uses /api/v1 as the base URL', () => {
+    expect(api.defaults.baseURL).toBe('/api/v1')
   })
 
   it('adds the bearer token from localStorage on requests', () => {

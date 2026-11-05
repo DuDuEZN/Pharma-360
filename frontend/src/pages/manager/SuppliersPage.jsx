@@ -692,7 +692,7 @@ const SuppliersPage = () => {
                   value={invoiceFormData.total_amount}
                   onChange={(e) => setInvoiceFormData({...invoiceFormData, total_amount: parseFloat(e.target.value) || 0})}
                   placeholder="100000"
-                  leftIcon={<DollarSign className="w-4 h-4" />}
+                  leftIcon={DollarSign}
                 />
               </div>
             </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { Package, User, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { Package, User, Lock, ArrowRight } from 'lucide-react'
 import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card'
@@ -12,7 +12,6 @@ import { cn } from '../lib/utils'
 function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   
@@ -69,9 +68,7 @@ function LoginPage() {
     }
   }
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword)
-  }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 p-4">
@@ -82,7 +79,7 @@ function LoginPage() {
             <div className="mx-auto w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-2xl flex items-center justify-center mb-4">
               <Package className="w-8 h-8 text-primary-600 dark:text-primary-400" />
             </div>
-            <CardTitle className="text-2xl">Pharma 360</CardTitle>
+            <CardTitle className="text-2xl">Pharmacie 360</CardTitle>
             <CardDescription className="text-center">
               Plateforme de gestion de pharmacie
             </CardDescription>
@@ -101,10 +98,11 @@ function LoginPage() {
               <div className="space-y-2">
                 <Input
                   type="text"
+                  label="Nom d'utilisateur"
                   placeholder="Nom d'utilisateur"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  leftIcon={<User className="w-5 h-5 text-gray-400" />}
+                  leftIcon={User}
                   required
                   autoComplete="username"
                   autoFocus
@@ -113,24 +111,12 @@ function LoginPage() {
 
               <div className="space-y-2">
                 <Input
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
+                  label="Mot de passe"
                   placeholder="Mot de passe"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  leftIcon={<Lock className="w-5 h-5 text-gray-400" />}
-                  rightIcon={
-                    <button
-                      type="button"
-                      onClick={togglePasswordVisibility}
-                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <Eye className="w-5 h-5 text-gray-400" />
-                      )}
-                    </button>
-                  }
+                  leftIcon={Lock}
                   required
                   autoComplete="current-password"
                 />
