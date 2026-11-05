@@ -4,7 +4,8 @@ Business logic for managing supplier invoices
 """
 
 from datetime import datetime, date
-from typing import Optional, List, Dict, Any, UploadFile
+from typing import Optional, List, Dict, Any
+from fastapi import UploadFile
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,7 @@ from sqlalchemy import select, func, and_, or_, desc
 from sqlalchemy.orm import joinedload
 
 from ..models.invoice import Invoice
+from ..models.user import User
 from ..models.supplier import Supplier
 from ..models.batch import Batch
 from ..models.product import Product
@@ -438,3 +440,6 @@ class InvoiceService:
             "amount_by_status": amount_by_status,
             "total_amount": sum(amount_by_status.values())
         }
+
+# Singleton instance
+invoice_service = InvoiceService()

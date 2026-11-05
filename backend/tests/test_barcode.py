@@ -39,7 +39,7 @@ class TestBarcodeEndpoint:
     
     def test_barcode_scan_endpoint_exists(self, client):
         """Test that barcode scan endpoint exists"""
-        response = client.get("/api/barcode/scan")
+        response = client.get("/api/v1/barcode/scan")
         # Should return 405 (method not allowed) or 401 (unauthorized)
         # The endpoint exists if we don't get 404
         assert response.status_code != 404
@@ -63,7 +63,7 @@ class TestBarcodeEndpoint:
                 })
                 
                 response = client.post(
-                    "/api/barcode/scan",
+                    "/api/v1/barcode/scan",
                     json={"barcode": "123456789"}
                 )
                 
@@ -80,7 +80,7 @@ class TestBarcodeEndpoint:
                 mock_scan.return_value = AsyncMock(return_value=None)
                 
                 response = client.post(
-                    "/api/barcode/scan",
+                    "/api/v1/barcode/scan",
                     json={"barcode": "INVALID"}
                 )
                 
@@ -152,7 +152,7 @@ class TestBarcodeMiddleware:
             
             # Test with JSON
             response = client.post(
-                "/api/barcode/scan",
+                "/api/v1/barcode/scan",
                 json={"barcode": "123456789"}
             )
             
@@ -179,7 +179,7 @@ class TestBarcodePerformance:
                 
                 for barcode in barcodes:
                     response = client.post(
-                        "/api/barcode/scan",
+                        "/api/v1/barcode/scan",
                         json={"barcode": barcode}
                     )
                     assert response.status_code in [200, 401, 403]
@@ -200,7 +200,7 @@ class TestBarcodePerformance:
                 responses = []
                 for i in range(5):
                     response = client.post(
-                        "/api/barcode/scan",
+                        "/api/v1/barcode/scan",
                         json={"barcode": f"BARCODE{i}"}
                     )
                     responses.append(response)
@@ -219,7 +219,7 @@ class TestBarcodeEdgeCases:
             mock_depends.return_value = mock_current_user
             
             response = client.post(
-                "/api/barcode/scan",
+                "/api/v1/barcode/scan",
                 json={"barcode": ""}
             )
             
@@ -232,7 +232,7 @@ class TestBarcodeEdgeCases:
             
             long_barcode = "A" * 1000
             response = client.post(
-                "/api/barcode/scan",
+                "/api/v1/barcode/scan",
                 json={"barcode": long_barcode}
             )
             
@@ -245,7 +245,7 @@ class TestBarcodeEdgeCases:
             
             special_barcode = "!@#$%^&*()_+-={}[]|:;<>?,./"
             response = client.post(
-                "/api/barcode/scan",
+                "/api/v1/barcode/scan",
                 json={"barcode": special_barcode}
             )
             

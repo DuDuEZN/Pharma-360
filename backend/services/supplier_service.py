@@ -337,3 +337,6 @@ class SupplierService:
             "total_purchases": total_purchases,
             "top_suppliers": top_suppliers
         }
+
+# Singleton instance
+supplier_service = SupplierService()

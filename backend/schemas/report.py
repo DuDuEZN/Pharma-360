@@ -7,7 +7,7 @@ from datetime import date, datetime
 from typing import Optional, Literal
 from pydantic import Field, field_validator
 
-from .base import BaseSchema
+from pydantic import BaseModel as BaseSchema
 
 
 class ReportBase(BaseSchema):
