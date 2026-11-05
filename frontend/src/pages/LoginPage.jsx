@@ -32,21 +32,21 @@ function LoginPage() {
       addToast({
         type: 'error',
         title: 'Erreur',
-        message: 'Veuillez remplir tous les champs'
+        message: 'Veuillez remplir tous les champs',
       })
       return
     }
 
     setIsLoading(true)
-    
+
     try {
       const result = await login(username, password)
-      
+
       if (result.success) {
         addToast({
           type: 'success',
           title: 'Connexion réussie',
-          message: `Bienvenue, ${result.user.username}!`
+          message: `Bienvenue, ${result.user.username}!`,
         })
         navigate(from, { replace: true })
       } else {

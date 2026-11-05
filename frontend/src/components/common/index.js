@@ -1,31 +1,14 @@
-// Export all common components
-import Button from './Button'
-import Input from './Input'
-import BarcodeInput from './BarcodeInput'
-import ProductCard from './ProductCard'
-import Alert, { InfoAlert, SuccessAlert, WarningAlert, ErrorAlert } from './Alert'
-import Modal, { ConfirmModal } from './Modal'
-import ProtectedRoute from './ProtectedRoute'
-import Toast, { useToast, ToastProvider } from './Toast'
-import AlertSystem, { AlertBadge, AlertSummary } from './AlertSystem'
-
-export {
-  Button,
-  Input,
-  BarcodeInput,
-  ProductCard,
-  Alert,
-  InfoAlert,
-  SuccessAlert,
-  WarningAlert,
-  ErrorAlert,
-  Modal,
-  ConfirmModal,
-  ProtectedRoute,
-  Toast,
-  useToast,
-  ToastProvider,
-  AlertSystem,
-  AlertBadge,
-  AlertSummary,
-}
+// components/common/index.js - Centralized exports for common components
+export { default as Modal } from './Modal';
+export { default as Toast, Toaster } from './Toast';
+export { default as AdvancedSearch } from './AdvancedSearch';
+export { default as ChartComponent } from './ChartComponent';
+export { default as ProtectedRoute } from './ProtectedRoute';
+export { default as NotificationCenter } from './NotificationCenter';
+export { default as BarcodeInput } from './BarcodeInput';
+export { default as Button } from './Button';
+export { default as ProductCard } from './ProductCard';
+export { default as Alert } from './Alert';
+export { default as Input } from './Input';
+export { default as AlertSystem } from './AlertSystem';
+export { AlertBadge } from './AlertSystem';

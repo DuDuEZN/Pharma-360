@@ -3,51 +3,64 @@ API Documentation Endpoints for Pharmacie 360
 Provides Swagger/OpenAPI documentation and custom API docs
 """
 
+from typing import Any, Dict
+
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse
-from typing import Dict, Any
+from fastapi.responses import HTMLResponse, JSONResponse
+
 from backend.core.config import settings
+from backend.core.logging import get_logger
 
 router = APIRouter(prefix="/docs", tags=["Documentation"])
+logger = get_logger("docs")
 
 
 def custom_openapi() -> Dict[str, Any]:
     """Custom OpenAPI schema with Pharmacie 360 specific information"""
-    if settings.openapi_schema:
-        return settings.openapi_schema
-    
     return {
         "openapi": "3.0.2",
         "info": {
             "title": "Pharma-360 API",
             "description": "Pharmacie 360 - Systeme de Gestion de Pharmacie ERP",
             "version": "5.1.0",
-            "contact": {
-                "name": "Pharma-360 Team",
-                "email": "support@pharma360.bj"
-            },
+            "contact": {"name": "Pharma-360 Team", "email": "support@pharma360.bj"},
             "license": {
                 "name": "Proprietary",
-                "url": "https://github.com/DuDuEZN/Pharma-360"
-            }
+                "url": "https://github.com/DuDuEZN/Pharma-360",
+            },
         },
         "servers": [
             {"url": "http://localhost:8000", "description": "Development Server"},
-            {"url": "http://localhost:8080", "description": "Production Server (Docker)"}
+            {
+                "url": "http://localhost:8080",
+                "description": "Production Server (Docker)",
+            },
         ],
         "tags": [
-            {"name": "Authentification", "description": "Gestion des utilisateurs et authentification JWT"},
-            {"name": "Produits", "description": "CRUD Produits et gestion des codes-barres"},
+            {
+                "name": "Authentification",
+                "description": "Gestion des utilisateurs et authentification JWT",
+            },
+            {
+                "name": "Produits",
+                "description": "CRUD Produits et gestion des codes-barres",
+            },
             {"name": "Stocks", "description": "Gestion des stocks avec FEFO/FIFO"},
             {"name": "Ventes", "description": "Creation et gestion des ventes"},
             {"name": "Caisse", "description": "Encaissement et gestion de caisse"},
-            {"name": "Fournisseurs", "description": "Gestion des fournisseurs et factures"},
+            {
+                "name": "Fournisseurs",
+                "description": "Gestion des fournisseurs et factures",
+            },
             {"name": "Rapports", "description": "Generation de rapports"},
-            {"name": "Historique", "description": "Historique des ventes et statistiques"},
+            {
+                "name": "Historique",
+                "description": "Historique des ventes et statistiques",
+            },
             {"name": "Retours", "description": "Gestion des retours"},
             {"name": "Alertes", "description": "Systeme d'alertes"},
             {"name": "OCR", "description": "Reconnaissance optique des factures"},
-            {"name": "Documentation", "description": "Documentation API"}
+            {"name": "Documentation", "description": "Documentation API"},
         ],
         "components": {
             "securitySchemes": {
@@ -55,17 +68,18 @@ def custom_openapi() -> Dict[str, Any]:
                     "type": "http",
                     "scheme": "bearer",
                     "bearerFormat": "JWT",
-                    "description": "Token JWT pour l'authentification"
+                    "description": "Token JWT pour l'authentification",
                 }
             }
-        }
+        },
     }
 
 
 @router.get("/", response_class=HTMLResponse, summary="Swagger UI")
 async def get_swagger_documentation():
     """Redirect to Swagger UI documentation"""
-    return HTMLResponse(content="""
+    logger.info("Swagger UI documentation requested")
+    return HTMLResponse(content=""""
     <!DOCTYPE html>
     <html>
     <head>
@@ -100,12 +114,14 @@ async def get_swagger_documentation():
 @router.get("/openapi.json", response_class=JSONResponse, summary="OpenAPI Schema")
 async def get_openapi_json():
     """Return OpenAPI schema in JSON format"""
+    logger.info("OpenAPI schema requested")
     return JSONResponse(content=custom_openapi())
 
 
 @router.get("/redoc", response_class=HTMLResponse, summary="ReDoc")
 async def get_redoc_documentation():
     """Alternative documentation with ReDoc"""
+    logger.info("ReDoc documentation requested")
     return HTMLResponse(content="""
     <!DOCTYPE html>
     <html>
@@ -126,7 +142,9 @@ async def get_redoc_documentation():
     """)
 
 
-@router.get("/markdown", response_class=JSONResponse, summary="API Documentation Markdown")
+@router.get(
+    "/markdown", response_class=JSONResponse, summary="API Documentation Markdown"
+)
 async def get_api_documentation_markdown():
     """Return complete API documentation in Markdown format"""
     markdown = """# Pharma-360 API Documentation
@@ -198,18 +216,20 @@ Systeme implemente FEFO (First Expired, First Out) avec index PostgreSQL.
 ## Version
 API Version: 5.1.0
 """
+    logger.info("API documentation markdown requested")
     return JSONResponse(content={"documentation": markdown})
 
 
 @router.get("/health", summary="Health Check")
 async def health_check():
     """Check API health status"""
+    logger.info("Docs health check requested")
     return {
         "status": "healthy",
         "version": "5.1.0",
         "services": {
             "database": "connected",
             "cache": "connected",
-            "storage": "connected"
-        }
+            "storage": "connected",
+        },
     }

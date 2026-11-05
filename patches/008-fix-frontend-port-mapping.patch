@@ -1,0 +1,45 @@
+From: Pharma360 QA Team
+Subject: [PATCH 008/07] Fix frontend port mapping to match nginx config
+Date: 2026-11-01
+
+This patch fixes the frontend container port mapping. The frontend.conf
+listens on port 8080, but the docker-compose.yml was mapping 3000:80.
+
+The frontend.Dockerfile uses nginxinc/nginx-unprivileged:alpine which serves
+on port 8080 (as configured in frontend.conf), so we need to map 8080:8080.
+
+---
+ docker/docker-compose.yml | 1 +
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/docker/docker-compose.yml b/docker/docker-compose.yml
+index abc1234..def5678 100644
+--- a/docker/docker-compose.yml
++++ b/docker/docker-compose.yml
+@@ -93,7 +93,7 @@ services:
+     depends_on:
+       pharma360-backend:
+         condition: service_healthy
+     ports:
+-      - "${FRONTEND_PORT:-3000}:80"
++      - "${FRONTEND_PORT:-8080}:8080"
+     networks:
+       - pharma360-network
+     healthcheck:
+---
+To apply this patch:
+  cd /workspace/github__DuDuEZN__Pharma-360
+  patch -p1 < patches/008-fix-frontend-port-mapping.patch
+
+OR manually apply:
+  1. Edit docker/docker-compose.yml
+  2. Change line 96 from:
+     - "${FRONTEND_PORT:-3000}:80"
+     to:
+     - "${FRONTEND_PORT:-8080}:8080"
+
+Note: This change is necessary because:
+- frontend.conf has: listen 8080
+- The nginx container serves on port 8080
+- The reverse proxy (pharma360-nginx) proxies to http://pharma360-frontend:8080
+- So the frontend container must expose port 8080

@@ -10,6 +10,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Separator } from '../../components/ui/Separator';
 import { api } from '../../lib/api';
 import { cn, formatCurrency, formatDate } from '../../lib/utils';
+//import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card.jsx';
 
 // Register ChartJS components
 ChartJS.register(
@@ -91,7 +92,7 @@ const DashboardPage = () => {
         }
       });
       
-      if (statsResponse.data) {
+      if (statsResponse?.data) {
         setStats({
           totalSales: statsResponse.data.total_sales || 0,
           totalRevenue: statsResponse.data.total_revenue || 0,
@@ -134,6 +135,7 @@ const DashboardPage = () => {
       // Fetch category distribution
       const categoryResponse = await api.get('/products/categories/stats');
       
+      //if (categoryResponse?.data) {
       if (categoryResponse.data) {
         const labels = categoryResponse.data.map(item => item.category);
         const data = categoryResponse.data.map(item => item.count);
