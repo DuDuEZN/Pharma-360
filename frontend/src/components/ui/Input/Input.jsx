@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from 'react'
+import React, { forwardRef, useState, isValidElement, useId } from 'react'
 import { cn } from '@/lib/utils'
 import { Eye, EyeOff } from 'lucide-react'
 
@@ -10,8 +10,10 @@ const Input = forwardRef(({
   hint,
   leftIcon: LeftIcon,
   rightIcon: RightIcon,
+  id,
   ...props
 }, ref) => {
+  const inputId = useId()
   const [showPassword, setShowPassword] = useState(false)
   const isPassword = type === 'password'
   const inputType = isPassword && showPassword ? 'text' : type
@@ -19,18 +21,19 @@ const Input = forwardRef(({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={id || inputId} className="block text-sm font-medium text-gray-700 mb-1">
           {label}
         </label>
       )}
       <div className="relative">
         {LeftIcon && (
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <LeftIcon className="h-5 w-5 text-gray-400" />
+            {isValidElement(LeftIcon) ? LeftIcon : <LeftIcon className="h-5 w-5 text-gray-400" />}
           </div>
         )}
         <input
           ref={ref}
+          id={id || inputId}
           type={inputType}
           className={cn(
             'block w-full rounded-lg border bg-white px-3 py-2 text-sm placeholder:text-gray-400',
@@ -59,7 +62,7 @@ const Input = forwardRef(({
         )}
         {RightIcon && !isPassword && (
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-            <RightIcon className="h-5 w-5 text-gray-400" />
+            {isValidElement(RightIcon) ? RightIcon : <RightIcon className="h-5 w-5 text-gray-400" />}
           </div>
         )}
       </div>

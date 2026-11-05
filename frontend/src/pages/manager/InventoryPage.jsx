@@ -656,7 +656,7 @@ function InventoryPage() {
                   value={formData.cost_price}
                   onChange={handleInputChange}
                   placeholder="500"
-                  leftIcon={<DollarSign className="w-4 h-4" />}
+                  leftIcon={DollarSign}
                 />
               </div>
               <div className="space-y-2">
@@ -669,7 +669,7 @@ function InventoryPage() {
                   value={formData.selling_price}
                   onChange={handleInputChange}
                   placeholder="800"
-                  leftIcon={<DollarSign className="w-4 h-4" />}
+                  leftIcon={DollarSign}
                 />
               </div>
               <div className="space-y-2">
