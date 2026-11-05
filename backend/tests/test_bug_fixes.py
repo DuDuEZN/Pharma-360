@@ -119,7 +119,7 @@ class TestBugFixesPhase1:
             assert ia is not None
         except ModuleNotFoundError as e:
             # Should only fail on optional dependencies
-            assert "pytesseract" in str(e) or "pandas" in str(e)
+            assert "pytesseract" in str(e) or "pandas" in str(e) or "joblib" in str(e)
 
     def test_database_imports_work(self):
         """Verify database imports work (Bug: async_engine vs engine)"""

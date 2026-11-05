@@ -21,6 +21,14 @@ def mock_current_user():
     return user
 
 
+@pytest.fixture
+def client():
+    """Create a test client"""
+    from fastapi.testclient import TestClient
+    from backend.main import app
+    return TestClient(app)
+
+
 class TestBarcodeEndpoint:
     """Tests for barcode scanning endpoint"""
     
