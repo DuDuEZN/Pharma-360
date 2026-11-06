@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart3, TrendingUp, TrendingDown, Package, DollarSign, Calendar, Users, ShoppingCart, ArrowUp, ArrowDown, Filter, Download, RefreshCw, Shield, Activity } from 'lucide-react'
+import { BarChart3, TrendingUp, TrendingDown, Package, DollarSign, Calendar, Users, ShoppingCart, ArrowUp, ArrowDown, Filter, Download, RefreshCw, Shield, Activity, AlertCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../../components/ui/Select'
