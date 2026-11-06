@@ -16,19 +16,38 @@ import Layout from './components/layout/Layout'
 
 // Pages
 import LoginPage from './pages/LoginPage'
-
+import DashboardPage from './pages/DashboardPage'
 import ProductsPage from './pages/ProductsPage'
 import SalesPage from './pages/SalesPage'
 import CashierPage from './pages/CashierPage'
+import HelpPage from './pages/HelpPage'
+import ProductFormPage from './pages/ProductFormPage'
+import SaleFormPage from './pages/SaleFormPage'
+
+// Admin Pages
 import {
   AdminPage,
   UsersPage,
   RolesPage,
   PermissionsPage,
-  SettingsPage,
-  ReportsPage
+  AdminSettingsPage,
+  AdminReportsPage,
+  AdminAnalyticsPage
 } from './pages/admin'
-import { ManagerPage, InventoryPage, SuppliersPage, DashboardPage as ManagerDashboardPage } from './pages/manager'
+
+// Manager Pages
+import {
+  ManagerPage,
+  ManagerDashboardPage,
+  InventoryPage,
+  SuppliersPage,
+  CustomersPage,
+  OrdersPage,
+  DeliveriesPage,
+  ManagerReportsPage,
+  ManagerSettingsPage,
+  ManagerAnalyticsPage
+} from './pages/manager'
 
 // Protected Route
 import ProtectedRoute from './components/common/ProtectedRoute'
@@ -47,10 +66,29 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     
                     <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                      {/* Dashboard */}
                       <Route path="/" element={<ManagerDashboardPage />} />
+                      
+                      {/* Products */}
                       <Route path="/products" element={<ProductsPage />} />
+                      <Route path="/products/new" element={<ProductFormPage />} />
+                      <Route path="/products/:id/edit" element={<ProductFormPage />} />
+                      
+                      {/* Sales */}
                       <Route path="/sales" element={<SalesPage />} />
+                      <Route path="/sales/new" element={<SaleFormPage />} />
+                      
+                      {/* Cashier */}
                       <Route path="/cashier" element={<CashierPage />} />
+                      
+                      {/* Help */}
+                      <Route path="/help" element={<HelpPage />} />
+                      
+                      {/* Reports */}
+                      <Route path="/reports" element={<AdminReportsPage />} />
+                      
+                      {/* Settings */}
+                      <Route path="/settings" element={<AdminSettingsPage />} />
                       
                       {/* Admin Routes */}
                       <Route path="/admin" element={<AdminPage />}>
@@ -58,21 +96,28 @@ function App() {
                         <Route path="users" element={<UsersPage />} />
                         <Route path="roles" element={<RolesPage />} />
                         <Route path="permissions" element={<PermissionsPage />} />
-                        <Route path="settings" element={<SettingsPage />} />
-                        <Route path="reports" element={<ReportsPage />} />
+                        <Route path="settings" element={<AdminSettingsPage />} />
+                        <Route path="reports" element={<AdminReportsPage />} />
+                        <Route path="analytics" element={<AdminAnalyticsPage />} />
                       </Route>
                       
                       {/* Manager Routes */}
                       <Route path="/manager" element={<ManagerPage />}>
-                        <Route index element={<InventoryPage />} />
+                        <Route index element={<ManagerDashboardPage />} />
+                        <Route path="dashboard" element={<ManagerDashboardPage />} />
                         <Route path="inventory" element={<InventoryPage />} />
                         <Route path="suppliers" element={<SuppliersPage />} />
-                        <Route path="dashboard" element={<ManagerDashboardPage />} />
+                        <Route path="customers" element={<CustomersPage />} />
+                        <Route path="orders" element={<OrdersPage />} />
+                        <Route path="deliveries" element={<DeliveriesPage />} />
+                        <Route path="reports" element={<ManagerReportsPage />} />
+                        <Route path="analytics" element={<ManagerAnalyticsPage />} />
+                        <Route path="settings" element={<ManagerSettingsPage />} />
                       </Route>
                       
                     </Route>
                     
-                    <Route path="*" element={<div>404 - Page non trouve</div>} />
+                    <Route path="*" element={<div className="min-h-screen flex items-center justify-center text-2xl">404 - Page non trouvée</div>} />
                   </Routes>
                 </AlertProvider>
               </AlertsProvider>
