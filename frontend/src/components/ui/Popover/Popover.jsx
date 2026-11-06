@@ -1,6 +1,6 @@
 import React, { forwardRef, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 import { useDisclosure } from '../../hooks/useDisclosure';
 
 const PopoverContext = React.createContext();

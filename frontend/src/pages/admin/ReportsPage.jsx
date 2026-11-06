@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { FileText, Download, Calendar, BarChart3, PieChart, TrendingUp, TrendingDown, Filter, Search, RefreshCw, Printer, Eye, File, Xlsx, Pdf } from 'lucide-react'
+import { FileText, Download, Calendar, BarChart3, PieChart, TrendingUp, TrendingDown, Filter, Search, RefreshCw, Printer, Eye, File } from 'lucide-react'
 import api from '../../services/api'
 import { useToast } from '../../components/common/Toast'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../components/ui/Card'
@@ -66,8 +66,8 @@ function ReportsPage() {
 
   // Export formats
   const exportFormats = [
-    { value: 'pdf', label: 'PDF', icon: Pdf },
-    { value: 'xlsx', label: 'Excel', icon: Xlsx },
+    { value: 'pdf', label: 'PDF', icon: File },
+    { value: 'xlsx', label: 'Excel', icon: File },
     { value: 'csv', label: 'CSV', icon: File },
   ]
 

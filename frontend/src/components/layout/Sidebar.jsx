@@ -16,9 +16,9 @@ import {
   Sun,
   Monitor
 } from 'lucide-react'
-import { cn, truncate } from '../../lib/utils'
+import { cn, truncate } from '@/lib/utils'
 import { Badge } from '../ui/Badge'
-import { Tooltip } from '../ui/Tooltip'
+import Tooltip from '../ui/Tooltip'
 
 function Sidebar() {
   const { user } = useAuth()

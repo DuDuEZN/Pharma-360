@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 import { Alert } from '../Alert';
 
 const FormMessage = forwardRef(({ type = 'error', message, className, ...props }, ref) => {

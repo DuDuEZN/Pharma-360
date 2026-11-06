@@ -1,7 +1,7 @@
 import React, { forwardRef } from 'react';
 import { Button } from '../Button';
 import { Select } from '../Select';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 const Pagination = forwardRef(({
   className,
