@@ -20,6 +20,7 @@ from ..models.report import Report
 from ..models.sale import Sale
 from ..models.sale_item import SaleItem
 from ..models.user import User
+
 # from ..models.cash_register import CashRegister
 from ..schemas.report import (
     CashReportRequest,

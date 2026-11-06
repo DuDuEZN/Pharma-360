@@ -327,5 +327,6 @@ class ReturnService:
             most_returned_products=sorted_products,
         )
 
+
 # Singleton instance
 return_service = ReturnService()

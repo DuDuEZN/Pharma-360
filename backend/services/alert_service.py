@@ -317,5 +317,6 @@ class AlertService:
 
         return alerts
 
+
 # Singleton instance
 alert_service = AlertService()

@@ -481,5 +481,6 @@ class SaleHistoryService:
             sales_by_category=sales_by_category,
         )
 
+
 # Singleton instance
 sale_history_service = SaleHistoryService()

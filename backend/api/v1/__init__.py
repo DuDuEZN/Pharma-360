@@ -8,6 +8,7 @@ from .auth import router as auth_router
 from .users import router as users_router
 from .products import router as products_router
 from .batches import router as batches_router
+
 # from .sales import router as sales_router
 from .barcode import router as barcode_router
 from .batches import router as batches_router
@@ -30,7 +31,7 @@ routers = [
     users_router,
     products_router,
     batches_router,
-#     sales_router,
+    #     sales_router,
     barcode_router,
     alerts_router,
     returns_router,

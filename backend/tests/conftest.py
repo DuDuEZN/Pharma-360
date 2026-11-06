@@ -11,6 +11,7 @@ from unittest.mock import Mock
 def client():
     """Create a test client for FastAPI"""
     from backend.main import app
+
     return TestClient(app)
 
 

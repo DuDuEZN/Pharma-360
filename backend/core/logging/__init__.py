@@ -9,14 +9,14 @@ from .logger import (
     log_api_request,
     log_database_query,
     log_cache_operation,
-    log_business_event
+    log_business_event,
 )
 
 __all__ = [
     "setup_logging",
     "get_logger",
     "log_api_request",
-    "log_database_query", 
+    "log_database_query",
     "log_cache_operation",
-    "log_business_event"
+    "log_business_event",
 ]

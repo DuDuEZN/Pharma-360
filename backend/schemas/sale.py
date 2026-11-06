@@ -2,6 +2,7 @@
 Sale Schemas for Pharmacie 360 Backend
 Pydantic models for sale-related API validation
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -111,7 +112,9 @@ class SaleResponse(SaleBase):
 # Sale Detail Response Schema
 class SaleDetailResponse(SaleResponse):
     """Schema for detailed sale response"""
+
     items: list = Field(..., description="List of sale items")
+
 
 #    items: list[SaleItemResponse] = Field(..., description="List of sale items")
 
