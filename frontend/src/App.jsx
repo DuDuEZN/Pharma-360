@@ -46,7 +46,12 @@ import {
   DeliveriesPage,
   ManagerReportsPage,
   ManagerSettingsPage,
-  ManagerAnalyticsPage
+  ManagerAnalyticsPage,
+  DeliveryFormPage,
+  OrderFormPage,
+  ReportFormPage,
+  BackupPage,
+  RestorePage
 } from './pages/manager'
 
 // Protected Route
@@ -109,10 +114,15 @@ function App() {
                         <Route path="suppliers" element={<SuppliersPage />} />
                         <Route path="customers" element={<CustomersPage />} />
                         <Route path="orders" element={<OrdersPage />} />
+                        <Route path="orders/new" element={<OrderFormPage />} />
                         <Route path="deliveries" element={<DeliveriesPage />} />
+                        <Route path="deliveries/new" element={<DeliveryFormPage />} />
                         <Route path="reports" element={<ManagerReportsPage />} />
+                        <Route path="reports/new" element={<ReportFormPage />} />
                         <Route path="analytics" element={<ManagerAnalyticsPage />} />
                         <Route path="settings" element={<ManagerSettingsPage />} />
+                        <Route path="backup" element={<BackupPage />} />
+                        <Route path="restore" element={<RestorePage />} />
                       </Route>
                       
                     </Route>
