@@ -4,6 +4,7 @@ import { Package, ShoppingCart, CreditCard, Users, BarChart3, Clock, AlertTriang
 import { useAuth } from '../hooks/useAuth'
 import { useAlerts } from '../hooks/useAlerts'
 import { AlertSystem } from '../components/common'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card'
 
 function DashboardPage() {
   const { user } = useAuth()
@@ -82,20 +83,19 @@ function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {dashboardStats.map((stat) => (
-          <div
-            key={stat.label}
-            className="card"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">{stat.label}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+          <Card key={stat.label}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">{stat.label}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                </div>
+                <div className={`p-3 rounded-full ${stat.bgColor}`}>
+                  <stat.icon className={`w-5 h-5 text-${stat.color}-600`} />
+                </div>
               </div>
-              <div className={`p-3 rounded-full ${stat.bgColor}`}>
-                <stat.icon className={`w-5 h-5 text-${stat.color}-600`} />
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
@@ -106,16 +106,18 @@ function DashboardPage() {
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {quickActions.map((action) => (
-            <Link
+            <Card
               key={action.label}
-              to={action.href}
-              className={`card text-center p-4 hover:shadow-lg transition-shadow duration-200 border-2 border-${action.color}-200`}
+              className={`text-center p-4 hover:shadow-lg transition-shadow duration-200 border-2 border-${action.color}-200 cursor-pointer`}
+              asChild
             >
-              <div className={`mx-auto w-12 h-12 bg-${action.color}-50 rounded-full flex items-center justify-center mb-3`}>
-                <action.icon className={`w-6 h-6 text-${action.color}-600`} />
-              </div>
-              <p className="text-sm font-medium text-gray-700">{action.label}</p>
-            </Link>
+              <Link to={action.href}>
+                <div className={`mx-auto w-12 h-12 bg-${action.color}-50 rounded-full flex items-center justify-center mb-3`}>
+                  <action.icon className={`w-6 h-6 text-${action.color}-600`} />
+                </div>
+                <p className="text-sm font-medium text-gray-700">{action.label}</p>
+              </Link>
+            </Card>
           ))}
         </div>
       </div>
@@ -126,19 +128,23 @@ function DashboardPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Ventes récentes
           </h2>
-          <div className="card">
-            <p className="text-gray-500 text-center py-8">
-              Aucune vente récente
-            </p>
-          </div>
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-gray-500 text-center">
+                Aucune vente récente
+              </p>
+            </CardContent>
+          </Card>
         </div>
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Alertes de stock et péremption
           </h2>
-          <div className="card">
-            <AlertSystem showStats={false} showFilters={false} />
-          </div>
+          <Card>
+            <CardContent>
+              <AlertSystem showStats={false} showFilters={false} />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
