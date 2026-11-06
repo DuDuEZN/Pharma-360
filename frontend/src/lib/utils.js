@@ -91,3 +91,16 @@ export function debounce(func, wait) {
 export function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
+
+/**
+ * Format percentage value for display
+ * @param {number} value - The percentage value (e.g., 0.25 for 25% or 25 for 25%)
+ * @param {number} [decimals=1] - Number of decimal places
+ * @returns {string} Formatted percentage string
+ */
+export function formatPercentage(value, decimals = 1) {
+  if (value === null || value === undefined) return '0%'
+  const num = typeof value === 'number' ? value : parseFloat(value)
+  const formatted = (num * 100).toFixed(decimals)
+  return `${formatted}%`
+}

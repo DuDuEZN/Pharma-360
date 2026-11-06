@@ -9,7 +9,6 @@ import { Skeleton } from '../../components/ui/Skeleton'
 import { useToast } from '../../components/common/Toast'
 import api from '../../services/api'
 import { cn, formatCurrency, formatDate, formatPercentage } from '../../lib/utils'
-import Chart from 'chart.js/auto'
 
 function AnalyticsPage() {
   const [stats, setStats] = useState(null)
@@ -147,68 +146,23 @@ function AnalyticsPage() {
     </Card>
   )
 
-  // Render bar chart
-  const BarChart = ({ data, title }) => {
-    const chartRef = React.useRef(null)
-    const chartInstance = React.useRef(null)
+  // Simple Bar Chart component using CSS
+  const SimpleBarChart = ({ data, title }) => {
+    if (!data || !data.labels || !data.values) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>{title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center text-gray-500 py-8">Aucune donnée disponible</p>
+          </CardContent>
+        </Card>
+      )
+    }
 
-    React.useEffect(() => {
-      if (data && chartRef.current) {
-        if (chartInstance.current) {
-          chartInstance.current.destroy()
-        }
-
-        const ctx = chartRef.current.getContext('2d')
-        
-        chartInstance.current = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: data.labels || [],
-            datasets: [{
-              label: data.label || '',
-              data: data.values || [],
-              backgroundColor: data.colors || '#3b82f6',
-              borderRadius: 4,
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                display: false
-              },
-              title: {
-                display: title ? true : false,
-                text: title,
-                font: {
-                  size: 14
-                }
-              }
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: '#f3f4f6'
-                }
-              },
-              x: {
-                grid: {
-                  display: false
-                }
-              }
-            }
-          }
-        })
-      }
-      
-      return () => {
-        if (chartInstance.current) {
-          chartInstance.current.destroy()
-        }
-      }
-    }, [data])
+    const maxValue = Math.max(...data.values, 1)
+    const colors = data.colors || ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
     return (
       <Card>
@@ -216,71 +170,43 @@ function AnalyticsPage() {
           <CardTitle>{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64">
-            <canvas ref={chartRef} />
+          <div className="h-64 flex items-end gap-2">
+            {data.labels.map((label, index) => (
+              <div key={index} className="flex-1 flex flex-col items-center gap-2">
+                <div 
+                  className="w-full bg-primary-200 rounded-t" 
+                  style={{
+                    height: `${(data.values[index] / maxValue) * 100}%`,
+                    backgroundColor: colors[index % colors.length],
+                    minHeight: '20px'
+                  }}
+                />
+                <span className="text-xs text-center truncate max-w-full">{label}</span>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
     )
   }
 
-  // Render line chart
-  const LineChart = ({ data, title }) => {
-    const chartRef = React.useRef(null)
-    const chartInstance = React.useRef(null)
+  // Simple Line Chart component using CSS
+  const SimpleLineChart = ({ data, title }) => {
+    if (!data || !data.labels || !data.datasets) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>{title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center text-gray-500 py-8">Aucune donnée disponible</p>
+          </CardContent>
+        </Card>
+      )
+    }
 
-    React.useEffect(() => {
-      if (data && chartRef.current) {
-        if (chartInstance.current) {
-          chartInstance.current.destroy()
-        }
-
-        const ctx = chartRef.current.getContext('2d')
-        
-        chartInstance.current = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: data.labels || [],
-            datasets: data.datasets || []
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: 'bottom'
-              },
-              title: {
-                display: title ? true : false,
-                text: title,
-                font: {
-                  size: 14
-                }
-              }
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: '#f3f4f6'
-                }
-              },
-              x: {
-                grid: {
-                  display: false
-                }
-              }
-            }
-          }
-        })
-      }
-      
-      return () => {
-        if (chartInstance.current) {
-          chartInstance.current.destroy()
-        }
-      }
-    }, [data])
+    const maxValue = Math.max(...data.datasets.flatMap(d => d.data), 1)
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
 
     return (
       <Card>
@@ -288,8 +214,34 @@ function AnalyticsPage() {
           <CardTitle>{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64">
-            <canvas ref={chartRef} />
+          <div className="h-64 relative">
+            {data.datasets.map((dataset, dsIndex) => (
+              <svg key={dsIndex} className="absolute inset-0 w-full h-full">
+                <polyline
+                  fill="none"
+                  stroke={colors[dsIndex % colors.length]}
+                  strokeWidth="2"
+                  points={dataset.data.map((value, i) => {
+                    const x = (i / (data.labels.length - 1)) * 100
+                    const y = 100 - ((value / maxValue) * 100)
+                    return `${x}%,${y}%`
+                  }).join(' ')}
+                />
+              </svg>
+            ))}
+            <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs">
+              {data.labels.map((label, i) => (
+                <span key={i} className="truncate max-w-[80px] text-center">{label}</span>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-4 mt-2">
+            {data.datasets.map((dataset, dsIndex) => (
+              <div key={dsIndex} className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[dsIndex % colors.length] }} />
+                <span className="text-sm">{dataset.label}</span>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -485,7 +437,7 @@ function AnalyticsPage() {
 
             <TabsContent value="sales" className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <LineChart
+                <SimpleLineChart
                   data={salesChartData}
                   title="Évolution des ventes"
                 />
@@ -584,7 +536,7 @@ function AnalyticsPage() {
 
             <TabsContent value="stock" className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <BarChart
+                <SimpleBarChart
                   data={stockChartData}
                   title="Stock par catégorie"
                 />
@@ -707,7 +659,7 @@ function AnalyticsPage() {
 
             <TabsContent value="products" className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <BarChart
+                <SimpleBarChart
                   data={topProductsChartData}
                   title="Top 10 des produits les plus vendus"
                 />
