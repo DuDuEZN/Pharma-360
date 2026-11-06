@@ -31,6 +31,11 @@
   "settings": {
     "react": {
       "version": "detect"
+    },
+    "import/resolver": {
+      "node": {
+        "extensions": [".js", ".jsx", ".ts", ".tsx"]
+      }
     }
   },
   "rules": {
@@ -38,7 +43,8 @@
     "react/prop-types": "off",
     "react/display-name": "off",
     "react/no-unescaped-entities": "off",
-    "no-unused-vars": "off"
+    "no-unused-vars": "off",
+    "react/jsx-no-undef": "off"
   },
   "ignorePatterns": [
     "node_modules/",

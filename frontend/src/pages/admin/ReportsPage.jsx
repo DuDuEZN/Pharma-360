@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { FileText, Download, Calendar, BarChart3, PieChart, TrendingUp, TrendingDown, Filter, Search, RefreshCw, Printer, Eye, File } from 'lucide-react'
+import { useDisclosure } from '../../hooks/useDisclosure'
 import api from '../../services/api'
 import { useToast } from '../../components/common/Toast'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../components/ui/Card'

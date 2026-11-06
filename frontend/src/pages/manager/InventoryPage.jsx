@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { Package, Search, Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle, Filter, Calendar, ArrowUp, ArrowDown, Warehouse } from 'lucide-react'
+import { Package, Search, Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle, Filter, Calendar, ArrowUp, ArrowDown, Warehouse, RefreshCw, DollarSign } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useDisclosure } from '../../hooks/useDisclosure'
 import { useTable } from '../../hooks/useTable'
