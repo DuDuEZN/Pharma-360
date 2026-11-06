@@ -3,12 +3,6 @@ import { twMerge } from 'tailwind-merge'
 
 /**
  * Utility function to merge Tailwind CSS classes
- * Combines clsx for conditional classes with tailwind-merge for deduplication
-import { clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-/**
- * Utility function to merge Tailwind CSS classes
  * @param {import('react').ClassValue[]} inputs - Class values to merge
  * @returns {string} Merged class string
  */
@@ -26,6 +20,15 @@ export function formatCurrency(amount, currency = 'XOF') {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(amount)
+}
+
+/**
+ * Parse date string to Date object
+ */
+export function parseDate(dateString) {
+  if (!dateString) return null
+  const date = new Date(dateString)
+  return isNaN(date.getTime()) ? null : date
 }
 
 /**
