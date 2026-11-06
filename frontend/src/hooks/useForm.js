@@ -22,21 +22,17 @@ const useForm = (initialValues = {}, validationSchema = {}) => {
     }))
     
     // Clear error when user types
-    if (errors[name]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: undefined
-      }))
-    }
+    setErrors((prev) => ({
+      ...prev,
+      [name]: undefined
+    }))
     
     // Mark as touched
-    if (!touched[name]) {
-      setTouched((prev) => ({
-        ...prev,
-        [name]: true
-      }))
-    }
-  }, [values, errors, touched])
+    setTouched((prev) => ({
+      ...prev,
+      [name]: true
+    }))
+  }, [])
 
   // Set field value programmatically
   const setFieldValue = useCallback((name, value) => {
@@ -115,7 +111,7 @@ const useForm = (initialValues = {}, validationSchema = {}) => {
     
     setErrors(newErrors)
     return isValid
-  }, [validationSchema, values, validateField])
+  }, [validationSchema, validateField])
 
   // Validate on blur
   const handleBlur = useCallback((e) => {
@@ -160,7 +156,7 @@ const useForm = (initialValues = {}, validationSchema = {}) => {
     
     setIsSubmitting(false)
     return isValid
-  }, [initialValues, validate, values])
+  }, [initialValues, validate])
 
   // Reset form
   const resetForm = useCallback(() => {
