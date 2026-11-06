@@ -3,27 +3,24 @@ Invoice Service for Pharmacie 360 Backend
 Business logic for managing supplier invoices
 """
 
-from datetime import datetime, date
-from typing import Optional, List, Dict, Any
-from fastapi import UploadFile
+from datetime import date, datetime
 
 # from datetime import date, datetime
 from pathlib import Path
-
-# from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import UploadFile
 from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from ..models.invoice import Invoice
-from ..models.user import User
-from ..models.supplier import Supplier
 from ..models.batch import Batch
+from ..models.invoice import Invoice
 
 # from ..models.invoice import Invoice
 from ..models.product import Product
+from ..models.supplier import Supplier
+from ..models.user import User
 
 # from ..models.supplier import Supplier
 # from ..models.user import User
@@ -36,6 +33,8 @@ from ..schemas.invoice import (
     InvoiceUpdate,
     OCRInvoiceData,
 )
+
+# from typing import Any, Dict, List, Optional
 
 
 class InvoiceService:

@@ -5,9 +5,6 @@ Contains all v1 endpoints
 
 from .alerts import router as alerts_router
 from .auth import router as auth_router
-from .users import router as users_router
-from .products import router as products_router
-from .batches import router as batches_router
 
 # from .sales import router as sales_router
 from .barcode import router as barcode_router

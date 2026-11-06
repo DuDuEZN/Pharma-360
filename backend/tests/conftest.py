@@ -2,9 +2,10 @@
 Pytest configuration and shared fixtures for backend tests
 """
 
+from unittest.mock import Mock
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock
 
 
 @pytest.fixture

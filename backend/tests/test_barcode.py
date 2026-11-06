@@ -25,6 +25,7 @@ def mock_current_user():
 def client():
     """Create a test client"""
     from fastapi.testclient import TestClient
+
     from backend.main import app
 
     return TestClient(app)

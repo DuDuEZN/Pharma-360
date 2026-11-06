@@ -6,9 +6,8 @@ Pydantic schemas for report generation and management
 from datetime import date, datetime
 from typing import Literal, Optional
 
-from pydantic import Field, field_validator
-
 from pydantic import BaseModel as BaseSchema
+from pydantic import Field, field_validator
 
 
 class ReportBase(BaseSchema):

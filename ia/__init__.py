@@ -4,7 +4,7 @@ Contains OCR, Analytics, and ML Models for the pharmacy management system
 """
 
 # from .ocr import ocr_facture
-from .analytics import stock_rotation_analysis, predict_stock_ruptures
+from .analytics import predict_stock_ruptures, stock_rotation_analysis
 from .models import load_stock_prediction_model
 
 __all__ = [
