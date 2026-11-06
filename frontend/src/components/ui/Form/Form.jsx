@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { useFormContext } from './FormContext';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 const Form = forwardRef(({ children, className, onSubmit, ...props }, ref) => {
   const formContext = useFormContext();

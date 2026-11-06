@@ -1,6 +1,6 @@
 import React, { forwardRef, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { cn, formatDate, parseDate } from '../../lib/utils';
+import { cn, formatDate, parseDate } from '@/lib/utils';
 import { Button } from '../Button';
 import { Input } from '../Input';
 

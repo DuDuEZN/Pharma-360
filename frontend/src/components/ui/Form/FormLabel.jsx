@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { Label } from '../Label';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 const FormLabel = forwardRef(({ className, required, children, ...props }, ref) => {
   return (
