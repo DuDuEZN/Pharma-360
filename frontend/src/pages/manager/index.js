@@ -12,13 +12,13 @@ import AnalyticsPage from './AnalyticsPage'
 
 export {
   ManagerPage,
+  DashboardPage as ManagerDashboardPage,
   InventoryPage,
   SuppliersPage,
-  DashboardPage,
   CustomersPage,
   OrdersPage,
   DeliveriesPage,
-  ReportsPage,
-  SettingsPage,
-  AnalyticsPage
+  ReportsPage as ManagerReportsPage,
+  SettingsPage as ManagerSettingsPage,
+  AnalyticsPage as ManagerAnalyticsPage
 }

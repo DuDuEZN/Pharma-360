@@ -12,7 +12,7 @@ export {
   UsersPage,
   RolesPage,
   PermissionsPage,
-  SettingsPage,
-  ReportsPage,
-  AnalyticsPage,
+  SettingsPage as AdminSettingsPage,
+  ReportsPage as AdminReportsPage,
+  AnalyticsPage as AdminAnalyticsPage
 }

@@ -30,23 +30,23 @@ import {
   UsersPage,
   RolesPage,
   PermissionsPage,
-  SettingsPage as AdminSettingsPage,
-  ReportsPage as AdminReportsPage,
-  AnalyticsPage as AdminAnalyticsPage
+  AdminSettingsPage,
+  AdminReportsPage,
+  AdminAnalyticsPage
 } from './pages/admin'
 
 // Manager Pages
 import {
   ManagerPage,
-  DashboardPage as ManagerDashboardPage,
+  ManagerDashboardPage,
   InventoryPage,
   SuppliersPage,
   CustomersPage,
   OrdersPage,
   DeliveriesPage,
-  ReportsPage as ManagerReportsPage,
-  SettingsPage as ManagerSettingsPage,
-  AnalyticsPage as ManagerAnalyticsPage
+  ManagerReportsPage,
+  ManagerSettingsPage,
+  ManagerAnalyticsPage
 } from './pages/manager'
 
 // Protected Route
