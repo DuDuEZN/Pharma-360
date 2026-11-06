@@ -9,6 +9,11 @@ import DeliveriesPage from './DeliveriesPage'
 import ReportsPage from './ReportsPage'
 import SettingsPage from './SettingsPage'
 import AnalyticsPage from './AnalyticsPage'
+import DeliveryFormPage from './DeliveryFormPage'
+import OrderFormPage from './OrderFormPage'
+import ReportFormPage from './ReportFormPage'
+import BackupPage from './BackupPage'
+import RestorePage from './RestorePage'
 
 export {
   ManagerPage,
@@ -20,5 +25,10 @@ export {
   DeliveriesPage,
   ReportsPage as ManagerReportsPage,
   SettingsPage as ManagerSettingsPage,
-  AnalyticsPage as ManagerAnalyticsPage
+  AnalyticsPage as ManagerAnalyticsPage,
+  DeliveryFormPage,
+  OrderFormPage,
+  ReportFormPage,
+  BackupPage,
+  RestorePage
 }
