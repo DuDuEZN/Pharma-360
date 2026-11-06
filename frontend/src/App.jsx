@@ -38,15 +38,15 @@ import {
 // Manager Pages
 import {
   ManagerPage,
-  ManagerDashboardPage,
+  DashboardPage as ManagerDashboardPage,
   InventoryPage,
   SuppliersPage,
   CustomersPage,
   OrdersPage,
   DeliveriesPage,
-  ManagerReportsPage,
-  ManagerSettingsPage,
-  ManagerAnalyticsPage
+  ReportsPage as ManagerReportsPage,
+  SettingsPage as ManagerSettingsPage,
+  AnalyticsPage as ManagerAnalyticsPage
 } from './pages/manager'
 
 // Protected Route
