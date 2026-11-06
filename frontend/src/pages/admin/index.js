@@ -5,6 +5,7 @@ import RolesPage from './RolesPage'
 import PermissionsPage from './PermissionsPage'
 import SettingsPage from './SettingsPage'
 import ReportsPage from './ReportsPage'
+import AnalyticsPage from './AnalyticsPage'
 
 export {
   AdminPage,
@@ -13,4 +14,5 @@ export {
   PermissionsPage,
   SettingsPage,
   ReportsPage,
+  AnalyticsPage,
 }

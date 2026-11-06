@@ -30,9 +30,9 @@ import {
   UsersPage,
   RolesPage,
   PermissionsPage,
-  AdminSettingsPage,
-  AdminReportsPage,
-  AdminAnalyticsPage
+  SettingsPage as AdminSettingsPage,
+  ReportsPage as AdminReportsPage,
+  AnalyticsPage as AdminAnalyticsPage
 } from './pages/admin'
 
 // Manager Pages
