@@ -12,3 +12,4 @@ export { default as Alert } from './Alert';
 export { default as Input } from './Input';
 export { default as AlertSystem } from './AlertSystem';
 export { AlertBadge } from './AlertSystem';
+export { OCRUpload } from './OCRUpload';
