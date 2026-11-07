@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Database, ChevronLeft, Download, Clock, Trash2, AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../components/ui/Card'
-import { Button } from '../../components/ui/Button'
-import { useToast } from '../../components/common/Toast'
-import api from '../../services/api'
-import { formatDate, formatDateTime } from '../../lib/utils'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card.jsx'
+import { Button } from '@/components/ui/button.jsx'
+import { useToast } from '@/components/common/Toast'
+import api from '@/lib/api'
+import { formatDate, formatDateTime } from '@/lib/utils'
 
 /**
  * Backup Page

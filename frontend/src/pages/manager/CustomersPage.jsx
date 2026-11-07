@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
 import { Plus, Edit, Trash2, Search, User, Phone, Mail, MapPin } from 'lucide-react';
-import { api } from '@/services/api.js';
+import apiClient from '@/lib/api';
 import { toast } from 'sonner';
 import { AdvancedSearch } from '@/components/common/index.js';
 
@@ -39,7 +39,7 @@ const CustomersPage = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/customers', { params: searchParams });
+      const response = await apiClient.get('/customers', { params: searchParams });
       setCustomers(response.data || []);
       setFilteredCustomers(response.data || []);
     } catch (error) {
@@ -110,11 +110,11 @@ const CustomersPage = () => {
       
       if (currentCustomer) {
         // Update existing customer
-        await api.put(`/customers/${currentCustomer.id}`, formData);
+        await apiClient.put(`/customers/${currentCustomer.id}`, formData);
         toast.success('Client mis à jour avec succès');
       } else {
         // Create new customer
-        await api.post('/customers', formData);
+        await apiClient.post('/customers', formData);
         toast.success('Client créé avec succès');
       }
       
@@ -134,7 +134,7 @@ const CustomersPage = () => {
     
     try {
       setLoading(true);
-      await api.delete(`/customers/${currentCustomer.id}`);
+      await apiClient.delete(`/customers/${currentCustomer.id}`);
       toast.success('Client supprimé avec succès');
       fetchCustomers();
       setIsDeleteDialogOpen(false);

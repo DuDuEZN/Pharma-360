@@ -1,13 +1,13 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '@/hooks/useAuth'
 import { Package, User, Lock, ArrowRight } from 'lucide-react'
-import { Input } from '../components/ui/Input'
-import { Button } from '../components/ui/Button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card'
-import { Alert } from '../components/ui/Alert'
-import { useToast } from '../components/common/Toast'
-import { cn } from '../lib/utils'
+import { Input } from '@/components/ui/input.jsx'
+import { Button } from '@/components/ui/button.jsx'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card.jsx'
+import { Alert } from '@/components/ui/Alert'
+import { useToast } from '@/components/common/Toast'
+import { cn } from '@/lib/utils'
 
 function LoginPage() {
   const [username, setUsername] = useState('')

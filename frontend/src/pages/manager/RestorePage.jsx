@@ -1,11 +1,11 @@
 import React, { useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Upload, ChevronLeft, Database, AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../components/ui/Card'
-import { Button } from '../../components/ui/Button'
-import { Input } from '../../components/ui/Input'
-import { useToast } from '../../components/common/Toast'
-import api from '../../services/api'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card.jsx'
+import { Button } from '@/components/ui/button.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { useToast } from '@/components/common/Toast'
+import api from '@/lib/api'
 
 /**
  * Restore Page

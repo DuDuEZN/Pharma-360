@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from './useAuth'
-import { useToast } from '../components/common/Toast'
+import { useToast } from '@/components/common/Toast'
 
 /**
  * WebSocket Context for Pharmacie 360

@@ -1,28 +1,28 @@
 import React from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { Toaster } from './components/common/Toast'
-import { AuthProvider } from './hooks/useAuth'
-import { CartProvider } from './hooks/useCart'
-import { BarcodeScannerProvider } from './hooks/useBarcodeScanner'
-import { WebSocketProvider } from './hooks/useWebSocket'
-import { AlertsProvider } from './hooks/useAlerts'
+import { Toaster } from '@/components/common/Toast'
+import { AuthProvider } from '@/hooks/useAuth'
+import { CartProvider } from '@/hooks/useCart'
+import { BarcodeScannerProvider } from '@/hooks/useBarcodeScanner'
+import { WebSocketProvider } from '@/hooks/useWebSocket'
+import { AlertsProvider } from '@/hooks/useAlerts'
 
 // Design System Providers
-import { ThemeProvider } from './providers/ThemeProvider'
-import { AlertProvider } from './providers/AlertProvider'
+import { ThemeProvider } from '@/providers/ThemeProvider'
+import { AlertProvider } from '@/providers/AlertProvider'
 
 // Layout
-import Layout from './components/layout/Layout'
+import Layout from '@/components/layout/Layout'
 
 // Pages
-import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
-import ProductsPage from './pages/ProductsPage'
-import SalesPage from './pages/SalesPage'
-import CashierPage from './pages/CashierPage'
-import HelpPage from './pages/HelpPage'
-import ProductFormPage from './pages/ProductFormPage'
-import SaleFormPage from './pages/SaleFormPage'
+import LoginPage from '@/pages/LoginPage'
+import DashboardPage from '@/pages/DashboardPage'
+import ProductsPage from '@/pages/ProductsPage'
+import SalesPage from '@/pages/SalesPage'
+import CashierPage from '@/pages/CashierPage'
+import HelpPage from '@/pages/HelpPage'
+import ProductFormPage from '@/pages/ProductFormPage'
+import SaleFormPage from '@/pages/SaleFormPage'
 
 // Admin Pages
 import {
@@ -33,7 +33,7 @@ import {
   AdminSettingsPage,
   AdminReportsPage,
   AdminAnalyticsPage
-} from './pages/admin'
+} from '@/pages/admin'
 
 // Manager Pages
 import {
@@ -52,10 +52,10 @@ import {
   ReportFormPage,
   BackupPage,
   RestorePage
-} from './pages/manager'
+} from '@/pages/manager'
 
 // Protected Route
-import ProtectedRoute from './components/common/ProtectedRoute'
+import ProtectedRoute from '@/components/common/ProtectedRoute'
 
 function App() {
   return (

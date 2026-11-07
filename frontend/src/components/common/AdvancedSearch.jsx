@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Input } from './Input';
-import { Button } from './Button';
+import Input from './Input';
+import Button from './Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
 import { Search, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 

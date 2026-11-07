@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement } from 'chart.js';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import { Calendar, DollarSign, Package, AlertTriangle, TrendingUp, TrendingDown, Users, FileText, RefreshCw, Clock, ShoppingCart } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { Badge } from '../../components/ui/Badge';
-import { Separator } from '../../components/ui/Separator';
-import { api } from '../../lib/api';
-import { cn, formatCurrency, formatDate } from '../../lib/utils';
-//import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card.jsx';
+import { Button } from '@/components/ui/button.jsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Badge } from '@/components/ui/badge.jsx';
+import { Separator } from '@/components/ui/Separator';
+import apiClient from '@/lib/api';
+import { cn, formatCurrency, formatDate } from '@/lib/utils';
 
 // Register ChartJS components
 ChartJS.register(
@@ -86,7 +85,7 @@ const DashboardPage = () => {
       setLoading(true);
       
       // Fetch statistics
-      const statsResponse = await api.get('/sale-history/stats', {
+      const statsResponse = await apiClient.get('/sale-history/stats', {
         params: {
           start_date: dateRange.from.toISOString(),
           end_date: dateRange.to.toISOString()
@@ -106,7 +105,7 @@ const DashboardPage = () => {
       }
       
       // Fetch sales data
-      const salesResponse = await api.get('/sale-history/daily', {
+      const salesResponse = await apiClient.get('/sale-history/daily', {
         params: {
           start_date: dateRange.from.toISOString(),
           end_date: dateRange.to.toISOString()
@@ -123,7 +122,7 @@ const DashboardPage = () => {
       }
       
       // Fetch top products
-      const productsResponse = await api.get('/sale-history/top-products', {
+      const productsResponse = await apiClient.get('/sale-history/top-products', {
         params: { limit: 5 }
       });
       
@@ -134,7 +133,7 @@ const DashboardPage = () => {
       }
       
       // Fetch category distribution
-      const categoryResponse = await api.get('/products/categories/stats');
+      const categoryResponse = await apiClient.get('/products/categories/stats');
       
       //if (categoryResponse?.data) {
       if (categoryResponse.data) {

@@ -1,9 +1,9 @@
 import React from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Users, Settings, Shield, Key, FileText, BarChart3 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
-import { Button } from '../../components/ui/Button'
-import { cn } from '../../lib/utils'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
+import { Button } from '@/components/ui/button.jsx'
+import { cn } from '@/lib/utils'
 
 /**
  * Admin Page for Pharma 360

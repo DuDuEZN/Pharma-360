@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react'
-import { useToast } from '../components/common/Toast'
+import { useToast } from '@/components/common/Toast'
 
 /**
  * Cart Context for Pharmacie 360 Sales

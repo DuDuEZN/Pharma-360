@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Label } from '../../components/ui/Label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
-import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/ui/Modal';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card.jsx';
+import { Button } from '@/components/ui/button.jsx';
+import { Input } from '@/components/ui/input.jsx';
+import { Label } from '@/components/ui/label.jsx';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.jsx';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
 import { Upload, FileText, Eye, Edit, Trash2, Plus, Search, Download, Camera, X, AlertTriangle, Check, RefreshCw } from 'lucide-react';
-import { api } from '../../lib/api';
-import { useToast } from '../../components/common/Toast';
-import { Badge } from '../../components/ui/Badge';
-import { Separator } from '../../components/ui/Separator';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { Alert } from '../../components/ui/Alert';
-import { cn, formatCurrency, formatDate } from '../../lib/utils';
-//import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card.jsx';
+import apiClient from '@/lib/api';
+import { useToast } from '@/components/common/Toast';
+import { Badge } from '@/components/ui/badge.jsx';
+import { Separator } from '@/components/ui/Separator';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Alert } from '@/components/ui/Alert';
+import { cn, formatCurrency, formatDate } from '@/lib/utils';
 
 const SuppliersPage = () => {
   const { addToast } = useToast()
@@ -50,7 +49,7 @@ const SuppliersPage = () => {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await api.get('/suppliers');
+      const response = await apiClient.get('/suppliers');
       setSuppliers(response.data || []);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
@@ -60,7 +59,7 @@ const SuppliersPage = () => {
 
   const fetchInvoices = async () => {
     try {
-      const response = await api.get('/invoices');
+      const response = await apiClient.get('/invoices');
       setInvoices(response.data || []);
     } catch (error) {
       console.error('Error fetching invoices:', error);
@@ -109,7 +108,7 @@ const SuppliersPage = () => {
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await api.post('/invoices/ocr', formData, {
+      const response = await apiClient.post('/invoices/ocr', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -160,10 +159,10 @@ const SuppliersPage = () => {
     setIsSubmitting(true);
     try {
       if (selectedSupplier) {
-        await api.put(`/suppliers/${selectedSupplier.id}`, formData);
+        await apiClient.put(`/suppliers/${selectedSupplier.id}`, formData);
         addToast({ type: 'success', title: 'Fournisseur mis à jour', message: `${formData.name} a été mis à jour` });
       } else {
-        await api.post('/suppliers', formData);
+        await apiClient.post('/suppliers', formData);
         addToast({ type: 'success', title: 'Fournisseur ajouté', message: `${formData.name} a été ajouté` });
       }
       setIsSupplierModalOpen(false);
@@ -187,10 +186,10 @@ const SuppliersPage = () => {
     setIsSubmitting(true);
     try {
       if (selectedInvoice) {
-        await api.put(`/invoices/${selectedInvoice.id}`, invoiceFormData);
+        await apiClient.put(`/invoices/${selectedInvoice.id}`, invoiceFormData);
         addToast({ type: 'success', title: 'Facture mise à jour', message: `Facture #${invoiceFormData.invoice_number} mise à jour` });
       } else {
-        await api.post('/invoices', invoiceFormData);
+        await apiClient.post('/invoices', invoiceFormData);
         addToast({ type: 'success', title: 'Facture ajoutée', message: `Facture #${invoiceFormData.invoice_number} ajoutée` });
       }
       setIsInvoiceModalOpen(false);
@@ -212,7 +211,7 @@ const SuppliersPage = () => {
 
   const handleDeleteSupplier = async (supplierId) => {
     try {
-      await api.delete(`/suppliers/${supplierId}`);
+      await apiClient.delete(`/suppliers/${supplierId}`);
       addToast({ type: 'success', title: 'Fournisseur supprimé', message: 'Fournisseur supprimé avec succès' });
       fetchSuppliers();
     } catch (error) {
@@ -222,7 +221,7 @@ const SuppliersPage = () => {
 
   const handleDeleteInvoice = async (invoiceId) => {
     try {
-      await api.delete(`/invoices/${invoiceId}`);
+      await apiClient.delete(`/invoices/${invoiceId}`);
       addToast({ type: 'success', title: 'Facture supprimée', message: 'Facture supprimée avec succès' });
       fetchInvoices();
     } catch (error) {
@@ -232,7 +231,7 @@ const SuppliersPage = () => {
 
   const handleDownloadInvoice = async (invoiceId) => {
     try {
-      const response = await api.get(`/invoices/${invoiceId}/download`, {
+      const response = await apiClient.get(`/invoices/${invoiceId}/download`, {
         responseType: 'blob'
       });
       

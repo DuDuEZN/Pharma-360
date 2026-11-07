@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react'
-import api from '../services/api'
-import { useToast } from '../components/common/Toast'
+import api from '@/lib/api'
+import { useToast } from '@/components/common/Toast'
 
 /**
  * Barcode Scanner Hook for Pharmacie 360

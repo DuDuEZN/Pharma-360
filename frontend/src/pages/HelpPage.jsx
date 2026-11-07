@@ -1,9 +1,9 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { HelpCircle, BookOpen, MessageSquare, Phone, Mail, ChevronLeft, FileText, Settings, BarChart3 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card'
-import { Button } from '../components/ui/Button'
-import { Badge } from '../components/ui/Badge'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
+import { Button } from '@/components/ui/button.jsx'
+import { Badge } from '@/components/ui/badge.jsx'
 
 function HelpPage() {
   const faqItems = [

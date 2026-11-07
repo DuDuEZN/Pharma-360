@@ -1,10 +1,10 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { Package, ShoppingCart, CreditCard, Users, BarChart3, Clock, AlertTriangle } from 'lucide-react'
-import { useAuth } from '../hooks/useAuth'
-import { useAlerts } from '../hooks/useAlerts'
-import { AlertSystem } from '../components/common'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card'
+import { useAuth } from '@/hooks/useAuth'
+import { useAlerts } from '@/hooks/useAlerts'
+import { AlertSystem } from '@/components/common'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
 
 function DashboardPage() {
   const { user } = useAuth()

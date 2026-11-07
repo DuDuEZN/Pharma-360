@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { BarChart3, TrendingUp, TrendingDown, Package, DollarSign, Calendar, Users, ShoppingCart, ArrowUp, ArrowDown, Filter, Download, RefreshCw, Shield, Activity, AlertCircle } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
-import { Button } from '../../components/ui/Button'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../../components/ui/Select'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs'
-import { Skeleton } from '../../components/ui/Skeleton'
-import { useToast } from '../../components/common/Toast'
-import api from '../../services/api'
-import { cn, formatCurrency, formatDate, formatPercentage } from '../../lib/utils'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
+import { Button } from '@/components/ui/button.jsx'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select.jsx'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { useToast } from '@/components/common/Toast'
+import api from '@/lib/api'
+import { cn, formatCurrency, formatDate, formatPercentage } from '@/lib/utils'
 
 function AdminAnalyticsPage() {
   const [stats, setStats] = useState(null)
