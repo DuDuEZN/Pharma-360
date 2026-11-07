@@ -1,0 +1,160 @@
+{
+  "timestamp": "2026-11-07T17:53:48.091971",
+  "total_pages": 30,
+  "tested_pages": [],
+  "failed_pages": [
+    {
+      "path": "/ProductFormPage",
+      "status": "file_not_found",
+      "error": "Fichier non trouvé: /ProductFormPage"
+    },
+    {
+      "path": "/SalesPage",
+      "status": "file_not_found",
+      "error": "Fichier non trouvé: /SalesPage"
+    },
+    {
+      "path": "/DashboardPage",
+      "status": "file_not_found",
+      "error": "Fichier non trouvé: /DashboardPage"
+    },
+    {
+      "path": "/HelpPage",
+      "status": "file_not_found",
+      "error": "Fichier non trouvé: /HelpPage"
+    },
+    {
+      "path": "/SaleFormPage",
+      "status": "file_not_found",
+      "error": "Fichier non trouvé: /SaleFormPage"
+    },
+    {
+      "path": "/LoginPage",
+      "status": "file_not_found",
+      "error": "Fichier non trouvé: /LoginPage"
+    },
+    {
+      "path": "/CashierPage",
+      "status": "file_not_found",
+      "error": "Fichier non trouvé: /CashierPage"
+    },
+    {
+      "path": "/ProductsPage",
+      "status": "file_not_found",
+      "error": "Fichier non trouvé: /ProductsPage"
+    },
+    {
+      "path": "/admin/AdminPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/admin/SettingsPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/admin/UsersPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/admin/AnalyticsPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/admin/ReportsPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/admin/PermissionsPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/admin/RolesPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/SettingsPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/InventoryPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/AnalyticsPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/RestorePage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/DashboardPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/ManagerPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/DeliveryFormPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/ReportFormPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/OrdersPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/ReportsPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/SuppliersPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/CustomersPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/OrderFormPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/DeliveriesPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    },
+    {
+      "path": "/manager/BackupPage",
+      "status": "error",
+      "error": "unsupported operand type(s) for +: 'PosixPath' and 'str'"
+    }
+  ],
+  "success_count": 0,
+  "failure_count": 30,
+  "warnings": []
+}

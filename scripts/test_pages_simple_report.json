@@ -1,0 +1,158 @@
+{
+  "timestamp": "2026-11-07T17:54:11.523344",
+  "total_pages": 30,
+  "pages": [
+    {
+      "path": "ProductFormPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/ProductFormPage.jsx"
+    },
+    {
+      "path": "SalesPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/SalesPage.jsx"
+    },
+    {
+      "path": "DashboardPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/DashboardPage.jsx"
+    },
+    {
+      "path": "HelpPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/HelpPage.jsx"
+    },
+    {
+      "path": "SaleFormPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/SaleFormPage.jsx"
+    },
+    {
+      "path": "LoginPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/LoginPage.jsx"
+    },
+    {
+      "path": "CashierPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/CashierPage.jsx"
+    },
+    {
+      "path": "ProductsPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/ProductsPage.jsx"
+    },
+    {
+      "path": "admin/AdminPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/admin/AdminPage.jsx"
+    },
+    {
+      "path": "admin/SettingsPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/admin/SettingsPage.jsx"
+    },
+    {
+      "path": "admin/UsersPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/admin/UsersPage.jsx"
+    },
+    {
+      "path": "admin/AnalyticsPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/admin/AnalyticsPage.jsx"
+    },
+    {
+      "path": "admin/ReportsPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/admin/ReportsPage.jsx"
+    },
+    {
+      "path": "admin/PermissionsPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/admin/PermissionsPage.jsx"
+    },
+    {
+      "path": "admin/RolesPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/admin/RolesPage.jsx"
+    },
+    {
+      "path": "manager/SettingsPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/SettingsPage.jsx"
+    },
+    {
+      "path": "manager/InventoryPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/InventoryPage.jsx"
+    },
+    {
+      "path": "manager/AnalyticsPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/AnalyticsPage.jsx"
+    },
+    {
+      "path": "manager/RestorePage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/RestorePage.jsx"
+    },
+    {
+      "path": "manager/DashboardPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/DashboardPage.jsx"
+    },
+    {
+      "path": "manager/ManagerPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/ManagerPage.jsx"
+    },
+    {
+      "path": "manager/DeliveryFormPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/DeliveryFormPage.jsx"
+    },
+    {
+      "path": "manager/ReportFormPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/ReportFormPage.jsx"
+    },
+    {
+      "path": "manager/OrdersPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/OrdersPage.jsx"
+    },
+    {
+      "path": "manager/ReportsPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/ReportsPage.jsx"
+    },
+    {
+      "path": "manager/SuppliersPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/SuppliersPage.jsx"
+    },
+    {
+      "path": "manager/CustomersPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/CustomersPage.jsx"
+    },
+    {
+      "path": "manager/OrderFormPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/OrderFormPage.jsx"
+    },
+    {
+      "path": "manager/DeliveriesPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/DeliveriesPage.jsx"
+    },
+    {
+      "path": "manager/BackupPage.jsx",
+      "status": "ok",
+      "file": "frontend/src/pages/manager/BackupPage.jsx"
+    }
+  ],
+  "success_count": 30,
+  "failure_count": 0
+}
