@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from fastapi import Depends
 
 from backend.main import app
 from backend.core.database import Base, get_db
@@ -22,11 +23,7 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 # Create tables
 Base.metadata.create_all(bind=engine)
 
-# Dependency override
-@app.get("/api/v1/users")
-def get_users_test(db: sessionmaker = Depends(get_db)):
-    return db
-
+# Test client
 client = TestClient(app)
 
 
