@@ -31,6 +31,9 @@ class Customer(Base):
     email: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)
     address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    country: Mapped[Optional[str]] = mapped_column(String(50), default="Bénin", nullable=True)
+    tax_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     loyalty_points: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
