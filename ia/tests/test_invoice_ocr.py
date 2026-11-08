@@ -19,7 +19,14 @@ try:
         process_invoice_image,
     )
 
-    HAS_OCR = True
+    # Check if Tesseract is available
+    try:
+        import pytesseract
+
+        pytesseract.get_tesseract_version()
+        HAS_OCR = True
+    except:
+        HAS_OCR = False
 except ModuleNotFoundError:
     HAS_OCR = False
 
