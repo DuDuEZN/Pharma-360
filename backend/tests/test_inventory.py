@@ -4,10 +4,12 @@ QA-005: Tests Unitaires Backend
 """
 
 from datetime import date
+from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.core.security import get_current_user
 from backend.main import app
 
 
@@ -16,6 +18,24 @@ def client():
     """Create a fresh TestClient for each test"""
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def client_with_auth():
+    """Create a test client with mocked authentication"""
+    from backend.main import app
+
+    mock_user = Mock()
+    mock_user.id = 1
+    mock_user.username = "testuser"
+    mock_user.role = "admin"
+    mock_user.is_active = True
+
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    with TestClient(app) as test_client:
+        yield test_client
+    # Clean up dependency overrides
+    app.dependency_overrides.clear()
 
 
 class TestInventory:
@@ -63,8 +83,10 @@ class TestInventory:
 class TestStockMovements:
     """Tests for Stock Movements functionality"""
 
-    def test_record_stock_in(self, client):
+    def test_record_stock_in(self, client_with_auth):
         """Test recording stock in movement"""
+        client = client_with_auth
+
         # First create a test product
         product_data = {
             "name": "Test Product",
@@ -86,8 +108,10 @@ class TestStockMovements:
         response = client.post("/api/v1/inventory/movements", json=movement_data)
         assert response.status_code in [200, 201]
 
-    def test_record_stock_out(self, client):
+    def test_record_stock_out(self, client_with_auth):
         """Test recording stock out movement"""
+        client = client_with_auth
+
         # First create a test product
         product_data = {
             "name": "Test Product 2",
