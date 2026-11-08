@@ -64,7 +64,7 @@ class ReportService:
         # Build query for sales
         query = select(Sale)
         count_query = select(func.count()).select_from(Sale)
-        amount_query = select(func.coalesce(func.sum(Sale.total_amount), 0))
+        amount_query = select(func.coalesce(func.sum(Sale.total), 0))
 
         # Apply filters
         if request.data_range_start:
@@ -230,7 +230,7 @@ class ReportService:
         # Build query
         query = select(Sale)
         count_query = select(func.count()).select_from(Sale)
-        amount_query = select(func.coalesce(func.sum(Sale.total_amount), 0))
+        amount_query = select(func.coalesce(func.sum(Sale.total), 0))
 
         # Apply filters
         if request.data_range_start:
@@ -379,8 +379,8 @@ class ReportService:
         # Get sales statistics
         sales_query = select(
             func.count(Sale.id),
-            func.coalesce(func.sum(Sale.total_amount), 0),
-            func.coalesce(func.avg(Sale.total_amount), 0),
+            func.coalesce(func.sum(Sale.total), 0),
+            func.coalesce(func.avg(Sale.total), 0),
         )
         result = await db.execute(sales_query)
         total_sales, total_revenue, avg_sale = result.one()
@@ -432,7 +432,7 @@ class ReportService:
         sales_by_day_query = (
             select(
                 func.date(Sale.sale_date).label("sale_date"),
-                func.coalesce(func.sum(Sale.total_amount), 0).label("total_amount"),
+                func.coalesce(func.sum(Sale.total), 0).label("total_amount"),
             )
             .where(Sale.sale_date >= date.today() - timedelta(days=7))
             .group_by(func.date(Sale.sale_date))

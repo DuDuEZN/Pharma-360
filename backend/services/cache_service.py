@@ -326,8 +326,8 @@ class CacheService:
         result = await db.execute(
             select(
                 func.count(Sale.id).label("total_sales"),
-                func.coalesce(func.sum(Sale.total_amount), 0).label("total_revenue"),
-                func.coalesce(func.avg(Sale.total_amount), 0).label("avg_sale"),
+                func.coalesce(func.sum(Sale.total), 0).label("total_revenue"),
+                func.coalesce(func.avg(Sale.total), 0).label("avg_sale"),
             )
         )
         row = result.one()
