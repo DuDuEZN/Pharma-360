@@ -2,7 +2,7 @@
 IA Module Configuration
 """
 
-from pydantic import SecretStr, model_validator
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -15,7 +15,7 @@ class IASettings(BaseSettings):
     postgres_port: int = 5432
     postgres_db: str = "pharma360_dev"
     postgres_user: str = "pharma_user"
-    postgres_password: SecretStr = SecretStr("pharma_pass_2025")
+    postgres_password: str = "pharma_pass_2025"
     tessdata_prefix: str = "/usr/share/tesseract-ocr/4.00/tessdata"
     upload_dir: str = "./uploads"
     app_name: str = "Pharma-360 IA"
@@ -26,11 +26,11 @@ class IASettings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_configuration(self):
+        """Reject unsafe debug, password, and CORS settings in production."""
         if self.app_env.lower() == "production":
             if self.app_debug:
                 raise ValueError("APP_DEBUG must be false in production")
-            password = self.postgres_password.get_secret_value()
-            if len(password) < 16 or password == "pharma_pass_2025":
+            if len(self.postgres_password) < 16 or self.postgres_password == "pharma_pass_2025":
                 raise ValueError("POSTGRES_PASSWORD must be a unique production password")
             origins = [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
             if not origins or "*" in origins:
