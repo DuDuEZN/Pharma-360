@@ -64,8 +64,8 @@ class Product(Base):
         index=True,
     )
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    price: Mapped[float] = mapped_column(Numeric(10, 2), default=0.00, nullable=False)
-    cost_price: Mapped[float] = mapped_column(
+    price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0.00, nullable=False)
+    cost_price: Mapped[Decimal] = mapped_column(
         Numeric(10, 2), default=0.00, nullable=False
     )
     stock_min: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

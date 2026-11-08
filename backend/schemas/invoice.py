@@ -22,7 +22,7 @@ class InvoiceBase(BaseModel):
         ..., min_length=1, max_length=50, description="Invoice number"
     )
     supplier_id: int = Field(..., ge=1, description="Supplier ID")
-    invoice_date: date_type = Field(default_factory=get_today, description="Invoice date")
+    date: date_type = Field(default_factory=get_today, description="Invoice date")
     due_date: Optional[date_type] = Field(None, description="Payment due date")
     subtotal: float = Field(default=0.0, ge=0, description="Subtotal amount")
     tax_amount: float = Field(default=0.0, ge=0, description="Tax amount")
@@ -50,7 +50,7 @@ class InvoiceCreate(InvoiceBase):
             "example": {
                 "invoice_number": "INV-2025-001",
                 "supplier_id": 1,
-                "invoice_date": "2025-01-15",
+                "date": "2025-01-15",
                 "due_date": "2025-02-14",
                 "subtotal": 100000.00,
                 "tax_amount": 18000.00,
@@ -68,7 +68,7 @@ class InvoiceUpdate(BaseModel):
 
     invoice_number: Optional[str] = Field(None, min_length=1, max_length=50)
     supplier_id: Optional[int] = Field(None, ge=1)
-    invoice_date: Optional[date_type] = Field(None)
+    date: Optional[date_type] = Field(None)
     due_date: Optional[date_type] = Field(None)
     subtotal: Optional[float] = Field(None, ge=0)
     tax_amount: Optional[float] = Field(None, ge=0)
