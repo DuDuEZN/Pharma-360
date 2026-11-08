@@ -18,43 +18,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .config import settings
 from .database import get_db
 
-# Password hashing context
-# Utiliser sha256_crypt au lieu de bcrypt pour éviter la limite de 72 bytes
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
-
-# OAuth2 scheme for token authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
 
 
-# Token types
 class TokenType:
     ACCESS = "access_token"
     REFRESH = "refresh_token"
 
 
-# Password utilities
 class PasswordUtils:
-    """Password hashing and verification utilities"""
+    """Password hashing and verification utilities."""
 
     @staticmethod
     def hash_password(password: str) -> str:
-        """Hash a password using sha256_crypt"""
         return pwd_context.hash(password)
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Verify a password against its hash"""
         return pwd_context.verify(plain_password, hashed_password)
 
     @staticmethod
     def generate_temp_password(length: int = 12) -> str:
-        """Generate a temporary password"""
         return secrets.token_urlsafe(length)
 
 
-# JWT utilities
 class JWTUtils:
-    """JWT token utilities"""
+    """JWT token utilities."""
 
     @staticmethod
     def create_token(
@@ -63,22 +53,15 @@ class JWTUtils:
         token_type: str = TokenType.ACCESS,
         expires_delta: Optional[timedelta] = None,
     ) -> str:
-        """Create a JWT token"""
-        if data is None:
-            data = {}
-
-        to_encode = data.copy()
-
-        # Set expiration
+        to_encode = (data or {}).copy()
         if expires_delta:
             expire = datetime.now(timezone.utc) + expires_delta
+        elif token_type == TokenType.ACCESS:
+            expire = datetime.now(timezone.utc) + timedelta(
+                minutes=settings.jwt_expire_minutes
+            )
         else:
-            if token_type == TokenType.ACCESS:
-                expire = datetime.now(timezone.utc) + timedelta(
-                    minutes=settings.jwt_expire_minutes
-                )
-            else:
-                expire = datetime.now(timezone.utc) + timedelta(days=7)
+            expire = datetime.now(timezone.utc) + timedelta(days=7)
 
         to_encode.update(
             {
@@ -88,82 +71,59 @@ class JWTUtils:
                 "type": token_type,
             }
         )
-
-        encoded_jwt = jwt.encode(
+        return jwt.encode(
             to_encode,
             settings.jwt_secret.get_secret_value(),
             algorithm=settings.jwt_algorithm,
         )
 
-        return encoded_jwt
-
     @staticmethod
     def decode_token(token: str) -> dict:
-        """Decode and verify a JWT token"""
         try:
-            payload = jwt.decode(
+            return jwt.decode(
                 token,
                 settings.jwt_secret.get_secret_value(),
                 algorithms=[settings.jwt_algorithm],
             )
-            return payload
-        except JWTError as e:
+        except JWTError as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid token: {str(e)}",
+                detail="Invalid token",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from exc
 
     @staticmethod
     def verify_token_type(token: str, expected_type: str) -> bool:
-        """Verify token type"""
-        payload = JWTUtils.decode_token(token)
-        return payload.get("type") == expected_type
+        return JWTUtils.decode_token(token).get("type") == expected_type
 
 
-# RBAC utilities
 class RBACUtils:
-    """Role-Based Access Control utilities"""
+    """Role-Based Access Control utilities."""
 
-    # Role hierarchy
-    ROLE_HIERARCHY = {
-        "admin": 4,
-        "manager": 3,
-        "seller": 2,
-        "cashier": 1,
-    }
+    ROLE_HIERARCHY = {"admin": 4, "manager": 3, "seller": 2, "cashier": 1}
 
     @staticmethod
     def has_permission(user_role: str, required_role: Optional[str] = None) -> bool:
-        """Check if a user has a required permission level."""
         if required_role is None:
             return True
-
-        user_level = RBACUtils.ROLE_HIERARCHY.get(user_role, 0)
-        required_level = RBACUtils.ROLE_HIERARCHY.get(required_role, 0)
-
-        return user_level >= required_level
+        return RBACUtils.ROLE_HIERARCHY.get(user_role, 0) >= RBACUtils.ROLE_HIERARCHY.get(
+            required_role, 0
+        )
 
     @staticmethod
     def can_access_resource(
         user_role: str, resource_permissions: Dict[str, Any]
     ) -> bool:
-        """Check if a user can access a resource based on permissions."""
         if user_role == "admin":
             return True
-
-        permissions = resource_permissions.get(user_role, [])
-        return len(permissions) > 0
+        return bool(resource_permissions.get(user_role, []))
 
 
-# Dependency for getting current user
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """
-    Dependency that provides the current authenticated user instance from the DB.
-    """
+    """Return the active user only for a valid access token."""
     from ..models.user import User
 
     credentials_error = HTTPException(
@@ -174,18 +134,19 @@ async def get_current_user(
 
     try:
         payload = JWTUtils.decode_token(token)
-        user_id = payload.get("sub")
-        if user_id is None:
+        if payload.get("type") != TokenType.ACCESS:
             raise credentials_error
-        user_id = int(user_id)
+        subject = payload.get("sub")
+        if subject is None:
+            raise credentials_error
+        user_id = int(subject)
     except HTTPException:
         raise
-    except Exception:
+    except (TypeError, ValueError):
         raise credentials_error
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
-
     if user is None:
         raise credentials_error
     if not user.is_active:
@@ -196,39 +157,29 @@ async def get_current_user(
     return user
 
 
-# Dependency for role-based access
 def get_current_user_with_role(required_role: Optional[str] = None):
-    """Factory for creating role-based access dependencies."""
+    """Create a role-based access dependency."""
 
     async def dependency(current_user=Depends(get_current_user)):
         user_role = current_user.role or "seller"
-
         if required_role and not RBACUtils.has_permission(user_role, required_role):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions",
             )
-
         return current_user
 
     return dependency
 
 
-# Request ID generator
 class RequestID:
-    """Generate unique request IDs."""
-
     @staticmethod
     def generate() -> str:
-        """Generate a request ID."""
         return hashlib.sha256(secrets.token_bytes(16)).hexdigest()[:12]
 
 
-# Security headers middleware
 async def add_security_headers(request: Request, call_next):
-    """Add security headers to all responses."""
     response = await call_next(request)
-
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -236,5 +187,4 @@ async def add_security_headers(request: Request, call_next):
         "max-age=63072000; includeSubDomains; preload"
     )
     response.headers["Content-Security-Policy"] = "default-src 'self'"
-
     return response
