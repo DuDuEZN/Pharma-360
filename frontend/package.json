@@ -47,7 +47,6 @@
     "@storybook/addon-essentials": "^7.6.17",
     "@storybook/addon-interactions": "^7.6.17",
     "@storybook/addon-links": "^7.6.17",
-    "@storybook/addon-mcp": "^7.6.17",
     "@storybook/addon-vitest": "^7.6.17",
     "@storybook/react-vite": "^7.6.17",
     "@storybook/testing-library": "^7.6.17",
