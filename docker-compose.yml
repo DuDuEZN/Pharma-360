@@ -1,26 +1,16 @@
 # ===========================================
 # Docker Compose Configuration - Pharma 360°
 # ===========================================
-# ID Tâche: QA-004
-# Responsable: QA/DevOps
-# Durée: 1 jour
-# Statut: TERMINÉ
-# Description: Orchestration des services (PostgreSQL, Backend, Frontend, IA, Nginx)
-# ===========================================
 
-version: '3.8'
-
-# Configuration des services
 services:
-  # Base de données PostgreSQL
   pharma360-db:
     image: postgres:15-alpine
     container_name: pharma360-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-pharma360_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-pharma_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pharma_pass_2025}
       POSTGRES_INITDB_ARGS: "--data-checksums"
       TZ: Africa/Porto-Novo
     volumes:
@@ -31,13 +21,12 @@ services:
     networks:
       - pharma360-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pharma_user} -d ${POSTGRES_DB:-pharma360_dev}"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 40s
 
-  # Service Backend (FastAPI)
   pharma360-backend:
     build:
       context: .
@@ -47,7 +36,7 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-Pharma-360}
       APP_ENV: ${APP_ENV:-development}
-      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_DEBUG: ${APP_DEBUG:-false}
       APP_SECRET_KEY: ${APP_SECRET_KEY:-changer_par_une_cle_secrete}
       POSTGRES_HOST: pharma360-db
       POSTGRES_PORT: 5432
@@ -59,7 +48,7 @@ services:
       JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-30}
       BACKEND_HOST: 0.0.0.0
       BACKEND_PORT: 8000
-      CORS_ORIGINS: ${CORS_ORIGINS:-"*"}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost}
     depends_on:
       pharma360-db:
         condition: service_healthy
@@ -78,7 +67,6 @@ services:
       - pharma360-backend-logs:/app/logs
       - pharma360-backend-uploads:/app/uploads
 
-  # Service Frontend (React + Nginx)
   pharma360-frontend:
     build:
       context: .
@@ -104,7 +92,6 @@ services:
       retries: 5
       start_period: 15s
 
-  # Service IA (OCR + Analytics)
   pharma360-ia:
     build:
       context: .
@@ -114,6 +101,9 @@ services:
     environment:
       IA_HOST: 0.0.0.0
       IA_PORT: 8001
+      APP_ENV: ${APP_ENV:-development}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost}
       POSTGRES_HOST: pharma360-db
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-pharma360_dev}
@@ -138,7 +128,6 @@ services:
       - ./ia/models:/app/ia/models
       - ./ia/uploads:/app/ia/uploads
 
-  # Reverse Proxy Nginx
   pharma360-nginx:
     image: nginx:alpine
     container_name: pharma360-nginx
@@ -164,7 +153,6 @@ services:
       retries: 3
       start_period: 20s
 
-# Volumes pour la persistance des données
 volumes:
   pharma360-db-data:
     driver: local
@@ -174,7 +162,6 @@ volumes:
   pharma360-backend-uploads:
     name: pharma360-backend-uploads
 
-# Réseau dédié pour le projet
 networks:
   pharma360-network:
     driver: bridge

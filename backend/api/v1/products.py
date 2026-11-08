@@ -9,12 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db
-from ...core.logging import get_logger, log_business_event
-from ...core.security import RBACUtils, get_current_user, get_current_user_with_role
+from ...core.logging import get_logger
+from ...core.security import RBACUtils, get_current_user
+from ...models.product import Product
 from ...models.user import User
 from ...schemas.product import (
     BarcodeScanRequest,
-    BarcodeScanResponse,
     ProductCreate,
     ProductDetailResponse,
     ProductListResponse,
@@ -24,17 +24,11 @@ from ...schemas.product import (
 )
 from ...services.product_service import ProductService
 
-# Create router
 router = APIRouter(prefix="/products", tags=["products"])
 logger = get_logger("products")
 
 
-@router.get(
-    "/",
-    response_model=ProductListResponse,
-    summary="List all products",
-    description="Get a paginated list of all products",
-)
+@router.get("/", response_model=ProductListResponse, summary="List all products")
 async def list_products(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
@@ -44,14 +38,12 @@ async def list_products(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ProductListResponse:
-    """List products endpoint"""
     logger.info(
         f"Listing products - page: {page}, page_size: {page_size}",
         user_id=current_user.id,
         category_id=category_id,
         search=search[:50] if search else None,
     )
-
     return await ProductService.list_products(
         page=page,
         page_size=page_size,
@@ -59,6 +51,66 @@ async def list_products(
         is_active=is_active,
         search=search,
         db=db,
+    )
+
+
+# Keep fixed GET paths before /{product_id}; otherwise strings like "search"
+# and "low-stock" are captured by the dynamic route.
+@router.get("/search", response_model=ProductSearchResponse, summary="Search products")
+async def search_products(
+    query: Annotated[str, Query(min_length=1)],
+    category_id: Annotated[Optional[int], Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ProductSearchResponse:
+    return await ProductService.search_products(
+        query=query, category_id=category_id, limit=limit, db=db
+    )
+
+
+@router.get("/low-stock", response_model=ProductListResponse)
+async def get_low_stock_products(
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> ProductListResponse:
+    products = await ProductService.get_low_stock_products(db)
+    responses = []
+    for product in products:
+        response = ProductResponse.model_validate(product)
+        response.current_stock = product.current_stock
+        response.is_low_stock = True
+        response.is_overstocked = product.is_overstocked
+        response.category_name = product.category.name if product.category else None
+        responses.append(response)
+    return ProductListResponse(
+        products=responses,
+        total=len(products),
+        page=1,
+        page_size=len(products),
+        total_pages=1,
+    )
+
+
+@router.get("/expiring-soon", response_model=ProductListResponse)
+async def get_expiring_soon_products(
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> ProductListResponse:
+    products = await ProductService.get_expiring_soon_products(db)
+    responses = []
+    for product in products:
+        response = ProductResponse.model_validate(product)
+        response.current_stock = product.current_stock
+        response.is_low_stock = product.is_low_stock
+        response.is_overstocked = product.is_overstocked
+        response.has_expiring_soon = True
+        response.category_name = product.category.name if product.category else None
+        responses.append(response)
+    return ProductListResponse(
+        products=responses,
+        total=len(products),
+        page=1,
+        page_size=len(products),
+        total_pages=1,
     )
 
 
@@ -72,40 +124,25 @@ async def get_product(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get product endpoint"""
-    logger.info(
-        f"Getting product details - product_id: {product_id}", user_id=current_user.id
-    )
-
     product = await ProductService.get_product_by_id(product_id, db)
-
     if not product:
-        logger.warning(
-            f"Product not found - product_id: {product_id}", user_id=current_user.id
-        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
         )
 
-    # Convert to detail response
-    detail_response = ProductDetailResponse.model_validate(product)
-
-    # Add computed fields
-    detail_response.current_stock = product.current_stock
-    detail_response.is_low_stock = product.is_low_stock
-    detail_response.is_overstocked = product.is_overstocked
-    detail_response.next_expiring_batch = (
-        product.next_expiring_batch.batch_number
-        if product.next_expiring_batch
-        else None
+    detail = ProductDetailResponse.model_validate(product)
+    detail.current_stock = product.current_stock
+    detail.is_low_stock = product.is_low_stock
+    detail.is_overstocked = product.is_overstocked
+    detail.next_expiring_batch = (
+        product.next_expiring_batch.batch_number if product.next_expiring_batch else None
     )
-    detail_response.has_expiring_soon = product.has_expiring_soon
-    detail_response.category_name = product.category.name if product.category else None
+    detail.has_expiring_soon = product.has_expiring_soon
+    detail.category_name = product.category.name if product.category else None
 
-    # Add batches
     from ...schemas.batch import BatchResponse
 
-    detail_response.batches = []
+    detail.batches = []
     for batch in product.batches:
         batch_response = BatchResponse.model_validate(batch)
         batch_response.product_name = product.name
@@ -117,9 +154,8 @@ async def get_product(
         batch_response.days_until_expiry = batch.days_until_expiry
         batch_response.is_expiring_soon = batch.is_expiring_soon
         batch_response.fefo_priority = batch.fefo_priority
-        detail_response.batches.append(batch_response)
-
-    return detail_response
+        detail.batches.append(batch_response)
+    return detail
 
 
 @router.post(
@@ -127,23 +163,19 @@ async def get_product(
     response_model=ProductResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new product",
-    description="Create a new product (manager or admin only)",
 )
 async def create_product(
     product_data: ProductCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ProductResponse:
-    """Create product endpoint"""
-    # Check permissions
     if not RBACUtils.has_permission(current_user.role, "manager"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only manager or admin users can create products",
         )
 
-    # Create product
-    new_product = Product(
+    product = Product(
         name=product_data.name,
         dci=product_data.dci,
         barcode=product_data.barcode,
@@ -158,35 +190,25 @@ async def create_product(
         is_active=product_data.is_active,
         requires_prescription=product_data.requires_prescription,
     )
-
-    db.add(new_product)
+    db.add(product)
     await db.flush()
-    await db.refresh(new_product)
+    await db.refresh(product)
 
-    # Convert to response
-    response = ProductResponse.model_validate(new_product)
-    response.current_stock = new_product.current_stock
-    response.is_low_stock = new_product.is_low_stock
-    response.is_overstocked = new_product.is_overstocked
-    response.category_name = new_product.category.name if new_product.category else None
-
+    response = ProductResponse.model_validate(product)
+    response.current_stock = product.current_stock
+    response.is_low_stock = product.is_low_stock
+    response.is_overstocked = product.is_overstocked
+    response.category_name = product.category.name if product.category else None
     return response
 
 
-@router.put(
-    "/{product_id}",
-    response_model=ProductResponse,
-    summary="Update a product",
-    description="Update product information (manager or admin only)",
-)
+@router.put("/{product_id}", response_model=ProductResponse)
 async def update_product(
     product_id: int,
     product_data: ProductUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ProductResponse:
-    """Update product endpoint"""
-    # Check permissions
     if not RBACUtils.has_permission(current_user.role, "manager"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -194,174 +216,50 @@ async def update_product(
         )
 
     product = await ProductService.get_product_by_id(product_id, db)
-
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
         )
 
-    # Update fields
-    if product_data.name:
-        product.name = product_data.name
-    if product_data.dci:
-        product.dci = product_data.dci
-    if product_data.barcode:
-        product.barcode = product_data.barcode
-    if product_data.category_id:
-        product.category_id = product_data.category_id
-    if product_data.description:
-        product.description = product_data.description
-    if product_data.price:
-        product.price = product_data.price
-    if product_data.cost_price:
-        product.cost_price = product_data.cost_price
-    if product_data.stock_min:
-        product.stock_min = product_data.stock_min
-    if product_data.stock_max:
-        product.stock_max = product_data.stock_max
-    if product_data.unit:
-        product.unit = product_data.unit
-    if product_data.manufacturer:
-        product.manufacturer = product_data.manufacturer
-    if product_data.is_active is not None:
-        product.is_active = product_data.is_active
-    if product_data.requires_prescription is not None:
-        product.requires_prescription = product_data.requires_prescription
+    # Use exclude_unset so valid falsy values (0, False, empty string) are applied,
+    # while omitted fields remain unchanged.
+    for field, value in product_data.model_dump(exclude_unset=True).items():
+        setattr(product, field, value)
 
     await db.flush()
     await db.refresh(product)
-
-    # Convert to response
     response = ProductResponse.model_validate(product)
     response.current_stock = product.current_stock
     response.is_low_stock = product.is_low_stock
     response.is_overstocked = product.is_overstocked
     response.category_name = product.category.name if product.category else None
-
     return response
 
 
-@router.delete(
-    "/{product_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete a product",
-    description="Delete a product (admin only)",
-)
+@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     product_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> None:
-    """Delete product endpoint"""
-    # Check permissions
     if not RBACUtils.has_permission(current_user.role, "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin users can delete products",
         )
-
     product = await ProductService.get_product_by_id(product_id, db)
-
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
         )
-
     await db.delete(product)
     await db.commit()
 
 
-@router.get(
-    "/search",
-    response_model=ProductSearchResponse,
-    summary="Search products",
-    description="Search products by name, barcode, DCI, or manufacturer",
-)
-async def search_products(
-    query: Annotated[str, Query(min_length=1)] = "",
-    category_id: Annotated[Optional[int], Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> ProductSearchResponse:
-    """Search products endpoint"""
-    return await ProductService.search_products(
-        query=query, category_id=category_id, limit=limit, db=db
-    )
-
-
-@router.post(
-    "/scan",
-    summary="Scan barcode",
-    description="Scan a barcode and get product with FEFO batch selection",
-)
+@router.post("/scan", summary="Scan barcode")
 async def scan_barcode(
     scan_data: BarcodeScanRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Scan barcode endpoint"""
     return await ProductService.scan_barcode(barcode=scan_data.barcode, db=db)
-
-
-@router.get(
-    "/low-stock",
-    response_model=ProductListResponse,
-    summary="Get low stock products",
-    description="Get all products with stock below minimum level",
-)
-async def get_low_stock_products(
-    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
-) -> ProductListResponse:
-    """Get low stock products endpoint"""
-    low_stock_products = await ProductService.get_low_stock_products(db)
-
-    # Convert to response
-    product_responses = []
-    for product in low_stock_products:
-        response = ProductResponse.model_validate(product)
-        response.current_stock = product.current_stock
-        response.is_low_stock = True
-        response.is_overstocked = product.is_overstocked
-        response.category_name = product.category.name if product.category else None
-        product_responses.append(response)
-
-    return ProductListResponse(
-        products=product_responses,
-        total=len(low_stock_products),
-        page=1,
-        page_size=len(low_stock_products),
-        total_pages=1,
-    )
-
-
-@router.get(
-    "/expiring-soon",
-    response_model=ProductListResponse,
-    summary="Get products with expiring batches",
-    description="Get all products with batches expiring within 30 days",
-)
-async def get_expiring_soon_products(
-    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
-) -> ProductListResponse:
-    """Get expiring soon products endpoint"""
-    expiring_products = await ProductService.get_expiring_soon_products(db)
-
-    # Convert to response
-    product_responses = []
-    for product in expiring_products:
-        response = ProductResponse.model_validate(product)
-        response.current_stock = product.current_stock
-        response.is_low_stock = product.is_low_stock
-        response.is_overstocked = product.is_overstocked
-        response.has_expiring_soon = True
-        response.category_name = product.category.name if product.category else None
-        product_responses.append(response)
-
-    return ProductListResponse(
-        products=product_responses,
-        total=len(expiring_products),
-        page=1,
-        page_size=len(expiring_products),
-        total_pages=1,
-    )
