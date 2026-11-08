@@ -7,8 +7,11 @@ from .auth_service import auth_service
 from .barcode_service import barcode_service
 from .batch_service import batch_service
 from .cache_service import cache_service
+from .customer_service import customer_service
+from .inventory_service import inventory_service
 from .invoice_service import invoice_service
 from .logging_service import logging_service
+from .movement_service import movement_service
 from .product_service import product_service
 from .report_service import report_service
 from .return_service import return_service
@@ -32,4 +35,7 @@ __all__ = [
     "report_service",
     "cache_service",
     "logging_service",
+    "customer_service",
+    "inventory_service",
+    "movement_service",
 ]

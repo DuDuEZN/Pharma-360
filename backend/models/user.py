@@ -36,6 +36,17 @@ class User(Base):
         String(50), unique=True, nullable=False, index=True
     )
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    def __init__(self, **kwargs):
+        """Custom __init__ to handle password field"""
+        if "password" in kwargs:
+            from ..core.security import PasswordUtils
+
+            kwargs["password_hash"] = PasswordUtils.hash_password(
+                kwargs.pop("password")
+            )
+        super().__init__(**kwargs)
+
     email: Mapped[str] = mapped_column(
         String(100), unique=True, nullable=False, index=True
     )
