@@ -53,7 +53,7 @@ class TestInventory:
         assert response.status_code in [200, 404]
         if response.status_code == 200:
             assert "product_id" in response.json()
-            assert "quantity" in response.json()
+            assert "total_quantity" in response.json()
 
     def test_update_inventory(self, client):
         """Test updating inventory for a product"""

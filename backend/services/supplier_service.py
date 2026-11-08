@@ -263,7 +263,7 @@ class SupplierService:
                     "status": inv.status,
                 }
                 for inv in invoices
-            ]
+            ],
         )
 
         return response

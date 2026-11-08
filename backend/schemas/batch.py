@@ -25,6 +25,7 @@ class BatchBase(BaseModel):
     )
     expiry_date: date_type = Field(..., description="Expiration date (YYYY-MM-DD)")
     quantity: int = Field(default=0, ge=0, description="Current quantity")
+    reserved_quantity: int = Field(default=0, ge=0, description="Reserved quantity")
     initial_quantity: int = Field(default=0, ge=0, description="Initial quantity")
     location: Optional[str] = Field(None, max_length=50, description="Storage location")
     received_date: date_type = Field(default_factory=get_today, description="Date received")
