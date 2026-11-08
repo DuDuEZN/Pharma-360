@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from ..models.customer import Customer
-from ..models.invoice import Invoice
 from ..models.sale import Sale
 from ..schemas.customer import (
     CustomerCreate,
@@ -150,22 +149,22 @@ class CustomerService:
 
     @staticmethod
     async def get_customer_invoices(customer_id: int, db: AsyncSession) -> List[dict]:
-        """Get all invoices for a customer"""
+        """Get all sales/invoices for a customer"""
         result = await db.execute(
-            select(Invoice)
-            .where(Invoice.customer_id == customer_id)
-            .order_by(desc(Invoice.invoice_date))
+            select(Sale)
+            .where(Sale.customer_id == customer_id)
+            .order_by(desc(Sale.created_at))
         )
-        invoices = result.scalars().all()
+        sales = result.scalars().all()
         return [
             {
-                "id": invoice.id,
-                "invoice_number": invoice.invoice_number,
-                "date": invoice.invoice_date,
-                "total": invoice.total_amount,
-                "status": invoice.status,
+                "id": sale.id,
+                "sale_number": sale.sale_number,
+                "date": sale.created_at,
+                "total": sale.total_amount,
+                "status": sale.status,
             }
-            for invoice in invoices
+            for sale in sales
         ]
 
     @staticmethod
