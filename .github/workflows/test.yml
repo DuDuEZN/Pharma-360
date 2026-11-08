@@ -175,7 +175,7 @@ jobs:
       - name: Run integration tests
         run: |
           cd backend
-          pytest tests/test_integration_workflows.py -v --tb=short --disable-warnings
+          pytest tests/test_integration.py -v --tb=short --disable-warnings
         env:
           POSTGRES_DB: pharma360_test
           POSTGRES_HOST: localhost
