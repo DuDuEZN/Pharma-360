@@ -3,7 +3,8 @@ Movement Service for Pharmacie 360 Backend
 Business logic for stock movement tracking (COMPLETE AUDIT TRAIL)
 """
 
-from datetime import date as date_type, datetime
+from datetime import date as date_type
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import and_, asc, desc, or_, select
@@ -65,15 +66,24 @@ class MovementService:
             old_quantity = current_batch.quantity
 
         # Create the movement record
+        # Map schema fields to model fields
+        # - movement_type -> type
+        # - quantity -> quantity_change (with sign based on movement type)
+        # - reference -> reference_id (we'll use 0 as default) and reference_type
+        quantity_change = movement_data.quantity
+        if movement_data.movement_type == "out":
+            quantity_change = -movement_data.quantity
+
         new_movement = Movement(
             product_id=movement_data.product_id,
             batch_id=batch_id,
-            quantity=movement_data.quantity,
+            type=movement_data.movement_type,
+            reference_id=0,  # Default reference ID
+            reference_type="manual",  # Default reference type
             old_quantity=old_quantity,
             new_quantity=old_quantity,  # Will be updated after batch update
-            movement_type=movement_data.movement_type,
+            quantity_change=quantity_change,
             reason=movement_data.reason,
-            reference=movement_data.reference,
             notes=movement_data.notes,
             user_id=None,  # Will be set if user is authenticated
         )
@@ -99,18 +109,18 @@ class MovementService:
         await db.refresh(new_movement)
 
         # Return the movement with product details
+        # Map model fields back to schema fields
         return MovementResponse(
             id=new_movement.id,
             product_id=new_movement.product_id,
             product_name=product.name,
             batch_id=new_movement.batch_id,
-            quantity=new_movement.quantity,
+            quantity=abs(new_movement.quantity_change),  # Return absolute quantity
             old_quantity=new_movement.old_quantity,
             new_quantity=new_movement.new_quantity,
-            movement_type=new_movement.movement_type,
+            movement_type=new_movement.type,
             reason=new_movement.reason,
-            reference=new_movement.reference,
-            date=new_movement.date,
+            reference=f"{new_movement.reference_type}:{new_movement.reference_id}",
             user_id=new_movement.user_id,
             created_at=new_movement.created_at,
         )
@@ -135,13 +145,12 @@ class MovementService:
             product_id=movement.product_id,
             product_name=movement.product.name if movement.product else "Unknown",
             batch_id=movement.batch_id,
-            quantity=movement.quantity,
+            quantity=abs(movement.quantity_change),
             old_quantity=movement.old_quantity,
             new_quantity=movement.new_quantity,
-            movement_type=movement.movement_type,
+            movement_type=movement.type,
             reason=movement.reason,
-            reference=movement.reference,
-
+            reference=f"{movement.reference_type}:{movement.reference_id}",
             user_id=movement.user_id,
             created_at=movement.created_at,
         )
@@ -167,11 +176,17 @@ class MovementService:
         if product_id:
             query = query.where(Movement.product_id == product_id)
         if movement_type:
-            query = query.where(Movement.movement_type == movement_type)
+            query = query.where(Movement.type == movement_type)
         if start_date:
-            query = query.where(Movement.created_at >= datetime(start_date.year, start_date.month, start_date.day))
+            query = query.where(
+                Movement.created_at
+                >= datetime(start_date.year, start_date.month, start_date.day)
+            )
         if end_date:
-            query = query.where(Movement.created_at <= datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59))
+            query = query.where(
+                Movement.created_at
+                <= datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59)
+            )
 
         # Pagination
         offset = (page - 1) * page_size
@@ -186,13 +201,12 @@ class MovementService:
                 product_id=movement.product_id,
                 product_name=movement.product.name if movement.product else "Unknown",
                 batch_id=movement.batch_id,
-                quantity=movement.quantity,
+                quantity=abs(movement.quantity_change),
                 old_quantity=movement.old_quantity,
                 new_quantity=movement.new_quantity,
-                movement_type=movement.movement_type,
+                movement_type=movement.type,
                 reason=movement.reason,
-                reference=movement.reference,
-    
+                reference=f"{movement.reference_type}:{movement.reference_id}",
                 user_id=movement.user_id,
                 created_at=movement.created_at,
             )
@@ -218,13 +232,12 @@ class MovementService:
                 product_id=movement.product_id,
                 product_name=movement.product.name if movement.product else "Unknown",
                 batch_id=movement.batch_id,
-                quantity=movement.quantity,
+                quantity=abs(movement.quantity_change),
                 old_quantity=movement.old_quantity,
                 new_quantity=movement.new_quantity,
-                movement_type=movement.movement_type,
+                movement_type=movement.type,
                 reason=movement.reason,
-                reference=movement.reference,
-    
+                reference=f"{movement.reference_type}:{movement.reference_id}",
                 user_id=movement.user_id,
                 created_at=movement.created_at,
             )
