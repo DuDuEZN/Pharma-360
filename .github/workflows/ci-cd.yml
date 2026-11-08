@@ -49,7 +49,7 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/pharma360_test
+          DATABASE_URL: postgresql+asyncpg://test_user:test_pass@localhost:5432/pharma360_test
         run: |
           cd backend && python -m pytest tests/ --ignore=tests/test_deployment.py --cov=./ --cov-report=xml --cov-report=term -v
 
