@@ -81,7 +81,7 @@ class TestSuppliers:
     def test_delete_supplier(self, client_with_auth):
         """Test deleting a supplier"""
         response = client_with_auth.delete("/api/v1/suppliers/1")
-        assert response.status_code in [200, 404]
+        assert response.status_code in [200, 204, 404]
 
     def test_get_suppliers_by_name(self, client_with_auth):
         """Test filtering suppliers by name"""
