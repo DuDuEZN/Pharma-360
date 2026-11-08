@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import api from '@/lib/api'
+import { api } from '@/lib/api'
 import { REFRESH_TOKEN_KEY, TOKEN_KEY, USER_KEY } from '@/lib/constants'
 
 const AuthContext = createContext(null)
