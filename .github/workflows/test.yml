@@ -43,7 +43,7 @@ jobs:
         run: |
           cd backend
           pip install --no-cache-dir -r requirements.txt
-          pip install pytest pytest-asyncio pytest-cov
+          pip install pytest pytest-asyncio pytest-cov anyio==3.7.1
       
       - name: Wait for PostgreSQL
         run: |
