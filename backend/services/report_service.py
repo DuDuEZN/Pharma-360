@@ -68,16 +68,16 @@ class ReportService:
 
         # Apply filters
         if request.data_range_start:
-            query = query.where(Sale.sale_date >= request.data_range_start)
-            count_query = count_query.where(Sale.sale_date >= request.data_range_start)
+            query = query.where(Sale.created_at >= request.data_range_start)
+            count_query = count_query.where(Sale.created_at >= request.data_range_start)
             amount_query = amount_query.where(
-                Sale.sale_date >= request.data_range_start
+                Sale.created_at >= request.data_range_start
             )
 
         if request.data_range_end:
-            query = query.where(Sale.sale_date <= request.data_range_end)
-            count_query = count_query.where(Sale.sale_date <= request.data_range_end)
-            amount_query = amount_query.where(Sale.sale_date <= request.data_range_end)
+            query = query.where(Sale.created_at <= request.data_range_end)
+            count_query = count_query.where(Sale.created_at <= request.data_range_end)
+            amount_query = amount_query.where(Sale.created_at <= request.data_range_end)
 
         if request.product_id:
             query = query.where(
@@ -234,16 +234,16 @@ class ReportService:
 
         # Apply filters
         if request.data_range_start:
-            query = query.where(Sale.sale_date >= request.data_range_start)
-            count_query = count_query.where(Sale.sale_date >= request.data_range_start)
+            query = query.where(Sale.created_at >= request.data_range_start)
+            count_query = count_query.where(Sale.created_at >= request.data_range_start)
             amount_query = amount_query.where(
-                Sale.sale_date >= request.data_range_start
+                Sale.created_at >= request.data_range_start
             )
 
         if request.data_range_end:
-            query = query.where(Sale.sale_date <= request.data_range_end)
-            count_query = count_query.where(Sale.sale_date <= request.data_range_end)
-            amount_query = amount_query.where(Sale.sale_date <= request.data_range_end)
+            query = query.where(Sale.created_at <= request.data_range_end)
+            count_query = count_query.where(Sale.created_at <= request.data_range_end)
+            amount_query = amount_query.where(Sale.created_at <= request.data_range_end)
 
         if request.user_id:
             query = query.where(Sale.user_id == request.user_id)
@@ -431,11 +431,11 @@ class ReportService:
         # Get sales by day (last 7 days)
         sales_by_day_query = (
             select(
-                func.date(Sale.sale_date).label("sale_date"),
+                func.date(Sale.created_at).label("sale_date"),
                 func.coalesce(func.sum(Sale.total), 0).label("total_amount"),
             )
-            .where(Sale.sale_date >= date.today() - timedelta(days=7))
-            .group_by(func.date(Sale.sale_date))
+            .where(Sale.created_at >= date.today() - timedelta(days=7))
+            .group_by(func.date(Sale.created_at))
             .order_by("sale_date")
         )
 

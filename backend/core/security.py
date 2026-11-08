@@ -6,7 +6,7 @@ Handles authentication, JWT tokens, and password hashing
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Any, Dict, Optional
+from typing import Annotated, Any, Dict, List, Optional, Union
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
@@ -103,12 +103,20 @@ class RBACUtils:
     ROLE_HIERARCHY = {"admin": 4, "manager": 3, "seller": 2, "cashier": 1}
 
     @staticmethod
-    def has_permission(user_role: str, required_role: Optional[str] = None) -> bool:
+    def has_permission(
+        user_role: str, required_role: Optional[Union[str, List[str]]] = None
+    ) -> bool:
         if required_role is None:
             return True
-        return RBACUtils.ROLE_HIERARCHY.get(user_role, 0) >= RBACUtils.ROLE_HIERARCHY.get(
-            required_role, 0
-        )
+        if isinstance(required_role, list):
+            return any(
+                RBACUtils.ROLE_HIERARCHY.get(user_role, 0)
+                >= RBACUtils.ROLE_HIERARCHY.get(role, 0)
+                for role in required_role
+            )
+        return RBACUtils.ROLE_HIERARCHY.get(
+            user_role, 0
+        ) >= RBACUtils.ROLE_HIERARCHY.get(required_role, 0)
 
     @staticmethod
     def can_access_resource(
