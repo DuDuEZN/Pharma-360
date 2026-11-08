@@ -39,7 +39,7 @@ redis==5.0.1
 
 # Testing
 pytest==7.4.4
-pytest-asyncio==0.23.3
+pytest-asyncio>=0.24.0
 httpx==0.26.0
 hypothesis==6.92.0
 

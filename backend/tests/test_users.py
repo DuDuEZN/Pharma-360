@@ -23,8 +23,12 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 # Create tables
 Base.metadata.create_all(bind=engine)
 
-# Test client
-client = TestClient(app)
+
+@pytest.fixture
+def client():
+    """Create a fresh TestClient for each test"""
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture
@@ -60,13 +64,13 @@ def test_user(test_db):
 class TestUsers:
     """Tests for Users API endpoints"""
     
-    def test_get_all_users(self):
+    def test_get_all_users(self, client):
         """Test getting all users"""
         response = client.get("/api/v1/users")
         assert response.status_code == 200
         assert isinstance(response.json(), list)
     
-    def test_get_user_by_id(self):
+    def test_get_user_by_id(self, client):
         """Test getting a specific user by ID"""
         response = client.get("/api/v1/users/1")
         assert response.status_code in [200, 404]
@@ -74,7 +78,7 @@ class TestUsers:
             assert "id" in response.json()
             assert "username" in response.json()
     
-    def test_create_user(self):
+    def test_create_user(self, client):
         """Test creating a new user"""
         user_data = {
             "username": "newuser",
@@ -88,7 +92,7 @@ class TestUsers:
         assert "id" in response.json()
         assert response.json()["username"] == user_data["username"]
     
-    def test_update_user(self):
+    def test_update_user(self, client):
         """Test updating a user"""
         update_data = {
             "username": "updateduser",
@@ -99,18 +103,18 @@ class TestUsers:
         if response.status_code == 200:
             assert response.json()["username"] == update_data["username"]
     
-    def test_delete_user(self):
+    def test_delete_user(self, client):
         """Test deleting a user"""
         response = client.delete("/api/v1/users/1")
         assert response.status_code in [200, 404]
     
-    def test_get_users_by_role(self):
+    def test_get_users_by_role(self, client):
         """Test filtering users by role"""
         response = client.get("/api/v1/users?role=admin")
         assert response.status_code == 200
         assert isinstance(response.json(), list)
     
-    def test_get_users_paginated(self):
+    def test_get_users_paginated(self, client):
         """Test paginated users list"""
         response = client.get("/api/v1/users?skip=0&limit=10")
         assert response.status_code == 200

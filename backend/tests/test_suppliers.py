@@ -8,19 +8,24 @@ from fastapi.testclient import TestClient
 
 from backend.main import app
 
-client = TestClient(app)
+
+@pytest.fixture
+def client():
+    """Create a fresh TestClient for each test"""
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 class TestSuppliers:
     """Tests for Suppliers API endpoints"""
     
-    def test_get_all_suppliers(self):
+    def test_get_all_suppliers(self, client):
         """Test getting all suppliers"""
         response = client.get("/api/v1/suppliers")
         assert response.status_code == 200
         assert isinstance(response.json(), list)
     
-    def test_get_supplier_by_id(self):
+    def test_get_supplier_by_id(self, client):
         """Test getting a specific supplier by ID"""
         response = client.get("/api/v1/suppliers/1")
         assert response.status_code in [200, 404]
@@ -28,7 +33,7 @@ class TestSuppliers:
             assert "id" in response.json()
             assert "name" in response.json()
     
-    def test_create_supplier(self):
+    def test_create_supplier(self, client):
         """Test creating a new supplier"""
         supplier_data = {
             "name": "Test Supplier",
@@ -43,7 +48,7 @@ class TestSuppliers:
         assert "id" in response.json()
         assert response.json()["name"] == supplier_data["name"]
     
-    def test_update_supplier(self):
+    def test_update_supplier(self, client):
         """Test updating a supplier"""
         update_data = {
             "name": "Updated Supplier",
@@ -54,18 +59,18 @@ class TestSuppliers:
         if response.status_code == 200:
             assert response.json()["name"] == update_data["name"]
     
-    def test_delete_supplier(self):
+    def test_delete_supplier(self, client):
         """Test deleting a supplier"""
         response = client.delete("/api/v1/suppliers/1")
         assert response.status_code in [200, 404]
     
-    def test_get_suppliers_by_name(self):
+    def test_get_suppliers_by_name(self, client):
         """Test filtering suppliers by name"""
         response = client.get("/api/v1/suppliers?name=Test")
         assert response.status_code == 200
         assert isinstance(response.json(), list)
     
-    def test_get_suppliers_paginated(self):
+    def test_get_suppliers_paginated(self, client):
         """Test paginated suppliers list"""
         response = client.get("/api/v1/suppliers?skip=0&limit=10")
         assert response.status_code == 200
@@ -75,14 +80,14 @@ class TestSuppliers:
 class TestSupplierProducts:
     """Tests for Supplier Products functionality"""
     
-    def test_get_supplier_products(self):
+    def test_get_supplier_products(self, client):
         """Test getting products from a supplier"""
         response = client.get("/api/v1/suppliers/1/products")
         assert response.status_code in [200, 404]
         if response.status_code == 200:
             assert isinstance(response.json(), list)
     
-    def test_add_product_to_supplier(self):
+    def test_add_product_to_supplier(self, client):
         """Test adding a product to a supplier"""
         product_data = {
             "product_id": 1,
@@ -92,7 +97,7 @@ class TestSupplierProducts:
         response = client.post("/api/v1/suppliers/1/products", json=product_data)
         assert response.status_code in [200, 201, 404]
     
-    def test_remove_product_from_supplier(self):
+    def test_remove_product_from_supplier(self, client):
         """Test removing a product from a supplier"""
         response = client.delete("/api/v1/suppliers/1/products/1")
         assert response.status_code in [200, 404]
@@ -101,14 +106,14 @@ class TestSupplierProducts:
 class TestSupplierInvoices:
     """Tests for Supplier Invoices functionality"""
     
-    def test_get_supplier_invoices(self):
+    def test_get_supplier_invoices(self, client):
         """Test getting invoices from a supplier"""
         response = client.get("/api/v1/suppliers/1/invoices")
         assert response.status_code in [200, 404]
         if response.status_code == 200:
             assert isinstance(response.json(), list)
     
-    def test_create_supplier_invoice(self):
+    def test_create_supplier_invoice(self, client):
         """Test creating an invoice for a supplier"""
         invoice_data = {
             "invoice_number": "INV-001",
@@ -125,7 +130,7 @@ class TestSupplierInvoices:
 class TestSupplierValidation:
     """Tests for Supplier data validation"""
     
-    def test_create_supplier_without_name(self):
+    def test_create_supplier_without_name(self, client):
         """Test creating a supplier without name"""
         supplier_data = {
             "contact": "contact@supplier.com",
@@ -134,7 +139,7 @@ class TestSupplierValidation:
         response = client.post("/api/v1/suppliers", json=supplier_data)
         assert response.status_code == 422  # Validation error
     
-    def test_create_supplier_with_invalid_email(self):
+    def test_create_supplier_with_invalid_email(self, client):
         """Test creating a supplier with invalid email"""
         supplier_data = {
             "name": "Test Supplier",
