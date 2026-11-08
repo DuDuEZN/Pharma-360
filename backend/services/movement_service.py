@@ -22,6 +22,33 @@ class MovementService:
     """Service class for stock movement operations (AUDIT TRAIL)"""
 
     @staticmethod
+    def _movement_to_response(
+        movement: Movement, product_name: str = "Unknown"
+    ) -> MovementResponse:
+        """Convert Movement model to MovementResponse schema"""
+        notes_text = movement.notes or ""
+        reason_text = notes_text.split(" - ")[0] if " - " in notes_text else notes_text
+        notes_remaining = (
+            " - ".join(notes_text.split(" - ")[1:]) if " - " in notes_text else None
+        )
+
+        return MovementResponse(
+            id=movement.id,
+            product_id=movement.product_id,
+            product_name=product_name,
+            batch_id=movement.batch_id,
+            quantity=abs(movement.quantity_change),
+            old_quantity=movement.old_quantity,
+            new_quantity=movement.new_quantity,
+            movement_type=movement.type,
+            reason=reason_text,
+            reference=f"{movement.reference_type}:{movement.reference_id}",
+            notes=notes_remaining,
+            user_id=movement.user_id,
+            created_at=movement.created_at,
+        )
+
+    @staticmethod
     async def create_movement(
         movement_data: MovementCreate, db: AsyncSession
     ) -> MovementResponse:
@@ -109,29 +136,7 @@ class MovementService:
         await db.refresh(new_movement)
 
         # Return the movement with product details
-        # Map model fields back to schema fields
-        # Extract reason from notes (first part before " - " if present)
-        notes_text = new_movement.notes or ""
-        reason_text = notes_text.split(" - ")[0] if " - " in notes_text else notes_text
-        notes_remaining = (
-            " - ".join(notes_text.split(" - ")[1:]) if " - " in notes_text else None
-        )
-
-        return MovementResponse(
-            id=new_movement.id,
-            product_id=new_movement.product_id,
-            product_name=product.name,
-            batch_id=new_movement.batch_id,
-            quantity=abs(new_movement.quantity_change),  # Return absolute quantity
-            old_quantity=new_movement.old_quantity,
-            new_quantity=new_movement.new_quantity,
-            movement_type=new_movement.type,
-            reason=reason_text,
-            reference=f"{new_movement.reference_type}:{new_movement.reference_id}",
-            notes=notes_remaining,
-            user_id=new_movement.user_id,
-            created_at=new_movement.created_at,
-        )
+        return self._movement_to_response(new_movement, product_name=product.name)
 
     @staticmethod
     async def get_movement_by_id(
@@ -148,27 +153,9 @@ class MovementService:
         if not movement:
             return None
 
-        # Extract reason from notes (first part before " - " if present)
-        notes_text = movement.notes or ""
-        reason_text = notes_text.split(" - ")[0] if " - " in notes_text else notes_text
-        notes_remaining = (
-            " - ".join(notes_text.split(" - ")[1:]) if " - " in notes_text else None
-        )
-
-        return MovementResponse(
-            id=movement.id,
-            product_id=movement.product_id,
+        return self._movement_to_response(
+            movement,
             product_name=movement.product.name if movement.product else "Unknown",
-            batch_id=movement.batch_id,
-            quantity=abs(movement.quantity_change),
-            old_quantity=movement.old_quantity,
-            new_quantity=movement.new_quantity,
-            movement_type=movement.type,
-            reason=reason_text,
-            reference=f"{movement.reference_type}:{movement.reference_id}",
-            notes=notes_remaining,
-            user_id=movement.user_id,
-            created_at=movement.created_at,
         )
 
     @staticmethod
@@ -212,19 +199,9 @@ class MovementService:
         movements = result.scalars().all()
 
         return [
-            MovementResponse(
-                id=movement.id,
-                product_id=movement.product_id,
+            self._movement_to_response(
+                movement,
                 product_name=movement.product.name if movement.product else "Unknown",
-                batch_id=movement.batch_id,
-                quantity=abs(movement.quantity_change),
-                old_quantity=movement.old_quantity,
-                new_quantity=movement.new_quantity,
-                movement_type=movement.type,
-                reason=movement.reason,
-                reference=f"{movement.reference_type}:{movement.reference_id}",
-                user_id=movement.user_id,
-                created_at=movement.created_at,
             )
             for movement in movements
         ]
@@ -243,19 +220,9 @@ class MovementService:
         movements = result.scalars().all()
 
         return [
-            MovementResponse(
-                id=movement.id,
-                product_id=movement.product_id,
+            self._movement_to_response(
+                movement,
                 product_name=movement.product.name if movement.product else "Unknown",
-                batch_id=movement.batch_id,
-                quantity=abs(movement.quantity_change),
-                old_quantity=movement.old_quantity,
-                new_quantity=movement.new_quantity,
-                movement_type=movement.type,
-                reason=movement.reason,
-                reference=f"{movement.reference_type}:{movement.reference_id}",
-                user_id=movement.user_id,
-                created_at=movement.created_at,
             )
             for movement in movements
         ]
