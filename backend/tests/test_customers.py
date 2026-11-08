@@ -118,7 +118,7 @@ class TestCustomerLoyalty:
         assert response.status_code in [200, 404]
         if response.status_code == 200:
             assert "total_purchases" in response.json()
-            assert "total_spent" in response.json()
+            assert "purchase_count" in response.json()
 
 
 class TestCustomerValidation:
