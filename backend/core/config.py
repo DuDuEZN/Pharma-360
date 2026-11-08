@@ -1,6 +1,6 @@
 """
-Configuration Module for Pharmacie 360 Backend
-Handles all application configuration through environment variables.
+Configuration Module for Pharmacie 360 Backend.
+Application settings are loaded from environment variables or .env.
 """
 
 from functools import lru_cache
@@ -11,7 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application settings, validated more strictly in production."""
+    """Application settings with strict checks for production deployments."""
 
     app_name: str = Field(default="Pharma-360", description="Application Name")
     app_version: str = Field(default="1.0.0", description="Application Version")
@@ -61,25 +61,26 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_configuration(self):
-        """Refuse known development secrets and wildcard CORS in production."""
-        if self.app_env.lower() == "production":
-            if self.app_debug:
-                raise ValueError("APP_DEBUG must be false in production")
+        """Refuse known development credentials, debug mode, and wildcard CORS in production."""
+        if self.app_env.lower() != "production":
+            return self
 
-            app_secret = self.app_secret_key.get_secret_value()
-            jwt_secret = self.jwt_secret.get_secret_value()
-            db_password = self.postgres_password.get_secret_value()
-            if len(app_secret) < 32 or app_secret == "changer_par_une_cle_secrete":
-                raise ValueError("APP_SECRET_KEY must be a unique secret of at least 32 characters")
-            if len(jwt_secret) < 32 or jwt_secret == "changer_par_une_cle_jwt_secrete":
-                raise ValueError("JWT_SECRET must be a unique secret of at least 32 characters")
-            if len(db_password) < 16 or db_password == "pharma_pass_2025":
-                raise ValueError("POSTGRES_PASSWORD must be a unique production password")
+        if self.app_debug:
+            raise ValueError("APP_DEBUG must be false in production")
 
-            origins = [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
-            if not origins or "*" in origins:
-                raise ValueError("CORS_ORIGINS must list explicit origins in production")
+        app_secret = self.app_secret_key.get_secret_value()
+        jwt_secret = self.jwt_secret.get_secret_value()
+        db_password = self.postgres_password.get_secret_value()
+        if len(app_secret) < 32 or app_secret == "changer_par_une_cle_secrete":
+            raise ValueError("APP_SECRET_KEY must be a unique secret of at least 32 characters")
+        if len(jwt_secret) < 32 or jwt_secret == "changer_par_une_cle_jwt_secrete":
+            raise ValueError("JWT_SECRET must be a unique secret of at least 32 characters")
+        if len(db_password) < 16 or db_password == "pharma_pass_2025":
+            raise ValueError("POSTGRES_PASSWORD must be a unique production password")
 
+        origins = [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        if not origins or "*" in origins:
+            raise ValueError("CORS_ORIGINS must list explicit origins in production")
         return self
 
     model_config = SettingsConfigDict(
