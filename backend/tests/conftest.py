@@ -11,16 +11,22 @@ from fastapi.testclient import TestClient
 # Set APP_ENV to test to use SQLite database
 os.environ["APP_ENV"] = "test"
 
-from backend.core.database import engine, Base
-from backend.models.base import Base as BaseModel
-
-
 # Create tables before any tests run
 import asyncio
 
+from backend.core.database import Base, engine
+from backend.models.base import Base as BaseModel
+
+# Remove existing test database file
+if os.path.exists("./test.db"):
+    os.remove("./test.db")
+
+
 async def create_test_tables():
     """Create all database tables for testing"""
+    # Drop all tables first to ensure clean state
     async with engine.begin() as conn:
+        await conn.run_sync(BaseModel.metadata.drop_all)
         await conn.run_sync(BaseModel.metadata.create_all)
 
 

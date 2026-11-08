@@ -57,10 +57,11 @@ class InventoryService:
         for product in products:
             total_quantity = sum(batch.quantity for batch in product.batches)
             available_quantity = sum(
-                batch.quantity - batch.reserved_quantity for batch in product.batches
+                batch.quantity - getattr(batch, "reserved_quantity", 0)
+                for batch in product.batches
             )
             reserved_quantity = sum(
-                batch.reserved_quantity for batch in product.batches
+                getattr(batch, "reserved_quantity", 0) for batch in product.batches
             )
 
             if low_stock_only and total_quantity > 10:
@@ -71,7 +72,8 @@ class InventoryService:
                     "batch_id": batch.id,
                     "batch_number": batch.batch_number,
                     "quantity": batch.quantity,
-                    "available_quantity": batch.quantity - batch.reserved_quantity,
+                    "available_quantity": batch.quantity
+                    - getattr(batch, "reserved_quantity", 0),
                     "expiry_date": batch.expiry_date,
                     "unit_price": (
                         float(batch.selling_price) if batch.selling_price else 0.0
@@ -122,16 +124,20 @@ class InventoryService:
 
         total_quantity = sum(batch.quantity for batch in product.batches)
         available_quantity = sum(
-            batch.quantity - batch.reserved_quantity for batch in product.batches
+            batch.quantity - getattr(batch, "reserved_quantity", 0)
+            for batch in product.batches
         )
-        reserved_quantity = sum(batch.reserved_quantity for batch in product.batches)
+        reserved_quantity = sum(
+            getattr(batch, "reserved_quantity", 0) for batch in product.batches
+        )
 
         batches_data = [
             {
                 "batch_id": batch.id,
                 "batch_number": batch.batch_number,
                 "quantity": batch.quantity,
-                "available_quantity": batch.quantity - batch.reserved_quantity,
+                "available_quantity": batch.quantity
+                - getattr(batch, "reserved_quantity", 0),
                 "expiry_date": batch.expiry_date,
                 "unit_price": (
                     float(batch.selling_price) if batch.selling_price else 0.0
@@ -384,10 +390,11 @@ class InventoryService:
         for product in products:
             total_quantity = sum(batch.quantity for batch in product.batches)
             available_quantity = sum(
-                batch.quantity - batch.reserved_quantity for batch in product.batches
+                batch.quantity - getattr(batch, "reserved_quantity", 0)
+                for batch in product.batches
             )
             reserved_quantity = sum(
-                batch.reserved_quantity for batch in product.batches
+                getattr(batch, "reserved_quantity", 0) for batch in product.batches
             )
 
             batches_data = [
@@ -395,7 +402,8 @@ class InventoryService:
                     "batch_id": batch.id,
                     "batch_number": batch.batch_number,
                     "quantity": batch.quantity,
-                    "available_quantity": batch.quantity - batch.reserved_quantity,
+                    "available_quantity": batch.quantity
+                    - getattr(batch, "reserved_quantity", 0),
                     "expiry_date": batch.expiry_date,
                     "unit_price": (
                         float(batch.selling_price) if batch.selling_price else 0.0

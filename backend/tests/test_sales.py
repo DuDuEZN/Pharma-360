@@ -58,10 +58,11 @@ class TestSales:
         """Test creating a new sale"""
         sale_data = {
             "customer_id": None,
+            "user_id": 1,
             "items": [
-                {"batch_id": 1, "product_id": 1, "quantity": 2, "unit_price": 10.0}
+                {"batch_id": 1, "product_id": 1, "quantity": 2, "unit_price": "10.0"}
             ],
-            "total": 20.0,
+            "total": "20.0",
             "payment_method": "cash",
         }
         response = client_with_auth.post("/api/v1/sales", json=sale_data)
