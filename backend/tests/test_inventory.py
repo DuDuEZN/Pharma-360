@@ -74,7 +74,7 @@ class TestStockMovements:
         }
         product_response = client.post("/api/v1/products", json=product_data)
         product_id = product_response.json()["id"]
-        
+
         # Now test the movement with the created product
         movement_data = {
             "product_id": product_id,
@@ -97,7 +97,7 @@ class TestStockMovements:
         }
         product_response = client.post("/api/v1/products", json=product_data)
         product_id = product_response.json()["id"]
-        
+
         # Now test the movement with the created product
         movement_data = {
             "product_id": product_id,
