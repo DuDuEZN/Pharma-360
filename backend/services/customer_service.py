@@ -140,7 +140,7 @@ class CustomerService:
             {
                 "id": order.id,
                 "date": order.created_at,
-                "total": order.total_amount,
+                "total": order.total,
                 "status": order.status,
                 "items_count": len(order.items) if order.items else 0,
             }
@@ -161,7 +161,7 @@ class CustomerService:
                 "id": sale.id,
                 "sale_number": sale.sale_number,
                 "date": sale.created_at,
-                "total": sale.total_amount,
+                "total": sale.total,
                 "status": sale.status,
             }
             for sale in sales
@@ -181,7 +181,7 @@ class CustomerService:
             {
                 "id": purchase.id,
                 "date": purchase.created_at,
-                "total": purchase.total_amount,
+                "total": purchase.total,
                 "payment_method": purchase.payment_method,
                 "items": [
                     {
@@ -204,7 +204,7 @@ class CustomerService:
         """Get statistics for a customer"""
         # Get total purchases
         result = await db.execute(
-            select(func.coalesce(func.sum(Sale.total_amount), 0)).where(
+            select(func.coalesce(func.sum(Sale.total), 0)).where(
                 Sale.customer_id == customer_id
             )
         )
