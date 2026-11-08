@@ -227,40 +227,44 @@ class SupplierService:
         )
         invoices = invoices_result.scalars().all()
 
-        # Convert to response
-        response = SupplierDetailResponse.model_validate(supplier)
-        response.product_count = await SupplierService._get_product_count(
-            supplier.id, db
+        # Create response manually to avoid async relationship issues
+        response = SupplierDetailResponse(
+            id=supplier.id,
+            name=supplier.name,
+            contact=supplier.contact,
+            email=supplier.email,
+            phone=supplier.phone,
+            address=supplier.address,
+            city=supplier.city,
+            country=supplier.country,
+            tax_id=supplier.tax_id,
+            payment_terms=supplier.payment_terms,
+            is_active=supplier.is_active,
+            created_at=supplier.created_at,
+            updated_at=supplier.updated_at,
+            product_count=await SupplierService._get_product_count(supplier.id, db),
+            invoice_count=await SupplierService._get_invoice_count(supplier.id, db),
+            total_purchases=await SupplierService._get_total_purchases(supplier.id, db),
+            products=[
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "barcode": p.barcode,
+                    "current_stock": p.current_stock,
+                }
+                for p in products
+            ],
+            recent_invoices=[
+                {
+                    "id": inv.id,
+                    "invoice_number": inv.invoice_number,
+                    "date": inv.date.isoformat(),
+                    "total_final": float(inv.total_final),
+                    "status": inv.status,
+                }
+                for inv in invoices
+            ]
         )
-        response.invoice_count = await SupplierService._get_invoice_count(
-            supplier.id, db
-        )
-        response.total_purchases = await SupplierService._get_total_purchases(
-            supplier.id, db
-        )
-
-        # Add products
-        response.products = [
-            {
-                "id": p.id,
-                "name": p.name,
-                "barcode": p.barcode,
-                "current_stock": p.current_stock,
-            }
-            for p in products
-        ]
-
-        # Add recent invoices
-        response.recent_invoices = [
-            {
-                "id": inv.id,
-                "invoice_number": inv.invoice_number,
-                "date": inv.date.isoformat(),
-                "total_final": float(inv.total_final),
-                "status": inv.status,
-            }
-            for inv in invoices
-        ]
 
         return response
 

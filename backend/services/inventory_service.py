@@ -188,9 +188,13 @@ class InventoryService:
                 product.batches[0].quantity = update_data.quantity
             else:
                 # Create a new batch
+                import uuid
+
                 new_batch = Batch(
                     product_id=product_id,
+                    batch_number=f"BATCH-{uuid.uuid4().hex[:8]}",
                     quantity=update_data.quantity,
+                    initial_quantity=update_data.quantity,
                     location=update_data.location or "default",
                     expiry_date=date.today() + timedelta(days=365),
                 )

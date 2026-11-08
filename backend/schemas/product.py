@@ -20,6 +20,7 @@ class ProductBase(BaseModel):
     dci: Optional[str] = Field(
         None, max_length=100, description="DCI - Denomination Commune Internationale"
     )
+    code: Optional[str] = Field(None, max_length=50, description="Product code/SKU")
     barcode: Optional[str] = Field(None, max_length=50, description="Product barcode")
     category_id: Optional[int] = Field(None, description="Category ID")
     description: Optional[str] = Field(None, description="Product description")
@@ -50,6 +51,7 @@ class ProductUpdate(BaseModel):
 
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     dci: Optional[str] = Field(None, max_length=100)
+    code: Optional[str] = Field(None, max_length=50)
     barcode: Optional[str] = Field(None, max_length=50)
     category_id: Optional[int] = Field(None)
     description: Optional[str] = Field(None)

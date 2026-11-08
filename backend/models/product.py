@@ -54,6 +54,9 @@ class Product(Base):
         index=True,
         comment="Denomination Commune Internationale",
     )
+    code: Mapped[Optional[str]] = mapped_column(
+        String(50), unique=True, nullable=True, index=True, comment="Product code/SKU"
+    )
     barcode: Mapped[Optional[str]] = mapped_column(
         String(50), unique=True, nullable=True, index=True
     )
