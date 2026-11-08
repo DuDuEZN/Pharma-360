@@ -3,6 +3,7 @@ Database Module for Pharmacie 360 Backend
 Handles PostgreSQL database connections and session management
 """
 
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -12,8 +13,9 @@ from sqlalchemy.orm import DeclarativeBase
 
 from .config import settings
 
-# Database URL
-DATABASE_URL = (
+# Database URL - use DATABASE_URL env var if available, otherwise build from settings
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
     f"postgresql+asyncpg://{settings.postgres_user}:{settings.postgres_password.get_secret_value()}"
     f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
 )
