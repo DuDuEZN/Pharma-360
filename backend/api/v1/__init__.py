@@ -13,7 +13,7 @@ from .health import router as health_router
 from .inventory import router as inventory_router
 from .invoices import router as invoices_router
 from .movements import router as movements_router
-from .ocr import router as ocr_router
+from .ocr_integration import router as ocr_router
 from .products import router as products_router
 from .reports import router as reports_router
 from .returns import router as returns_router

@@ -3,11 +3,16 @@ Batch Schemas for Pharmacie 360 Backend
 Pydantic models for batch-related API validation
 """
 
-from datetime import date, datetime
+from datetime import date as date_type, datetime
 from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+def get_today() -> date_type:
+    """Return today's date for use as default_factory"""
+    return date_type.today()
 
 
 # Base Batch Schema
@@ -18,11 +23,11 @@ class BatchBase(BaseModel):
     batch_number: str = Field(
         ..., min_length=1, max_length=50, description="Batch number"
     )
-    expiry_date: date = Field(..., description="Expiration date (YYYY-MM-DD)")
+    expiry_date: date_type = Field(..., description="Expiration date (YYYY-MM-DD)")
     quantity: int = Field(default=0, ge=0, description="Current quantity")
     initial_quantity: int = Field(default=0, ge=0, description="Initial quantity")
     location: Optional[str] = Field(None, max_length=50, description="Storage location")
-    received_date: date = Field(default_factory=date.today, description="Date received")
+    received_date: date_type = Field(default_factory=get_today, description="Date received")
     supplier_id: Optional[int] = Field(None, description="Supplier ID")
     cost_price: Decimal = Field(default=0.00, ge=0, description="Cost price per unit")
     selling_price: Decimal = Field(
@@ -49,11 +54,11 @@ class BatchUpdate(BaseModel):
 
     product_id: Optional[int] = Field(None)
     batch_number: Optional[str] = Field(None, min_length=1, max_length=50)
-    expiry_date: Optional[date] = Field(None)
+    expiry_date: Optional[date_type] = Field(None)
     quantity: Optional[int] = Field(None, ge=0)
     initial_quantity: Optional[int] = Field(None, ge=0)
     location: Optional[str] = Field(None, max_length=50)
-    received_date: Optional[date] = Field(None)
+    received_date: Optional[date_type] = Field(None)
     supplier_id: Optional[int] = Field(None)
     cost_price: Optional[Decimal] = Field(None, ge=0)
     selling_price: Optional[Decimal] = Field(None, ge=0)
@@ -70,11 +75,11 @@ class BatchResponse(BaseModel):
     product_id: int = Field(..., description="Product ID")
     product_name: Optional[str] = Field(None, description="Product name")
     batch_number: str = Field(..., description="Batch number")
-    expiry_date: date = Field(..., description="Expiration date")
+    expiry_date: date_type = Field(..., description="Expiration date")
     quantity: int = Field(..., description="Current quantity")
     initial_quantity: int = Field(..., description="Initial quantity")
     location: Optional[str] = Field(None, description="Storage location")
-    received_date: date = Field(..., description="Date received")
+    received_date: date_type = Field(..., description="Date received")
     supplier_id: Optional[int] = Field(None, description="Supplier ID")
     supplier_name: Optional[str] = Field(None, description="Supplier name")
     cost_price: Decimal = Field(..., description="Cost price")

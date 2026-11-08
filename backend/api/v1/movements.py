@@ -3,7 +3,7 @@ Movements API Endpoints for Pharmacie 360 Backend
 FastAPI endpoints for stock movement tracking (AUDIT TRAIL)
 """
 
-from datetime import date
+from datetime import date as date_type, datetime
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -29,8 +29,8 @@ logger = get_logger(__name__)
 async def list_movements(
     product_id: Annotated[Optional[int], Query()] = None,
     movement_type: Annotated[Optional[str], Query()] = None,
-    start_date: Annotated[Optional[date], Query()] = None,
-    end_date: Annotated[Optional[date], Query()] = None,
+    start_date: Annotated[Optional[date_type], Query()] = None,
+    end_date: Annotated[Optional[date_type], Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
     db: AsyncSession = Depends(get_db),

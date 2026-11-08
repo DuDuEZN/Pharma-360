@@ -3,7 +3,7 @@ Inventory Schemas for Pharmacie 360 Backend
 Pydantic models for inventory data validation
 """
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -57,7 +57,6 @@ class MovementCreate(BaseModel):
     )
     reason: str = Field(..., description="Reason for the movement")
     reference: Optional[str] = Field(None, description="Reference document number")
-    date: date = Field(default_factory=date.today, description="Movement date")
     notes: Optional[str] = Field(None, description="Additional notes")
 
 
@@ -74,9 +73,9 @@ class MovementResponse(BaseModel):
     movement_type: str = Field(..., description="Type of movement")
     reason: str = Field(..., description="Reason for movement")
     reference: Optional[str] = Field(None, description="Reference document")
-    date: date = Field(..., description="Movement date")
     user_id: Optional[int] = Field(None, description="User who performed the movement")
     created_at: datetime = Field(..., description="Creation timestamp")
+    notes: Optional[str] = Field(None, description="Additional notes")
 
     model_config = ConfigDict(from_attributes=True)
 

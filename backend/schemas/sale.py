@@ -3,11 +3,9 @@ Sale Schemas for Pharmacie 360 Backend
 Pydantic models for sale-related API validation
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -69,7 +67,7 @@ class SaleItemResponse(BaseModel):
 class SaleCreate(SaleBase):
     """Schema for creating a new sale"""
 
-    items: list[SaleItemCreate] = Field(..., description="List of sale items")
+    items: List[SaleItemCreate] = Field(..., description="List of sale items")
 
 
 # Sale Update Schema
@@ -111,17 +109,14 @@ class SaleResponse(SaleBase):
 class SaleDetailResponse(SaleResponse):
     """Schema for detailed sale response"""
 
-    items: list = Field(..., description="List of sale items")
-
-
-#    items: list[SaleItemResponse] = Field(..., description="List of sale items")
+    items: List[SaleItemResponse] = Field(..., description="List of sale items")
 
 
 # Sale List Response Schema
 class SaleListResponse(BaseModel):
     """Schema for listing sales with pagination"""
 
-    sales: list[SaleResponse] = Field(..., description="List of sales")
+    sales: List[SaleResponse] = Field(..., description="List of sales")
     total: int = Field(..., description="Total number of sales")
     page: int = Field(..., description="Current page")
     page_size: int = Field(..., description="Number of items per page")
@@ -135,7 +130,7 @@ class SaleValidationResponse(BaseModel):
     success: bool = Field(..., description="Whether validation was successful")
     sale_id: Optional[int] = Field(None, description="Sale ID if created")
     sale_number: Optional[str] = Field(None, description="Sale number if created")
-    errors: list[str] = Field(
+    errors: List[str] = Field(
         default_factory=list, description="List of validation errors"
     )
 

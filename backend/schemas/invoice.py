@@ -3,11 +3,16 @@ Invoice Schemas for Pharmacie 360 Backend
 Pydantic models for invoice data validation
 """
 
-from datetime import date, datetime
+from datetime import date as date_type, datetime
 from decimal import Decimal
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+def get_today() -> date_type:
+    """Return today's date for use as default_factory"""
+    return date_type.today()
 
 
 class InvoiceBase(BaseModel):
@@ -17,8 +22,8 @@ class InvoiceBase(BaseModel):
         ..., min_length=1, max_length=50, description="Invoice number"
     )
     supplier_id: int = Field(..., ge=1, description="Supplier ID")
-    invoice_date: date = Field(default_factory=date.today, description="Invoice date")
-    due_date: Optional[date] = Field(None, description="Payment due date")
+    invoice_date: date_type = Field(default_factory=get_today, description="Invoice date")
+    due_date: Optional[date_type] = Field(None, description="Payment due date")
     subtotal: float = Field(default=0.0, ge=0, description="Subtotal amount")
     tax_amount: float = Field(default=0.0, ge=0, description="Tax amount")
     discount: float = Field(default=0.0, ge=0, description="Discount amount")
@@ -27,7 +32,7 @@ class InvoiceBase(BaseModel):
     payment_method: Optional[str] = Field(
         None, max_length=50, description="Payment method"
     )
-    payment_date: Optional[date] = Field(None, description="Payment date")
+    payment_date: Optional[date_type] = Field(None, description="Payment date")
     file_path: Optional[str] = Field(
         None, max_length=255, description="Invoice file path"
     )
@@ -45,7 +50,7 @@ class InvoiceCreate(InvoiceBase):
             "example": {
                 "invoice_number": "INV-2025-001",
                 "supplier_id": 1,
-                "date": "2025-01-15",
+                "invoice_date": "2025-01-15",
                 "due_date": "2025-02-14",
                 "subtotal": 100000.00,
                 "tax_amount": 18000.00,
@@ -63,15 +68,15 @@ class InvoiceUpdate(BaseModel):
 
     invoice_number: Optional[str] = Field(None, min_length=1, max_length=50)
     supplier_id: Optional[int] = Field(None, ge=1)
-    invoice_date: Optional[date] = Field(None)
-    due_date: Optional[date] = Field(None)
+    invoice_date: Optional[date_type] = Field(None)
+    due_date: Optional[date_type] = Field(None)
     subtotal: Optional[float] = Field(None, ge=0)
     tax_amount: Optional[float] = Field(None, ge=0)
     discount: Optional[float] = Field(None, ge=0)
     total_final: Optional[float] = Field(None, ge=0)
     status: Optional[str] = Field(None)
     payment_method: Optional[str] = Field(None, max_length=50)
-    payment_date: Optional[date] = Field(None)
+    payment_date: Optional[date_type] = Field(None)
     file_path: Optional[str] = Field(None, max_length=255)
     ocr_processed: Optional[bool] = Field(None)
     ocr_data: Optional[dict] = Field(None, description="OCR extracted data")
@@ -130,7 +135,7 @@ class InvoiceStatusUpdate(BaseModel):
     """Schema for updating invoice status"""
 
     status: str = Field(..., description="New status")
-    payment_date: Optional[date] = Field(
+    payment_date: Optional[date_type] = Field(
         None, description="Payment date (if status is paid)"
     )
     payment_method: Optional[str] = Field(None, description="Payment method")

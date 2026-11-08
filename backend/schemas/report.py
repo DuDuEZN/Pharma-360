@@ -3,7 +3,7 @@ Report Schemas for Pharmacie 360 Backend
 Pydantic schemas for report generation and management
 """
 
-from datetime import date, datetime
+from datetime import date as date_type, datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel as BaseSchema
@@ -17,10 +17,10 @@ class ReportBase(BaseSchema):
     title: str = Field(..., description="Report title")
     description: Optional[str] = Field(None, description="Report description")
     file_format: Optional[str] = Field(None, description="File format (pdf, csv, xlsx)")
-    data_range_start: Optional[date] = Field(
+    data_range_start: Optional[date_type] = Field(
         None, description="Start date of data range"
     )
-    data_range_end: Optional[date] = Field(None, description="End date of data range")
+    data_range_end: Optional[date_type] = Field(None, description="End date of data range")
 
 
 class ReportCreate(ReportBase):
@@ -79,8 +79,8 @@ class ReportGenerationRequest(BaseSchema):
 
     report_type: str = Field(..., description="Type of report to generate")
     file_format: str = Field(default="pdf", description="Output format")
-    data_range_start: Optional[date] = Field(None, description="Start date")
-    data_range_end: Optional[date] = Field(None, description="End date")
+    data_range_start: Optional[date_type] = Field(None, description="Start date")
+    data_range_end: Optional[date_type] = Field(None, description="End date")
     filters: Optional[dict] = Field(
         default_factory=dict, description="Additional filters"
     )

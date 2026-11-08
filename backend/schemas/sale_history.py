@@ -3,7 +3,7 @@ Sale History Schemas for Pharmacie 360 Backend
 Pydantic models for sale history and analytics
 """
 
-from datetime import date, datetime
+from datetime import date as date_type, datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -23,7 +23,7 @@ class SaleHistoryBase(BaseModel):
     unit_price: Decimal = Field(..., ge=0, description="Unit price at time of sale")
     total_price: Decimal = Field(..., ge=0, description="Total price for this line")
     sale_date: datetime = Field(..., description="Date and time of sale")
-    sale_day: date = Field(..., description="Date of sale (day only)")
+    sale_day: date_type = Field(..., description="Date of sale (day only)")
     cashier_id: Optional[int] = Field(None, description="Cashier user ID")
     cashier_name: Optional[str] = Field(None, description="Cashier name")
     customer_id: Optional[int] = Field(None, description="Customer ID")
@@ -59,8 +59,8 @@ class SaleAnalyticsResponse(BaseModel):
     """Schema for sale analytics"""
 
     period: str = Field(..., description="Analytics period (day, week, month, year)")
-    start_date: date = Field(..., description="Start date of period")
-    end_date: date = Field(..., description="End date of period")
+    start_date: date_type = Field(..., description="Start date of period")
+    end_date: date_type = Field(..., description="End date of period")
     total_sales: int = Field(..., description="Total number of sales")
     total_quantity: int = Field(..., description="Total quantity sold")
     total_revenue: float = Field(..., description="Total revenue")
@@ -95,7 +95,7 @@ class ProductSalesAnalytics(BaseModel):
 class DailySalesResponse(BaseModel):
     """Schema for daily sales summary"""
 
-    sale_date: date = Field(..., description="Sale date")
+    sale_date: date_type = Field(..., description="Sale date")
     total_sales: int = Field(..., description="Number of sales")
     total_quantity: int = Field(..., description="Total quantity sold")
     total_revenue: float = Field(..., description="Total revenue")
@@ -121,8 +121,8 @@ class MonthlySalesResponse(BaseModel):
 class SalesReportRequest(BaseModel):
     """Schema for sales report request"""
 
-    start_date: date = Field(..., description="Report start date")
-    end_date: date = Field(..., description="Report end date")
+    start_date: date_type = Field(..., description="Report start date")
+    end_date: date_type = Field(..., description="Report end date")
     product_id: Optional[int] = Field(None, description="Filter by product ID")
     category_id: Optional[int] = Field(None, description="Filter by category ID")
     format: str = Field(default="json", description="Report format (json, csv, pdf)")

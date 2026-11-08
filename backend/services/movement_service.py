@@ -3,7 +3,7 @@ Movement Service for Pharmacie 360 Backend
 Business logic for stock movement tracking (COMPLETE AUDIT TRAIL)
 """
 
-from datetime import date, datetime
+from datetime import date as date_type, datetime
 from typing import List, Optional
 
 from sqlalchemy import and_, asc, desc, or_, select
@@ -74,7 +74,6 @@ class MovementService:
             movement_type=movement_data.movement_type,
             reason=movement_data.reason,
             reference=movement_data.reference,
-            date=movement_data.date,
             notes=movement_data.notes,
             user_id=None,  # Will be set if user is authenticated
         )
@@ -142,7 +141,7 @@ class MovementService:
             movement_type=movement.movement_type,
             reason=movement.reason,
             reference=movement.reference,
-            date=movement.date,
+
             user_id=movement.user_id,
             created_at=movement.created_at,
         )
@@ -152,8 +151,8 @@ class MovementService:
         db: AsyncSession,
         product_id: Optional[int] = None,
         movement_type: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: Optional[date_type] = None,
+        end_date: Optional[date_type] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> List[MovementResponse]:
@@ -170,9 +169,9 @@ class MovementService:
         if movement_type:
             query = query.where(Movement.movement_type == movement_type)
         if start_date:
-            query = query.where(Movement.date >= start_date)
+            query = query.where(Movement.created_at >= datetime(start_date.year, start_date.month, start_date.day))
         if end_date:
-            query = query.where(Movement.date <= end_date)
+            query = query.where(Movement.created_at <= datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59))
 
         # Pagination
         offset = (page - 1) * page_size
@@ -193,7 +192,7 @@ class MovementService:
                 movement_type=movement.movement_type,
                 reason=movement.reason,
                 reference=movement.reference,
-                date=movement.date,
+    
                 user_id=movement.user_id,
                 created_at=movement.created_at,
             )
@@ -225,7 +224,7 @@ class MovementService:
                 movement_type=movement.movement_type,
                 reason=movement.reason,
                 reference=movement.reference,
-                date=movement.date,
+    
                 user_id=movement.user_id,
                 created_at=movement.created_at,
             )

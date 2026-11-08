@@ -3,7 +3,7 @@ Alert Schemas for Pharmacie 360 Backend
 Pydantic models for alert responses
 """
 
-from datetime import date
+from datetime import date as date_type
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
@@ -50,7 +50,7 @@ class ExpiryAlertResponse(BaseModel):
     product_id: int
     product_name: str
     batch_number: str
-    expiry_date: date
+    expiry_date: date_type
     days_until_expiry: int
     quantity: int
     alert_type: str  # 'expired', 'critical', 'expiring_soon'
