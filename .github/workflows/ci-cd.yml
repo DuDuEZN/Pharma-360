@@ -47,6 +47,25 @@ jobs:
           pip install -r ./backend/requirements.txt
           pip install pytest pytest-cov
 
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Initialize database
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: test_user
+          PGPASSWORD: test_pass
+          PGDATABASE: pharma360_test
+        run: |
+          # Wait for PostgreSQL to be ready
+          until pg_isready -h localhost -p 5432 -U test_user -d pharma360_test; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+          # Execute init-db.sql to create tables
+          psql -h localhost -p 5432 -U test_user -d pharma360_test -f scripts/init-db.sql
+
       - name: Run tests with coverage
         env:
           DATABASE_URL: postgresql+asyncpg://test_user:test_pass@localhost:5432/pharma360_test
