@@ -73,7 +73,9 @@ class InventoryService:
                     "quantity": batch.quantity,
                     "available_quantity": batch.quantity - batch.reserved_quantity,
                     "expiry_date": batch.expiry_date,
-                    "unit_price": float(batch.unit_price) if batch.unit_price else 0.0,
+                    "unit_price": (
+                        float(batch.selling_price) if batch.selling_price else 0.0
+                    ),
                     "location": batch.location,
                 }
                 for batch in product.batches
@@ -131,7 +133,9 @@ class InventoryService:
                 "quantity": batch.quantity,
                 "available_quantity": batch.quantity - batch.reserved_quantity,
                 "expiry_date": batch.expiry_date,
-                "unit_price": float(batch.unit_price) if batch.unit_price else 0.0,
+                "unit_price": (
+                    float(batch.selling_price) if batch.selling_price else 0.0
+                ),
                 "location": batch.location,
             }
             for batch in product.batches
@@ -389,7 +393,9 @@ class InventoryService:
                     "quantity": batch.quantity,
                     "available_quantity": batch.quantity - batch.reserved_quantity,
                     "expiry_date": batch.expiry_date,
-                    "unit_price": float(batch.unit_price) if batch.unit_price else 0.0,
+                    "unit_price": (
+                        float(batch.selling_price) if batch.selling_price else 0.0
+                    ),
                     "location": batch.location,
                 }
                 for batch in product.batches
