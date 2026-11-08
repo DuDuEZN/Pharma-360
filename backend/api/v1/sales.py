@@ -64,6 +64,58 @@ async def list_sales(
 
 
 @router.get(
+    "/today",
+    response_model=SaleListResponse,
+    summary="Get today's sales",
+    description="Get all sales created today",
+)
+async def get_today_sales(
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> SaleListResponse:
+    """Get today's sales endpoint"""
+    from datetime import datetime
+
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    return await SaleService.list_sales(
+        page=1, page_size=100, date_from=today, date_to=today, db=db
+    )
+
+
+@router.get(
+    "/pending",
+    response_model=SaleListResponse,
+    summary="Get pending sales",
+    description="Get all pending sales (seller, cashier, manager, or admin only)",
+)
+async def get_pending_sales(
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> SaleListResponse:
+    """Get pending sales endpoint"""
+    return await SaleService.list_sales(page=1, page_size=100, status="pending", db=db)
+
+
+@router.get(
+    "/queue",
+    response_model=list[QueueItem],
+    summary="Get cashier queue",
+    description="Get list of pending sales for cashier queue (cashier or admin only)",
+)
+async def get_queue(
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> list[QueueItem]:
+    """Get queue endpoint"""
+    # Check permissions
+    if not RBACUtils.has_permission(current_user.role, "cashier"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only cashier or admin users can view the queue",
+        )
+
+    return await SaleService.get_queue_items(db)
+
+
+@router.get(
     "/{sale_id}",
     response_model=SaleDetailResponse,
     summary="Get a specific sale",
@@ -201,55 +253,3 @@ async def cancel_sale(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to cancel sale (may already be processed)",
         )
-
-
-@router.get(
-    "/queue",
-    response_model=list[QueueItem],
-    summary="Get cashier queue",
-    description="Get list of pending sales for cashier queue (cashier or admin only)",
-)
-async def get_queue(
-    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
-) -> list[QueueItem]:
-    """Get queue endpoint"""
-    # Check permissions
-    if not RBACUtils.has_permission(current_user.role, "cashier"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only cashier or admin users can view the queue",
-        )
-
-    return await SaleService.get_queue_items(db)
-
-
-@router.get(
-    "/pending",
-    response_model=SaleListResponse,
-    summary="Get pending sales",
-    description="Get all pending sales (seller, cashier, manager, or admin only)",
-)
-async def get_pending_sales(
-    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
-) -> SaleListResponse:
-    """Get pending sales endpoint"""
-    return await SaleService.list_sales(page=1, page_size=100, status="pending", db=db)
-
-
-@router.get(
-    "/today",
-    response_model=SaleListResponse,
-    summary="Get today's sales",
-    description="Get all sales created today",
-)
-async def get_today_sales(
-    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
-) -> SaleListResponse:
-    """Get today's sales endpoint"""
-    from datetime import datetime
-
-    today = datetime.now().strftime("%Y-%m-%d")
-
-    return await SaleService.list_sales(
-        page=1, page_size=100, date_from=today, date_to=today, db=db
-    )

@@ -273,7 +273,7 @@ class SaleService:
         # Convert to response objects
         sale_responses = []
         for sale in sales:
-            response = SaleResponse.model_validate(sale)
+            response = SaleResponse.model_validate(sale, from_attributes=True)
 
             # Add computed fields
             response.customer_name = sale.customer.name if sale.customer else None
