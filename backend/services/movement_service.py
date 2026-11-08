@@ -136,7 +136,9 @@ class MovementService:
         await db.refresh(new_movement)
 
         # Return the movement with product details
-        return self._movement_to_response(new_movement, product_name=product.name)
+        return MovementService._movement_to_response(
+            new_movement, product_name=product.name
+        )
 
     @staticmethod
     async def get_movement_by_id(
@@ -153,7 +155,7 @@ class MovementService:
         if not movement:
             return None
 
-        return self._movement_to_response(
+        return MovementService._movement_to_response(
             movement,
             product_name=movement.product.name if movement.product else "Unknown",
         )
@@ -199,7 +201,7 @@ class MovementService:
         movements = result.scalars().all()
 
         return [
-            self._movement_to_response(
+            MovementService._movement_to_response(
                 movement,
                 product_name=movement.product.name if movement.product else "Unknown",
             )
@@ -220,7 +222,7 @@ class MovementService:
         movements = result.scalars().all()
 
         return [
-            self._movement_to_response(
+            MovementService._movement_to_response(
                 movement,
                 product_name=movement.product.name if movement.product else "Unknown",
             )
