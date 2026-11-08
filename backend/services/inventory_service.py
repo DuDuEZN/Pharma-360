@@ -311,7 +311,7 @@ class InventoryService:
 
         # Calculate total value
         result = await db.execute(
-            select(func.coalesce(func.sum(Batch.quantity * Batch.unit_price), 0))
+            select(func.coalesce(func.sum(Batch.quantity * Batch.selling_price), 0))
         )
         total_value = float(result.scalar() or 0)
 
