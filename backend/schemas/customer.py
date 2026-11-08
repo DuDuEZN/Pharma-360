@@ -6,7 +6,7 @@ Pydantic models for customer data validation
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class CustomerBase(BaseModel):
@@ -14,7 +14,7 @@ class CustomerBase(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=100, description="Customer name")
     contact: Optional[str] = Field(None, max_length=100, description="Contact person")
-    email: Optional[str] = Field(None, max_length=100, description="Email address")
+    email: Optional[EmailStr] = Field(None, max_length=100, description="Email address")
     phone: Optional[str] = Field(None, max_length=20, description="Phone number")
     address: Optional[str] = Field(None, description="Physical address")
     city: Optional[str] = Field(None, max_length=50, description="City")

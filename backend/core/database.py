@@ -20,15 +20,28 @@ DATABASE_URL = os.getenv(
     f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
 )
 
-# Create async engine
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=settings.app_debug,
-    pool_size=20,
-    max_overflow=10,
-    pool_timeout=30,
-    pool_pre_ping=False,  # Disable to avoid event loop issues with asyncpg
-)
+# Use SQLite for testing if APP_ENV is test and no DATABASE_URL is explicitly set
+if os.getenv("APP_ENV") == "test" and "DATABASE_URL" not in os.environ:
+    DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+    print(f"Using SQLite for testing: {DATABASE_URL}")
+
+# Create async engine with appropriate parameters
+# SQLite doesn't support pool_size, max_overflow, pool_timeout
+if "sqlite" in DATABASE_URL:
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=settings.app_debug,
+        connect_args={"check_same_thread": False},
+    )
+else:
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=settings.app_debug,
+        pool_size=20,
+        max_overflow=10,
+        pool_timeout=30,
+        pool_pre_ping=False,  # Disable to avoid event loop issues with asyncpg
+    )
 
 
 # Enable foreign keys for SQLite (if needed)
