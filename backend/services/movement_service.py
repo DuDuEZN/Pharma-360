@@ -110,6 +110,13 @@ class MovementService:
 
         # Return the movement with product details
         # Map model fields back to schema fields
+        # Extract reason from notes (first part before " - " if present)
+        notes_text = new_movement.notes or ""
+        reason_text = notes_text.split(" - ")[0] if " - " in notes_text else notes_text
+        notes_remaining = (
+            " - ".join(notes_text.split(" - ")[1:]) if " - " in notes_text else None
+        )
+
         return MovementResponse(
             id=new_movement.id,
             product_id=new_movement.product_id,
@@ -119,8 +126,9 @@ class MovementService:
             old_quantity=new_movement.old_quantity,
             new_quantity=new_movement.new_quantity,
             movement_type=new_movement.type,
-            reason=new_movement.notes,  # Map notes back to reason
+            reason=reason_text,
             reference=f"{new_movement.reference_type}:{new_movement.reference_id}",
+            notes=notes_remaining,
             user_id=new_movement.user_id,
             created_at=new_movement.created_at,
         )
@@ -140,6 +148,13 @@ class MovementService:
         if not movement:
             return None
 
+        # Extract reason from notes (first part before " - " if present)
+        notes_text = movement.notes or ""
+        reason_text = notes_text.split(" - ")[0] if " - " in notes_text else notes_text
+        notes_remaining = (
+            " - ".join(notes_text.split(" - ")[1:]) if " - " in notes_text else None
+        )
+
         return MovementResponse(
             id=movement.id,
             product_id=movement.product_id,
@@ -149,8 +164,9 @@ class MovementService:
             old_quantity=movement.old_quantity,
             new_quantity=movement.new_quantity,
             movement_type=movement.type,
-            reason=movement.notes,  # Map notes back to reason
+            reason=reason_text,
             reference=f"{movement.reference_type}:{movement.reference_id}",
+            notes=notes_remaining,
             user_id=movement.user_id,
             created_at=movement.created_at,
         )
