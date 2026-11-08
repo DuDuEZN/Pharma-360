@@ -51,7 +51,7 @@ class InventoryService:
             )
 
         result = await db.execute(query)
-        products = result.scalars().all()
+        products = result.scalars().unique().all()
 
         inventory_items = []
         for product in products:
@@ -115,7 +115,7 @@ class InventoryService:
                 joinedload(Product.supplier),
             )
         )
-        product = result.scalar_one_or_none()
+        product = result.scalars().unique().one_or_none()
 
         if not product:
             return None
@@ -167,7 +167,7 @@ class InventoryService:
             .where(Product.id == product_id)
             .options(joinedload(Product.batches))
         )
-        product = result.scalar_one_or_none()
+        product = result.scalars().unique().one_or_none()
 
         if not product:
             return None
@@ -211,7 +211,7 @@ class InventoryService:
             .options(joinedload(Product.category), joinedload(Product.supplier))
             .order_by(asc(Product.name))
         )
-        products = result.scalars().all()
+        products = result.scalars().unique().all()
 
         low_stock_items = []
         for product in products:
@@ -246,7 +246,7 @@ class InventoryService:
             .order_by(asc(Batch.expiry_date))
             .options(joinedload(Batch.product))
         )
-        batches = result.scalars().all()
+        batches = result.scalars().unique().all()
 
         return [
             {
@@ -277,7 +277,7 @@ class InventoryService:
             )
             .order_by(asc(Product.name))
         )
-        products = result.scalars().all()
+        products = result.scalars().unique().all()
 
         return await InventoryService._convert_products_to_inventory(products)
 
@@ -298,7 +298,7 @@ class InventoryService:
             .distinct()
             .order_by(asc(Product.name))
         )
-        products = result.scalars().all()
+        products = result.scalars().unique().all()
 
         return await InventoryService._convert_products_to_inventory(products)
 

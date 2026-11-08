@@ -142,7 +142,7 @@ class InvoiceService:
             .where(Invoice.id == invoice_id)
             .options(joinedload(Invoice.supplier), joinedload(Invoice.batches))
         )
-        return result.scalar_one_or_none()
+        return result.scalars().unique().one_or_none()
 
     @staticmethod
     async def create_invoice(

@@ -160,9 +160,11 @@ class TestUserModel:
 
     def test_user_creation(self, test_db):
         """Test user model creation"""
+        import uuid
+
         user_data = {
-            "username": "modeluser",
-            "email": "model@example.com",
+            "username": f"modeluser{uuid.uuid4().hex[:8]}",
+            "email": f"model{uuid.uuid4().hex[:8]}@example.com",
             "password": "modelpassword",
             "full_name": "Model User",
             "role": "user",
@@ -178,37 +180,69 @@ class TestUserModel:
         assert user.full_name == user_data["full_name"]
         assert user.role == user_data["role"]
 
+        # Cleanup
+        test_db.delete(user)
+        test_db.commit()
+
     def test_user_unique_username(self, test_db):
         """Test that usernames are unique"""
+        import uuid
+
+        unique_username = f"unique{uuid.uuid4().hex[:8]}"
         user1 = User(
-            username="unique", email="user1@test.com", password="pass", role="user"
+            username=unique_username,
+            email=f"user1{uuid.uuid4().hex[:8]}@test.com",
+            password="pass",
+            role="user",
         )
         test_db.add(user1)
         test_db.commit()
 
         user2 = User(
-            username="unique", email="user2@test.com", password="pass", role="user"
+            username=unique_username,
+            email=f"user2{uuid.uuid4().hex[:8]}@test.com",
+            password="pass",
+            role="user",
         )
         test_db.add(user2)
 
         with pytest.raises(Exception):
             test_db.commit()
+
+        # Cleanup
+        test_db.rollback()
+        test_db.delete(user1)
+        test_db.commit()
 
     def test_user_unique_email(self, test_db):
         """Test that emails are unique"""
+        import uuid
+
+        unique_email = f"unique{uuid.uuid4().hex[:8]}@test.com"
         user1 = User(
-            username="user1", email="unique@test.com", password="pass", role="user"
+            username=f"user1{uuid.uuid4().hex[:8]}",
+            email=unique_email,
+            password="pass",
+            role="user",
         )
         test_db.add(user1)
         test_db.commit()
 
         user2 = User(
-            username="user2", email="unique@test.com", password="pass", role="user"
+            username=f"user2{uuid.uuid4().hex[:8]}",
+            email=unique_email,
+            password="pass",
+            role="user",
         )
         test_db.add(user2)
 
         with pytest.raises(Exception):
             test_db.commit()
+
+        # Cleanup
+        test_db.rollback()
+        test_db.delete(user1)
+        test_db.commit()
 
 
 class TestUserSchema:
