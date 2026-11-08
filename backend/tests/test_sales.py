@@ -57,8 +57,7 @@ class TestSales:
     def test_create_sale(self, client_with_auth):
         """Test creating a new sale"""
         sale_data = {
-            "customer_id": 1,
-            "user_id": 1,
+            "customer_id": None,
             "items": [
                 {"batch_id": 1, "product_id": 1, "quantity": 2, "unit_price": 10.0}
             ],
