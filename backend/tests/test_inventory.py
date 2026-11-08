@@ -70,10 +70,9 @@ class TestStockMovements:
         movement_data = {
             "product_id": 1,
             "quantity": 10,
-            "type": "in",
+            "movement_type": "in",
             "reason": "purchase",
-            "reference": "INV-001",
-            "date": date.today().isoformat()
+            "reference": "INV-001"
         }
         response = client.post("/api/v1/inventory/movements", json=movement_data)
         assert response.status_code in [200, 201]
@@ -83,10 +82,9 @@ class TestStockMovements:
         movement_data = {
             "product_id": 1,
             "quantity": 5,
-            "type": "out",
+            "movement_type": "out",
             "reason": "sale",
-            "reference": "SALE-001",
-            "date": date.today().isoformat()
+            "reference": "SALE-001"
         }
         response = client.post("/api/v1/inventory/movements", json=movement_data)
         assert response.status_code in [200, 201]

@@ -27,8 +27,8 @@ describe('Login page', () => {
     )
 
     expect(screen.getByText('Pharmacie 360')).toBeInTheDocument()
-    expect(screen.getByLabelText(/nom d'utilisateur/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/mot de passe/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/nom d'utilisateur/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/mot de passe/i)).toBeInTheDocument()
   })
 
   it('submits the form and calls the login function', async () => {
@@ -40,8 +40,8 @@ describe('Login page', () => {
       </MemoryRouter>
     )
 
-    fireEvent.change(screen.getByLabelText(/nom d'utilisateur/i), { target: { value: 'admin' } })
-    fireEvent.change(screen.getByLabelText(/mot de passe/i), { target: { value: 'secret' } })
+    fireEvent.change(screen.getByPlaceholderText(/nom d'utilisateur/i), { target: { value: 'admin' } })
+    fireEvent.change(screen.getByPlaceholderText(/mot de passe/i), { target: { value: 'secret' } })
     fireEvent.click(screen.getByRole('button', { name: /se connecter/i }))
 
     await waitFor(() => {
