@@ -1,16 +1,16 @@
-"""
-OCR Upload Component for Invoice Processing
-FRNT-011: Intégration OCR (upload factures)
-"""
+/**
+ * OCR Upload Component for Invoice Processing
+ * FRNT-011: Intégration OCR (upload factures)
+ */
 
 import React, { useState, useCallback } from 'react'
 import { Upload, FileText, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import api from '@/lib/api'
 import { useToast } from '@/components/common/Toast'
-import { Button } from '@/components/ui/button.jsx'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
-import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
+import { Alert } from '@/components/ui/Alert'
 
 const OCRUpload = ({ onSuccess, supplierId }) => {
   const [files, setFiles] = useState([])
@@ -158,14 +158,12 @@ const OCRUpload = ({ onSuccess, supplierId }) => {
         </div>
 
         {errors.length > 0 && (
-          <Alert variant="destructive" className="mt-4">
-            <AlertDescription>
-              {errors.map((error, index) => (
-                <div key={index} className="mb-1">
-                  <strong>{error.file}:</strong> {error.errors.join(', ')}
-                </div>
-              ))}
-            </AlertDescription>
+          <Alert variant="error" className="mt-4">
+            {errors.map((error, index) => (
+              <div key={index} className="mb-1">
+                <strong>{error.file}:</strong> {error.errors.join(', ')}
+              </div>
+            ))}
           </Alert>
         )}
 
