@@ -137,7 +137,7 @@ class TestCustomerValidation:
         """Test creating a customer with invalid email"""
         customer_data = {
             "name": "Test Customer",
-            "contact": "invalid-email",
+            "email": "invalid-email",
             "phone": "1234567890"
         }
         response = client.post("/api/v1/customers", json=customer_data)
