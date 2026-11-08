@@ -83,8 +83,7 @@ class MovementService:
             old_quantity=old_quantity,
             new_quantity=old_quantity,  # Will be updated after batch update
             quantity_change=quantity_change,
-            reason=movement_data.reason,
-            notes=movement_data.notes,
+            notes=movement_data.reason,  # Map reason to notes
             user_id=None,  # Will be set if user is authenticated
         )
 
@@ -119,7 +118,7 @@ class MovementService:
             old_quantity=new_movement.old_quantity,
             new_quantity=new_movement.new_quantity,
             movement_type=new_movement.type,
-            reason=new_movement.reason,
+            reason=new_movement.notes,  # Map notes back to reason
             reference=f"{new_movement.reference_type}:{new_movement.reference_id}",
             user_id=new_movement.user_id,
             created_at=new_movement.created_at,
@@ -149,7 +148,7 @@ class MovementService:
             old_quantity=movement.old_quantity,
             new_quantity=movement.new_quantity,
             movement_type=movement.type,
-            reason=movement.reason,
+            reason=movement.notes,  # Map notes back to reason
             reference=f"{movement.reference_type}:{movement.reference_id}",
             user_id=movement.user_id,
             created_at=movement.created_at,
