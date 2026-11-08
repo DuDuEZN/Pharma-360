@@ -83,7 +83,8 @@ class MovementService:
             old_quantity=old_quantity,
             new_quantity=old_quantity,  # Will be updated after batch update
             quantity_change=quantity_change,
-            notes=movement_data.reason,  # Map reason to notes
+            notes=f"{movement_data.reason}"
+            + (f" - {movement_data.notes}" if movement_data.notes else ""),
             user_id=None,  # Will be set if user is authenticated
         )
 
