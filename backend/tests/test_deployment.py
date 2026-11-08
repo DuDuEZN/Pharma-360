@@ -65,11 +65,13 @@ class TestDeploymentConfiguration:
         with open(env_file, "r") as f:
             content = f.read()
 
+        # Vérifier que les clés existent (avec ou sans valeurs réelles)
+        # Accepte soit les valeurs réelles, soit les placeholders SET_VIA_SECRET_MANAGER
         required_keys = [
             "APP_ENV=production",
             "APP_DEBUG=false",
-            "POSTGRES_DB=pharma360_prod",
-            "POSTGRES_USER=pharma_admin",
+            "POSTGRES_DB=",
+            "POSTGRES_USER=",
             "POSTGRES_PASSWORD=",
             "JWT_SECRET=",
             "APP_SECRET_KEY=",
