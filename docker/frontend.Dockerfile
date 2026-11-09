@@ -18,8 +18,8 @@ WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 
 # Installer les dépendances npm
-COPY package.json package-lock.json ./
-RUN npm ci && npm install --no-save @rollup/rollup-linux-x64-musl
+RUN npm ci 
+# && npm install --no-save @rollup/rollup-linux-x64-musl
 
 # Copier le code source
 COPY frontend/ .
