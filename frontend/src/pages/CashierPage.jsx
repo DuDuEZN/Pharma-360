@@ -27,10 +27,13 @@ function CashierPage() {
   const { user } = useAuth()
   const { addToast } = useToast()
   const { 
-    isConnected, 
-    isConnecting, 
-    messages: queueMessages,
-    send 
+   // isConnected, 
+    //isConnecting, 
+    //messages: queueMessages,
+    //send 
+    isConnecting,
+    queueItems = [],
+    sendMessage: send
   } = useWebSocket()
   
   const [pendingSales, setPendingSales] = useState([])
