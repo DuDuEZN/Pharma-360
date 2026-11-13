@@ -2,6 +2,7 @@ import React from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Package, BarChart3, FileText, Settings, ShoppingCart, Users, Truck, ClipboardList } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 
 /**
@@ -12,6 +13,7 @@ import { cn } from '@/lib/utils'
  */
 function ManagerPage() {
   const location = useLocation()
+  const { user } = useAuth()
 
   const managerNav = [
     { 
@@ -66,14 +68,24 @@ function ManagerPage() {
     },
   ]
 
+  // Un vendeur accède aux commandes (création) et aux livraisons.
+  const sellerPaths = ['/manager/orders', '/manager/deliveries']
+  const visibleNav = user?.role === 'seller'
+    ? managerNav.filter((item) => sellerPaths.includes(item.path))
+    : managerNav
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <Card>
         <CardHeader>
-          <CardTitle>Gestionnaire</CardTitle>
+          <CardTitle>
+            {user?.role === 'seller' ? 'Commandes & livraisons' : 'Gestionnaire'}
+          </CardTitle>
           <CardDescription>
-            Gestion des stocks, fournisseurs et approvisionnements
+            {user?.role === 'seller'
+              ? 'Lancez les commandes fournisseurs et suivez les livraisons'
+              : 'Gestion des stocks, fournisseurs et approvisionnements'}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -82,7 +94,7 @@ function ManagerPage() {
       <Card>
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {managerNav.map((item) => {
+            {visibleNav.map((item) => {
               const isActive = location.pathname === item.path || 
                                location.pathname.startsWith(item.path + '/')
               return (

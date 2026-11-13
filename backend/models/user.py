@@ -12,6 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 
 if TYPE_CHECKING:
+    from .cash_session import CashSession
     from .report import Report
     from .return_ import Return
     from .sale import Sale
@@ -69,6 +70,9 @@ class User(Base):
     # Relationships
     sales: Mapped[list["Sale"]] = relationship(
         "Sale", back_populates="user", foreign_keys="Sale.user_id"
+    )
+    cash_sessions: Mapped[list["CashSession"]] = relationship(
+        "CashSession", back_populates="user", foreign_keys="CashSession.user_id"
     )
     returns: Mapped[list["Return"]] = relationship(
         "Return", back_populates="user", foreign_keys="Return.user_id"

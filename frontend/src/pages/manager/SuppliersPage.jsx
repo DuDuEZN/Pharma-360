@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.jsx';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
-import { Upload, FileText, Eye, Edit, Trash2, Plus, Search, Download, Camera, X, AlertTriangle, Check, RefreshCw } from 'lucide-react';
+import { Select } from '@/components/ui/Select'
+import { Upload, FileText, Eye, Edit, Trash2, Plus, Search, Download, Camera, X, AlertTriangle, Check, RefreshCw, Users } from 'lucide-react';
 import apiClient from '@/lib/api';
 import { useToast } from '@/components/common/Toast';
 import { Badge } from '@/components/ui/badge.jsx';
@@ -49,8 +49,8 @@ const SuppliersPage = () => {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await apiClient.get('/suppliers');
-      setSuppliers(response.data || []);
+      const response = await apiClient.get('/suppliers/');
+      setSuppliers(response.data.suppliers || []);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
       addToast({ type: 'error', title: 'Erreur', message: 'Erreur lors du chargement des fournisseurs' });
@@ -59,8 +59,8 @@ const SuppliersPage = () => {
 
   const fetchInvoices = async () => {
     try {
-      const response = await apiClient.get('/invoices');
-      setInvoices(response.data || []);
+      const response = await apiClient.get('/invoices/');
+      setInvoices(response.data.invoices || []);
     } catch (error) {
       console.error('Error fetching invoices:', error);
       addToast({ type: 'error', title: 'Erreur', message: 'Erreur lors du chargement des factures' });

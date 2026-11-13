@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ShoppingCart, Plus, Search, Eye, Edit, Trash2, Package, Calendar, DollarSign, CheckCircle, XCircle, Clock, Filter, Download } from 'lucide-react'
+import { ShoppingCart, Plus, Search, Eye, Edit, Trash2, Package, Calendar, DollarSign, CheckCircle, XCircle, Clock, Filter, Download, FileText } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
@@ -10,6 +10,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/common/Toast'
+import { useAuth } from '@/hooks/useAuth'
 import api from '@/lib/api'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import { useTable } from '@/hooks/useTable'
@@ -24,11 +25,19 @@ function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { addToast } = useToast()
+  const { user } = useAuth()
+  // Le manager ne fait que valider/rejeter. Le vendeur (et l'admin) initie
+  // les commandes ; seul l'admin peut supprimer.
+  const canApprove = user?.role === 'admin' || user?.role === 'manager'
+  const canEdit = user?.role === 'seller' || user?.role === 'admin'
+  const canDelete = user?.role === 'admin'
 
   const statusOptions = [
     { value: 'all', label: 'Tous' },
     { value: 'pending', label: 'En attente' },
+    { value: 'to_modify', label: 'À modifier' },
     { value: 'confirmed', label: 'Confirmé' },
+    { value: 'pending_delivery', label: 'En attente de livraison' },
     { value: 'delivered', label: 'Livré' },
     { value: 'cancelled', label: 'Annulé' },
     { value: 'partial', label: 'Partiel' },
@@ -36,7 +45,9 @@ function OrdersPage() {
 
   const statusColors = {
     pending: 'warning',
+    to_modify: 'danger',
     confirmed: 'info',
+    pending_delivery: 'warning',
     delivered: 'success',
     cancelled: 'danger',
     partial: 'warning',
@@ -44,7 +55,9 @@ function OrdersPage() {
 
   const statusLabels = {
     pending: 'En attente',
+    to_modify: 'À modifier',
     confirmed: 'Confirmé',
+    pending_delivery: 'En attente de livraison',
     delivered: 'Livré',
     cancelled: 'Annulé',
     partial: 'Partiel',
@@ -108,6 +121,28 @@ function OrdersPage() {
   const handleViewOrder = (order) => {
     setSelectedOrder(order)
     setIsModalOpen(true)
+  }
+
+  const handleConfirmOrder = async (orderId) => {
+    try {
+      await api.post(`/manager/orders/${orderId}/validate`)
+      addToast({ type: 'success', title: 'Succès', message: 'Commande validée' })
+      fetchOrders()
+    } catch (error) {
+      addToast({ type: 'error', title: 'Erreur', message: error.response?.data?.detail || 'Impossible de valider la commande' })
+    }
+  }
+
+  const handleRejectOrder = async (orderId) => {
+    const reason = window.prompt('Motif du rejet (optionnel) :')
+    if (reason === null) return
+    try {
+      await api.post(`/manager/orders/${orderId}/reject`, { status: reason || '' })
+      addToast({ type: 'success', title: 'Succès', message: 'Commande rejetée' })
+      fetchOrders()
+    } catch (error) {
+      addToast({ type: 'error', title: 'Erreur', message: error.response?.data?.detail || 'Impossible de rejeter la commande' })
+    }
   }
 
   const handleDeleteOrder = async (orderId) => {
@@ -180,12 +215,14 @@ function OrdersPage() {
         </div>
         
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link to="/manager/orders/new">
-              <Plus className="w-4 h-4 mr-2" />
-              Nouvelle commande
-            </Link>
-          </Button>
+          {canEdit && (
+            <Button asChild variant="outline">
+              <Link to="/manager/orders/new">
+                <Plus className="w-4 h-4 mr-2" />
+                Nouvelle commande
+              </Link>
+            </Button>
+          )}
           <Button 
             type="button" 
             variant="outline" 
@@ -260,13 +297,17 @@ function OrdersPage() {
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>Aucune commande trouvée</p>
-              <p className="text-sm mt-1">Créez votre première commande</p>
-              <Button asChild className="mt-4">
-                <Link to="/manager/orders/new">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouvelle commande
-                </Link>
-              </Button>
+              {canEdit && (
+                <>
+                  <p className="text-sm mt-1">Créez votre première commande</p>
+                  <Button asChild className="mt-4">
+                    <Link to="/manager/orders/new">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Nouvelle commande
+                    </Link>
+                  </Button>
+                </>
+              )}
             </div>
           ) : (
             <>
@@ -293,6 +334,39 @@ function OrdersPage() {
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {canApprove && order.status === 'pending' && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleConfirmOrder(order.id)}
+                                className="text-green-600 hover:text-green-700"
+                                title="Valider la commande"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRejectOrder(order.id)}
+                                className="text-red-500 hover:text-red-600"
+                                title="Rejeter la commande"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                          {canApprove && order.status === 'pending_delivery' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRejectOrder(order.id)}
+                              className="text-red-500 hover:text-red-600"
+                              title="Rejeter la commande"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -300,23 +374,27 @@ function OrdersPage() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            asChild
-                          >
-                            <Link to={`/manager/orders/${order.id}/edit`}>
-                              <Edit className="w-4 h-4" />
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteOrder(order.id)}
-                            className="text-red-500 hover:text-red-600"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              asChild
+                            >
+                              <Link to={`/manager/orders/${order.id}/edit`}>
+                                <Edit className="w-4 h-4" />
+                              </Link>
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteOrder(order.id)}
+                              className="text-red-500 hover:text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

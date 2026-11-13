@@ -29,7 +29,10 @@ const Alert = forwardRef(({
     }
   }
 
-  const { container, icon } = variants[variant]
+  // 'danger' et 'destructive' sont des alias de 'error' ; variante inconnue -> 'info'
+  variants.danger = variants.error
+  variants.destructive = variants.error
+  const { container, icon } = variants[variant] ?? variants.info
 
   return (
     <div

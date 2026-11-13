@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { Package, Search, Plus, Edit, Trash2, Barcode, Calendar, AlertTriangle, Filter, X } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Package, Search, Plus, Edit, Trash2, Barcode, X } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
-import { Select } from '@/components/ui/select.jsx'
+import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table.jsx'
 import { Skeleton, SkeletonText } from '@/components/ui/Skeleton'
@@ -16,6 +16,7 @@ import { useTable } from '@/hooks/useTable'
 import { useDebounce } from '@/hooks/useDebounce'
 
 function ProductsPage() {
+  const navigate = useNavigate()
   const [products, setProducts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [categories, setCategories] = useState([])
@@ -29,27 +30,26 @@ function ProductsPage() {
     filters, 
     setFilters, 
     paginatedData: paginatedProducts,
-    handleSearch,
     handlePageChange,
-    handlePageSizeChange,
     totalPages,
     currentPage,
-    pageSize
   } = useTable(products, { 
-    searchKeys: ['name', 'barcode', 'category', 'description'],
-    initialPageSize: 10
+    searchable: false,
+    filterable: false,
+    pageSize: 10
   })
 
-  const debouncedSearch = useDebounce(searchQuery, 500)
+  const debouncedSearch = useDebounce(searchQuery, 400)
+  const selectedCategory = filters.category || 'all'
 
   useEffect(() => {
-    fetchProducts()
     fetchCategories()
   }, [])
 
   useEffect(() => {
-    handleSearch()
-  }, [debouncedSearch, filters])
+    fetchProducts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, selectedCategory])
 
   const fetchProducts = async () => {
     try {
@@ -57,8 +57,8 @@ function ProductsPage() {
       const response = await api.get('/products', {
         params: {
           search: debouncedSearch || undefined,
-          category: filters.category !== 'all' ? filters.category : undefined,
-          limit: 100
+          category_id: selectedCategory !== 'all' ? selectedCategory : undefined,
+          page_size: 100
         }
       })
       setProducts(response.data.products || [])
@@ -125,22 +125,37 @@ function ProductsPage() {
   }
 
   const getExpiryStatus = (product) => {
-    if (!product.batches || product.batches.length === 0) return null
-    
-    const soonExpiring = product.batches.some(batch => {
-      const expiryDate = new Date(batch.expiry_date)
-      const today = new Date()
-      const daysDiff = (expiryDate - today) / (1000 * 60 * 60 * 24)
-      return daysDiff <= 30 && daysDiff >= 0
-    })
-    
-    if (soonExpiring) return { text: 'Péremption proche', variant: 'warning' }
+    if (product.has_expiring_soon) {
+      return { text: 'Péremption proche', variant: 'warning' }
+    }
     return null
+  }
+
+  const handleDelete = async (product) => {
+    if (!window.confirm(`Supprimer définitivement « ${product.name} » ?`)) return
+
+    try {
+      await api.delete(`/products/${product.id}`)
+      setProducts((prev) => prev.filter((item) => item.id !== product.id))
+      addToast({
+        type: 'success',
+        title: 'Produit supprimé',
+        message: product.name
+      })
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: error.response?.data?.detail || 'Impossible de supprimer ce produit'
+      })
+    }
   }
 
   const categoryOptions = useMemo(() => [
     { value: 'all', label: 'Toutes les catégories' },
-    ...categories.map(cat => ({ value: cat.id || cat.name, label: cat.name }))
+    ...categories
+      .filter(cat => cat.id !== undefined && cat.id !== null)
+      .map(cat => ({ value: cat.id, label: cat.name }))
   ], [categories])
 
   const clearFilters = () => {
@@ -149,7 +164,7 @@ function ProductsPage() {
     setBarcodeInput('')
   }
 
-  const hasActiveFilters = searchQuery || filters.category !== 'all' || barcodeInput
+  const hasActiveFilters = Boolean(searchQuery) || selectedCategory !== 'all' || Boolean(barcodeInput)
 
   return (
     <div className="space-y-6">
@@ -178,7 +193,7 @@ function ProductsPage() {
             
             <div className="flex items-center gap-2">
               <Select
-                value={filters.category || 'all'}
+                value={selectedCategory}
                 onChange={(value) => setFilters({ ...filters, category: value })}
                 options={categoryOptions}
                 placeholder="Filtrer par catégorie"
@@ -186,13 +201,13 @@ function ProductsPage() {
               />
               
               <div className="relative">
+                <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 <Input
                   placeholder="Code-barres"
                   value={barcodeInput}
                   onChange={(e) => setBarcodeInput(e.target.value)}
                   onKeyDown={handleBarcodeScan}
-                  leftIcon={Barcode}
-                  className="w-48"
+                  className="w-48 pl-10"
                 />
               </div>
               
@@ -203,7 +218,7 @@ function ProductsPage() {
                 </Button>
               )}
               
-              <Button size="sm">
+              <Button size="sm" onClick={() => navigate('/products/new')}>
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline ml-1">Ajouter</span>
               </Button>
@@ -278,11 +293,11 @@ function ProductsPage() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary">
-                            {product.category}
+                            {product.category_name || 'Sans catégorie'}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {formatCurrency(product.selling_price || 0)}
+                          {formatCurrency(product.price || 0)}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -313,7 +328,11 @@ function ProductsPage() {
                                 <Edit className="w-4 h-4" />
                               </Link>
                             </Button>
-                            <Button variant="ghost" size="icon">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(product)}
+                            >
                               <Trash2 className="w-4 h-4 text-danger-500" />
                             </Button>
                           </div>

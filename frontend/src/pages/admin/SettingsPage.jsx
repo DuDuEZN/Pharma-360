@@ -411,7 +411,7 @@ function SettingsPage() {
                         </p>
                       </div>
                       <Switch
-                        checked={settings.default_light || true}
+                        checked={settings.default_light ?? true}
                         onCheckedChange={(checked) => handleSwitchChange('default_light', checked)}
                       />
                     </div>

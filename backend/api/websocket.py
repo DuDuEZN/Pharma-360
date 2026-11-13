@@ -9,6 +9,7 @@ from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+from sqlalchemy import select
 
 from ..core.security import get_current_user
 from ..models.user import User
@@ -119,8 +120,7 @@ async def sales_websocket(websocket: WebSocket, token: str):
 
         async with async_session_maker() as db:
             result = await db.execute(
-                "SELECT * FROM users WHERE id = :user_id",
-                {"user_id": payload.get("sub")},
+                select(User).where(User.id == int(payload.get("sub")))
             )
             user = result.scalar_one_or_none()
 
@@ -188,8 +188,7 @@ async def cashier_websocket(websocket: WebSocket, token: str):
 
         async with async_session_maker() as db:
             result = await db.execute(
-                "SELECT * FROM users WHERE id = :user_id",
-                {"user_id": payload.get("sub")},
+                select(User).where(User.id == int(payload.get("sub")))
             )
             user = result.scalar_one_or_none()
 

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingCart, Plus, Search, Barcode, Trash2, Check, X, Package, Clock, AlertTriangle, ArrowRight, Minus, Plus as PlusIcon } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ShoppingCart, Plus, Search, Barcode, Trash2, Check, Package, ArrowRight, Minus, Plus as PlusIcon } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { useCart } from '@/hooks/useCart'
+import { useCart, getItemUnitPrice } from '@/providers/CartProvider'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { useDisclosure } from '@/hooks/useDisclosure'
 import api from '@/lib/api'
@@ -12,9 +12,8 @@ import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table.jsx'
+import { Table, TableBody, TableRow, TableCell } from '@/components/ui/table.jsx'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { Select } from '@/components/ui/select.jsx'
 import { Separator } from '@/components/ui/Separator'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
 
@@ -44,9 +43,10 @@ function SalesPage() {
   const [products, setProducts] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [barcode, setBarcode] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [selectedBatch, setSelectedBatch] = useState(null)
+  const [isLoadingBatches, setIsLoadingBatches] = useState(false)
   const [quantity, setQuantity] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -62,25 +62,14 @@ function SalesPage() {
     onClose: closeConfirm
   } = useDisclosure()
 
-  // Fetch products
-  useEffect(() => {
-    fetchProducts()
-  }, [])
-
-  useEffect(() => {
-    if (searchQuery) {
-      const timer = setTimeout(() => fetchProducts(), 500)
-      return () => clearTimeout(timer)
-    }
-  }, [searchQuery])
-
-  const fetchProducts = async () => {
+  // Fetch products (la recherche est faite côté API)
+  const fetchProducts = useCallback(async (query = '') => {
+    setIsLoading(true)
     try {
-      setIsLoading(true)
-      const response = await api.get('/products', {
+      const response = await api.get('/products/', {
         params: {
-          search: searchQuery || undefined,
-          limit: 20
+          search: query.trim() || undefined,
+          page_size: 50
         }
       })
       setProducts(response.data.products || [])
@@ -93,38 +82,70 @@ function SalesPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [addToast])
+
+  useEffect(() => {
+    const timer = setTimeout(() => fetchProducts(searchQuery), 350)
+    return () => clearTimeout(timer)
+  }, [searchQuery, fetchProducts])
+
+  // Charge les lots du produit (la liste /products ne les renvoie pas)
+  const openProduct = useCallback(async (product) => {
+    if (!product?.id) return
+
+    setSelectedProduct(product)
+    setSelectedBatch(null)
+    setQuantity(1)
+    setIsLoadingBatches(true)
+    openProductModal()
+
+    try {
+      const response = await api.get(`/products/${product.id}`)
+      const detail = response.data
+
+      setSelectedProduct(detail)
+
+      // Sélection FEFO : lot disponible dont la péremption est la plus proche.
+      const fefoBatch = (detail.batches || [])
+        .filter(batch => Number(batch.quantity) > 0 && batch.is_available !== false)
+        .sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date))[0] || null
+
+      setSelectedBatch(fefoBatch)
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Impossible de charger les lots de ce produit'
+      })
+    } finally {
+      setIsLoadingBatches(false)
+    }
+  }, [openProductModal, addToast])
 
   // Handle barcode scan
   const handleBarcodeScan = useCallback(async (scannedBarcode) => {
     if (!scannedBarcode.trim()) return
-    
-    try {
-      const result = await scanBarcode(scannedBarcode)
-      
-      if (result && result.product) {
-        // Check if we need to select a batch
-        if (result.batch) {
-          // Add directly to cart
-          addItem(result.product, result.batch, 1)
-          addToast({
-            type: 'success',
-            title: 'Produit ajouté',
-            message: `${result.product.name} - ${result.batch.batch_number}`
-          })
-        } else {
-          // No batch available, show product for manual selection
-          setSelectedProduct(result.product)
-          openProductModal()
-        }
+
+    const result = await scanBarcode(scannedBarcode.trim())
+
+    if (result?.product) {
+      if (result.batch) {
+        addItem(result.product, result.batch, 1)
+        addToast({
+          type: 'success',
+          title: 'Produit ajouté',
+          message: `${result.product.name} - Lot ${result.batch.batch_number}${
+            result.batch.location ? ` - Rayon ${result.batch.location}` : ''
+          }`
+        })
+      } else {
+        // Pas de lot sélectionnable automatiquement : ouverture du choix manuel.
+        await openProduct(result.product)
       }
-      
-      // Clear barcode input
-      setBarcode('')
-    } catch (error) {
-      // Error is already handled by scanBarcode
     }
-  }, [scanBarcode, addItem, openProductModal])
+
+    setBarcode('')
+  }, [scanBarcode, addItem, addToast, openProduct])
 
   const handleBarcodeInput = (e) => {
     if (e.key === 'Enter' && barcode.trim()) {
@@ -137,30 +158,50 @@ function SalesPage() {
   }
 
   const handleAddToCart = () => {
-    if (selectedProduct && selectedBatch && quantity > 0) {
-      addItem(selectedProduct, selectedBatch, quantity)
+    if (!selectedProduct) return
+
+    if (!selectedBatch) {
       addToast({
-        type: 'success',
-        title: 'Produit ajouté',
-        message: `${selectedProduct.name} x${quantity}`
+        type: 'warning',
+        title: 'Aucun lot disponible',
+        message: 'Sélectionnez un lot avant d\'ajouter le produit'
       })
-      closeProductModal()
-      setQuantity(1)
-      setSelectedBatch(null)
+      return
     }
+
+    const maxQuantity = Number(selectedBatch.quantity ?? 0)
+    if (quantity > maxQuantity) {
+      addToast({
+        type: 'warning',
+        title: 'Stock insuffisant',
+        message: `Il reste ${maxQuantity} unité(s) dans ce lot`
+      })
+      return
+    }
+
+    addItem(selectedProduct, selectedBatch, quantity)
+    addToast({
+      type: 'success',
+      title: 'Produit ajouté',
+      message: `${selectedProduct.name} x${quantity}`
+    })
+    closeProductModal()
+    setQuantity(1)
+    setSelectedBatch(null)
+    setSelectedProduct(null)
   }
 
   const handleUpdateQuantity = (productId, batchId, delta) => {
     const currentItem = cartItems.find(
       item => item.product.id === productId && item.batch?.id === batchId
     )
-    if (currentItem) {
-      const newQuantity = currentItem.quantity + delta
-      if (newQuantity > 0) {
-        updateItemQuantity(productId, batchId, newQuantity)
-      } else {
-        removeItem(productId, batchId)
-      }
+    if (!currentItem) return
+
+    const newQuantity = currentItem.quantity + delta
+    if (newQuantity > 0) {
+      updateItemQuantity(productId, batchId, newQuantity)
+    } else {
+      removeItem(productId, batchId)
     }
   }
 
@@ -169,43 +210,79 @@ function SalesPage() {
       addToast({
         type: 'warning',
         title: 'Panier vide',
-        message: 'Ajoutez des produits avant de envoyer à la caisse'
+        message: 'Ajoutez des produits avant d\'envoyer à la caisse'
       })
       return
     }
 
-    setIsSubmitting(true)
-    try {
-      // Prepare cart data for submission
-      const saleData = cartItems.map(item => ({
+    if (!user?.id) {
+      addToast({
+        type: 'error',
+        title: 'Session expirée',
+        message: 'Reconnectez-vous pour envoyer la vente à la caisse'
+      })
+      return
+    }
+
+    if (cartItems.some(item => !item.batch?.id)) {
+      addToast({
+        type: 'error',
+        title: 'Lot manquant',
+        message: 'Chaque produit doit être associé à un lot'
+      })
+      return
+    }
+
+    const total = cartItems.reduce(
+      (sum, item) => sum + getItemUnitPrice(item) * item.quantity,
+      0
+    )
+
+    const saleData = {
+      user_id: user.id,
+      status: 'pending',
+      subtotal: total,
+      tax_amount: 0,
+      discount: 0,
+      total,
+      items: cartItems.map(item => ({
         product_id: item.product.id,
         batch_id: item.batch?.id,
         quantity: item.quantity,
-        unit_price: item.batch?.selling_price || item.product.selling_price
+        unit_price: getItemUnitPrice(item)
       }))
+    }
 
-      // Send to backend
-      const response = await api.post('/sales/prepare', {
-        items: saleData,
-        user_id: user.id
-      })
+    setIsSubmitting(true)
+    try {
+      const response = await api.post('/sales/', saleData)
+      const payload = response.data || {}
 
-      // Clear cart and redirect to cashier
+      if (payload.success === false) {
+        addToast({
+          type: 'error',
+          title: 'Vente refusée',
+          message: (payload.errors || []).join(' · ') || 'La vente n\'a pas pu être créée'
+        })
+        return
+      }
+
       clearCart()
       addToast({
         type: 'success',
         title: 'Vente préparée',
         message: 'Les produits ont été envoyés à la caisse'
       })
-      
+
       navigate('/cashier', {
-        state: { saleId: response.data.sale_id }
+        state: { saleId: payload.sale_id }
       })
     } catch (error) {
+      const detail = error.response?.data?.detail
       addToast({
         type: 'error',
         title: 'Erreur',
-        message: error.response?.data?.message || 'Impossible de préparer la vente'
+        message: typeof detail === 'string' ? detail : 'Impossible de préparer la vente'
       })
     } finally {
       setIsSubmitting(false)
@@ -214,28 +291,25 @@ function SalesPage() {
   }
 
   const filteredProducts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return products
+
     return products.filter(product => {
-      if (!searchQuery) return true
-      const query = searchQuery.toLowerCase()
-      return (
-        product.name.toLowerCase().includes(query) ||
-        product.barcode.toLowerCase().includes(query) ||
-        (product.category && product.category.toLowerCase().includes(query))
-      )
+      const haystack = [product.name, product.barcode, product.category_name, product.dci]
+        .filter(Boolean)
+        .map(value => String(value).toLowerCase())
+      return haystack.some(value => value.includes(query))
     })
   }, [products, searchQuery])
 
   const getBatchStatus = (batch) => {
     const expiryDate = new Date(batch.expiry_date)
-    const today = new Date()
-    const daysDiff = (expiryDate - today) / (1000 * 60 * 60 * 24)
-    
+    const daysDiff = Math.ceil((expiryDate - Date.now()) / (1000 * 60 * 60 * 24))
+
+    if (daysDiff < 0) return { text: 'Périmé', variant: 'danger' }
     if (daysDiff <= 30) return { text: 'Péremption proche', variant: 'warning' }
-    if (daysDiff <= 0) return { text: 'Périmé', variant: 'danger' }
     return { text: 'OK', variant: 'success' }
   }
-
-//  const cartSummary = getSummary ? getSummary() : { itemCount: 0, totalItems: 0, subtotal: 0, tax: 0, discount: 0, total: 0 }
 
   return (
     <div className="space-y-6">
@@ -305,88 +379,63 @@ function SalesPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredProducts.map((product) => {
-                  // Find the FEFO batch (nearest expiry date with stock)
-                  const fefoBatch = product.batches?.reduce((nearest, batch) => {
-                    if (batch.current_stock > 0) {
-                      const expiryDate = new Date(batch.expiry_date)
-                      const nearestExpiry = new Date(nearest?.expiry_date || '9999-12-31')
-                      return expiryDate < nearestExpiry ? batch : nearest
-                    }
-                    return nearest
-                  }, null)
-
-                  return (
-                    <Card
-                      key={product.id}
-                      className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => {
-                        setSelectedProduct(product)
-                        setSelectedBatch(fefoBatch)
-                        openProductModal()
-                      }}
-                    >
-                      <div className="flex items-start gap-4">
-                        {product.image_url ? (
-                          <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-16 h-16 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-                            <Package className="w-8 h-8 text-gray-400" />
-                          </div>
-                        )}
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <h3 className="font-medium text-gray-900 dark:text-white truncate">
-                                {product.name}
-                              </h3>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                {product.barcode}
-                              </p>
-                            </div>
-                            
-                            <Badge variant="secondary">
-                              {product.category}
-                            </Badge>
+                {filteredProducts.map((product) => (
+                  <Card
+                    key={product.id}
+                    className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => openProduct(product)}
+                  >
+                    <div className="flex items-start gap-4">
+                      {product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="w-16 h-16 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                          <Package className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="font-medium text-gray-900 truncate">
+                              {product.name}
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {product.barcode || 'Sans code-barres'}
+                            </p>
                           </div>
                           
-                          <div className="mt-2 flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Stock: {product.current_stock || 0}
+                          <Badge variant="secondary">
+                            {product.category_name || 'Sans catégorie'}
+                          </Badge>
+                        </div>
+                        
+                        <div className="mt-2 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Stock: {product.current_stock ?? 0}
+                            </p>
+                            {product.next_expiring_batch && (
+                              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                Prochain lot: {product.next_expiring_batch}
                               </p>
-                              {fefoBatch && (
-                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                                  Lot: {fefoBatch.batch_number} - Péremption: {formatDate(fefoBatch.expiry_date)}
-                                </p>
-                              )}
-                            </div>
-                            
-                            <div className="text-right">
-                              <p className="font-bold text-primary-600 dark:text-primary-400">
-                                {formatCurrency(product.selling_price || 0)}
-                              </p>
-                              {fefoBatch && (
-                                <Badge 
-                                  variant={getBatchStatus(fefoBatch).variant}
-                                  size="xs"
-                                  className="mt-1"
-                                >
-                                  {getBatchStatus(fefoBatch).text}
-                                </Badge>
-                              )}
-                            </div>
+                            )}
+                          </div>
+                          
+                          <div className="text-right">
+                            <p className="font-bold text-primary-600 dark:text-primary-400">
+                              {formatCurrency(product.price || 0)}
+                            </p>
                           </div>
                         </div>
                       </div>
-                    </Card>
-                  )
-                })}
+                    </div>
+                  </Card>
+                ))}
               </div>
             )}
           </CardContent>
@@ -447,15 +496,21 @@ function SalesPage() {
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium text-sm">{item.product.name}</span>
+                            {item.product.barcode && (
+                              <span className="text-xs text-gray-500">
+                                Code-barres: {item.product.barcode}
+                              </span>
+                            )}
                             {item.batch && (
                               <span className="text-xs text-gray-500">
                                 Lot: {item.batch.batch_number}
+                                {item.batch.location ? ` · Rayon: ${item.batch.location}` : ''}
                               </span>
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency((item.batch?.selling_price || item.product.selling_price || 0) * item.quantity)}
+                          {formatCurrency(getItemUnitPrice(item) * item.quantity)}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -523,17 +578,17 @@ function SalesPage() {
                 )}
                 
                 <div>
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">
+                  <h3 className="font-bold text-lg text-gray-900">
                     {selectedProduct.name}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Code: {selectedProduct.barcode}
+                    Code-barres: {selectedProduct.barcode || '—'}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Catégorie: {selectedProduct.category}
+                    Catégorie: {selectedProduct.category_name || 'Sans catégorie'}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Prix: {formatCurrency(selectedProduct.selling_price || 0)}
+                    Prix: {formatCurrency(selectedProduct.price || 0)}
                   </p>
                 </div>
               </div>
@@ -543,10 +598,15 @@ function SalesPage() {
                   Lots Disponibles (Sélection FEFO automatique)
                 </h4>
                 
-                {selectedProduct.batches && selectedProduct.batches.length > 0 ? (
+                {isLoadingBatches ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                  </div>
+                ) : selectedProduct.batches && selectedProduct.batches.length > 0 ? (
                   <div className="grid grid-cols-1 gap-2">
                     {selectedProduct.batches
-                      .filter(batch => batch.current_stock > 0)
+                      .filter(batch => Number(batch.quantity) > 0)
                       .sort((a, b) => {
                         const dateA = new Date(a.expiry_date)
                         const dateB = new Date(b.expiry_date)
@@ -554,8 +614,7 @@ function SalesPage() {
                       })
                       .map((batch) => {
                         const expiryDate = new Date(batch.expiry_date)
-                        const today = new Date()
-                        const daysDiff = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24))
+                        const daysDiff = Math.ceil((expiryDate - Date.now()) / (1000 * 60 * 60 * 24))
                         
                         return (
                           <Card
@@ -577,16 +636,19 @@ function SalesPage() {
                                   Péremption: {formatDate(batch.expiry_date)}
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  Stock: {batch.current_stock}
+                                  Rayon: {batch.location || '—'}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  Stock: {batch.quantity}
                                 </p>
                               </div>
                               <div className="text-right">
                                 <p className="font-medium text-sm">
-                                  {formatCurrency(batch.selling_price || selectedProduct.selling_price || 0)}
+                                  {formatCurrency(batch.selling_price ?? selectedProduct.price ?? 0)}
                                 </p>
                                 {daysDiff <= 30 && (
-                                  <Badge variant={daysDiff <= 0 ? 'danger' : 'warning'} size="xs" className="mt-1">
-                                    {daysDiff <= 0 ? 'Périmé' : `${daysDiff} jours`}
+                                  <Badge variant={daysDiff < 0 ? 'danger' : 'warning'} size="xs" className="mt-1">
+                                    {daysDiff < 0 ? 'Périmé' : `${daysDiff} jours`}
                                   </Badge>
                                 )}
                               </div>
@@ -604,6 +666,13 @@ function SalesPage() {
 
               <div className="flex items-center gap-4">
                 <div className="flex-1">
+                  {selectedBatch && (
+                    <div className="mb-2 text-xs text-gray-600 dark:text-gray-300">
+                      Lot sélectionné: <span className="font-medium">{selectedBatch.batch_number}</span>
+                      {' · '}Rayon: <span className="font-medium">{selectedBatch.location || '—'}</span>
+                      {' · '}Expire le: <span className="font-medium">{formatDate(selectedBatch.expiry_date)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
@@ -619,11 +688,13 @@ function SalesPage() {
                       onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                       className="w-16 text-center"
                       min={1}
+                      max={selectedBatch?.quantity || undefined}
                     />
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => setQuantity(quantity + 1)}
+                      disabled={Boolean(selectedBatch) && quantity >= Number(selectedBatch.quantity)}
                     >
                       <PlusIcon className="w-4 h-4" />
                     </Button>
@@ -639,7 +710,7 @@ function SalesPage() {
           </Button>
           <Button
             onClick={handleAddToCart}
-            disabled={!selectedBatch}
+            disabled={!selectedBatch || isLoadingBatches}
           >
             <Plus className="w-4 h-4 mr-2" />
             Ajouter au Panier

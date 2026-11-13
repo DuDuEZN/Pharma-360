@@ -134,9 +134,11 @@ async def get_sale(
             status_code=status.HTTP_404_NOT_FOUND, detail="Sale not found"
         )
 
-    # Check permissions (only admin, manager, or the sale owner can view)
+    # Check permissions (cashier, seller, manager, admin, or the sale owner).
+    # Le caissier doit pouvoir consulter le détail pour contrôler les produits
+    # (code-barres + rayon) avant validation du paiement.
     if (
-        not RBACUtils.has_permission(current_user.role, "manager")
+        not RBACUtils.has_permission(current_user.role, "cashier")
         and sale.user_id != current_user.id
     ):
         raise HTTPException(
@@ -144,29 +146,54 @@ async def get_sale(
             detail="You can only view your own sales or have manager/admin privileges",
         )
 
-    # Convert to detail response
-    detail_response = SaleDetailResponse.model_validate(sale)
-
-    # Add computed fields
-    detail_response.customer_name = sale.customer.name if sale.customer else None
-    detail_response.user_name = sale.user.username
-    detail_response.is_pending = sale.is_pending
-    detail_response.is_paid = sale.is_paid
-    detail_response.is_cancelled = sale.is_cancelled
-    detail_response.is_refunded = sale.is_refunded
-    detail_response.item_count = sale.item_count
-    detail_response.total_items = sale.total_items
-
-    from ...schemas.sale import SaleItemResponse
-
-    detail_response.items = []
-    for item in sale.items:
-        item_response = SaleItemResponse.model_validate(item)
-        item_response.product_name = item.product.name if item.product else "Unknown"
-        item_response.batch_number = (
-            item.batch.batch_number if item.batch else "Unknown"
-        )
-        detail_response.items.append(item_response)
+    # Convert to detail response (construction explicite : les champs calculés
+    # `user_name`, `item_count`, `total_items` ne sont pas des colonnes).
+    detail_response = SaleDetailResponse(
+        id=sale.id,
+        sale_number=sale.sale_number,
+        customer_id=sale.customer_id,
+        user_id=sale.user_id,
+        status=sale.status,
+        subtotal=sale.subtotal,
+        tax_amount=sale.tax_amount,
+        discount=sale.discount,
+        total=sale.total,
+        payment_method=sale.payment_method,
+        payment_reference=sale.payment_reference,
+        notes=sale.notes,
+        customer_name=sale.customer.name if sale.customer else None,
+        user_name=sale.user.username if sale.user else "",
+        is_pending=sale.is_pending,
+        is_paid=sale.is_paid,
+        is_cancelled=sale.is_cancelled,
+        is_refunded=sale.is_refunded,
+        item_count=sale.item_count,
+        total_items=sale.total_items,
+        payment_date=sale.payment_date,
+        created_at=sale.created_at,
+        updated_at=sale.updated_at,
+        items=[
+            SaleItemResponse(
+                id=item.id,
+                sale_id=item.sale_id,
+                batch_id=item.batch_id,
+                product_id=item.product_id,
+                product_name=item.product.name if item.product else "Unknown",
+                product_code=item.product.code if item.product else None,
+                product_barcode=item.product.barcode if item.product else None,
+                batch_number=item.batch.batch_number if item.batch else "Unknown",
+                batch_location=item.batch.location if item.batch else None,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                total_price=item.total_price,
+                expiry_date=(
+                    item.expiry_date.isoformat() if item.expiry_date else None
+                ),
+                created_at=item.created_at,
+            )
+            for item in sale.items
+        ],
+    )
 
     return detail_response
 

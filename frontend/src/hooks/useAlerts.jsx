@@ -55,6 +55,10 @@ const ALERT_TYPES_FR = {
 export function AlertsProvider({ children }) {
   const { user } = useAuth()
   const { addToast } = useToast()
+  const userRole = user?.role
+
+  // Les alertes de stock/péremption sont réservées aux rôles de gestion.
+  const canViewAlerts = userRole === 'admin' || userRole === 'manager'
   
   const [alerts, setAlerts] = useState([])
   const [stats, setStats] = useState({
@@ -70,7 +74,10 @@ export function AlertsProvider({ children }) {
 
   // Fetch alerts from API
   const fetchAlerts = useCallback(async () => {
-    if (!user) return
+    if (!canViewAlerts) {
+      setIsLoading(false)
+      return
+    }
     
     setIsLoading(true)
     
@@ -108,7 +115,7 @@ export function AlertsProvider({ children }) {
     } finally {
       setIsLoading(false)
     }
-  }, [user, addToast])
+  }, [canViewAlerts, addToast])
 
   // Group alerts by type
   const getAlertsByType = useCallback((type) => {
@@ -177,15 +184,18 @@ export function AlertsProvider({ children }) {
 
   // Effect to fetch alerts on mount and start polling
   useEffect(() => {
-    if (user) {
-      fetchAlerts()
-      
-      // Set up polling
-      const interval = setInterval(fetchAlerts, pollingInterval)
-      
-      return () => clearInterval(interval)
+    if (!canViewAlerts) {
+      setAlerts([])
+      return undefined
     }
-  }, [user, fetchAlerts, pollingInterval])
+
+    fetchAlerts()
+    
+    // Set up polling
+    const interval = setInterval(fetchAlerts, pollingInterval)
+    
+    return () => clearInterval(interval)
+  }, [canViewAlerts, fetchAlerts, pollingInterval])
 
   // Provide context value
   const value = {

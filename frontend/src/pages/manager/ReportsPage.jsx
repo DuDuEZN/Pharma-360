@@ -241,7 +241,7 @@ function ManagerReportsPage() {
                 className="h-auto p-4 text-left justify-start"
               >
                 <div className="flex flex-col items-start">
-                  <option.label className="font-medium" />
+                  <span className="font-medium">{option.label}</span>
                   <span className="text-sm text-gray-500">{option.value}</span>
                 </div>
               </Button>

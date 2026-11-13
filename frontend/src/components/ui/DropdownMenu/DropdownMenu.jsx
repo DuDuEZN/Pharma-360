@@ -100,6 +100,7 @@ const DropdownMenu = forwardRef(({
     toggle: () => open ? handleClose() : handleOpen(),
     triggerRef: setTriggerRef,
     contentRef: setContentRef,
+    position,
   };
 
   return (
@@ -156,7 +157,7 @@ const DropdownMenuTrigger = forwardRef(({ className, children, asChild, ...props
 DropdownMenuTrigger.displayName = 'DropdownMenuTrigger';
 
 const DropdownMenuContent = forwardRef(({ className, children, align = 'start', ...props }, ref) => {
-  const { open, close, contentRef } = React.useContext(DropdownMenuContext);
+  const { open, close, contentRef, position } = React.useContext(DropdownMenuContext);
 
   if (!open) return null;
 
@@ -172,6 +173,7 @@ const DropdownMenuContent = forwardRef(({ className, children, align = 'start', 
         'absolute z-50 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 p-1 min-w-[180px]',
         className
       )}
+      style={{ top: position.top, left: position.left, ...(align === 'end' ? { right: 0, left: 'auto' } : {}) }}
       onClick={(e) => e.stopPropagation()}
       {...props}
     >

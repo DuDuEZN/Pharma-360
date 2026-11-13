@@ -41,10 +41,11 @@ function ManagerSettingsPage() {
     // Stock settings
     stock_management: 'fefo', // fefo or fifo
     default_category: '',
+    order_approval_required: true, // validation des commandes par le gestionnaire
     
     // Currency settings
-    currency: 'MAD',
-    currency_symbol: 'DH',
+    currency: 'XOF',
+    currency_symbol: 'F CFA',
     
     // Business settings
     tax_rate: 20,
@@ -83,6 +84,7 @@ function ManagerSettingsPage() {
   ]
 
   const currencies = [
+    { value: 'XOF', label: 'Franc CFA (FCFA)' },
     { value: 'MAD', label: 'Dirham Marocain (MAD)' },
     { value: 'EUR', label: 'Euro (EUR)' },
     { value: 'USD', label: 'Dollar Américain (USD)' },
@@ -106,17 +108,15 @@ function ManagerSettingsPage() {
     fetchCategories()
   }, [])
 
-  const fetchSettings = async () => {
+  const fetchSettings = () => {
     try {
       setIsLoading(true)
-      const response = await api.get('/manager/settings')
-      setSettings(response.data.settings || settings)
+      const stored = localStorage.getItem('pharma360_manager_settings')
+      if (stored) {
+        setSettings(prev => ({ ...prev, ...JSON.parse(stored) }))
+      }
     } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Erreur',
-        message: 'Impossible de charger les paramètres'
-      })
+      console.error('Failed to load settings:', error)
     } finally {
       setIsLoading(false)
     }
@@ -153,20 +153,17 @@ function ManagerSettingsPage() {
     setIsSubmitting(true)
     
     try {
-      await api.put('/manager/settings', settings)
+      localStorage.setItem('pharma360_manager_settings', JSON.stringify(settings))
       addToast({
         type: 'success',
         title: 'Succès',
         message: 'Paramètres mis à jour avec succès'
       })
     } catch (error) {
-      const message = error.response?.data?.message || 
-                      error.response?.data?.detail ||
-                      'Une erreur est survenue'
       addToast({
         type: 'error',
         title: 'Erreur',
-        message: message
+        message: 'Une erreur est survenue'
       })
     } finally {
       setIsSubmitting(false)
@@ -688,6 +685,21 @@ function ManagerSettingsPage() {
                         Catégorie par défaut pour les nouveaux produits
                       </p>
                     </div>
+
+                     <div className="flex items-center justify-between">
+                       <div className="space-y-1">
+                         <Label htmlFor="order_approval_required">Validation des commandes par le gestionnaire</Label>
+                         <p className="text-sm text-gray-600 dark:text-gray-300">
+                           Si active, les commandes sont creees en attente et doivent etre confirmees par le gestionnaire de stock
+                         </p>
+                       </div>
+                       <Switch
+                         id="order_approval_required"
+                         checked={settings.order_approval_required}
+                         onCheckedChange={(checked) => handleSwitchChange('order_approval_required', checked)}
+                         disabled={isSubmitting}
+                       />
+                     </div>
                   </div>
                 </CardContent>
               </Card>

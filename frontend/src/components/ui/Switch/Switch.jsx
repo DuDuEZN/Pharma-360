@@ -6,6 +6,7 @@ const Switch = forwardRef(({
   checked = false, 
   disabled = false,
   onChange,
+  onCheckedChange,
   id,
   label,
   labelClassName,
@@ -34,7 +35,12 @@ const Switch = forwardRef(({
         role="switch"
         aria-checked={checked}
         disabled={disabled}
-        onClick={() => !disabled && onChange?.({ target: { checked: !checked, id, name: props.name } })}
+        onClick={() => {
+          if (disabled) return
+          const next = !checked
+          onChange?.({ target: { checked: next, id, name: props.name } })
+          onCheckedChange?.(next)
+        }}
         className={cn(
           'relative inline-flex items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
           { 'bg-gray-200 dark:bg-gray-700': !checked },

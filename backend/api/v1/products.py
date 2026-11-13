@@ -6,11 +6,13 @@ FastAPI endpoints for product management (CRUD + search + barcode scanning)
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db
 from ...core.logging import get_logger
 from ...core.security import RBACUtils, get_current_user
+from ...models.category import Category
 from ...models.product import Product
 from ...models.user import User
 from ...schemas.product import (
@@ -115,6 +117,51 @@ async def get_expiring_soon_products(
 
 
 @router.get(
+    "/categories",
+    summary="List product categories",
+    description="Liste des catégories actives (filtres de la page Produits)",
+)
+async def list_categories(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Category).where(Category.is_active.is_(True)).order_by(Category.name)
+    )
+    return {
+        "categories": [
+            {
+                "id": c.id,
+                "name": c.name,
+                "description": c.description,
+                "parent_id": c.parent_id,
+            }
+            for c in result.scalars().all()
+        ]
+    }
+
+
+@router.get(
+    "/categories/stats",
+    summary="Product count per category",
+    description="Nombre de produits actifs par catégorie (tableau de bord)",
+)
+async def get_category_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Category.name, func.count(Product.id))
+        .select_from(Product)
+        .join(Category, Product.category_id == Category.id)
+        .where(Product.is_active.is_(True))
+        .group_by(Category.name)
+        .order_by(func.count(Product.id).desc())
+    )
+    return [{"category": name, "count": count} for name, count in result.all()]
+
+
+@router.get(
     "/{product_id}",
     summary="Get a specific product",
     description="Get detailed product information including all batches",
@@ -175,10 +222,24 @@ async def create_product(
             detail="Only manager or admin users can create products",
         )
 
+    # Le système génère systématiquement un code-barres unique si aucun
+    # n'a été fourni (saisie manuelle ou scan).
+    barcode = (product_data.barcode or "").strip() or None
+    if not barcode:
+        import uuid
+        while True:
+            candidate = "PH" + uuid.uuid4().hex[:10].upper()
+            exists = await db.execute(
+                select(Product.id).where(Product.barcode == candidate)
+            )
+            if exists.scalar_one_or_none() is None:
+                barcode = candidate
+                break
+
     product = Product(
         name=product_data.name,
         dci=product_data.dci,
-        barcode=product_data.barcode,
+        barcode=barcode,
         category_id=product_data.category_id,
         description=product_data.description,
         price=product_data.price,

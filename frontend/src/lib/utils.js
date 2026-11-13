@@ -44,6 +44,18 @@ export function formatDate(dateString, locale = 'fr-FR') {
 }
 
 /**
+ * Format a date as day + short month (ex: "12 nov.")
+ */
+export function formatDateShort(dateString, locale = 'fr-FR') {
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString(locale, {
+    day: '2-digit',
+    month: 'short'
+  })
+}
+
+/**
  * Format date with time
  */
 export function formatDateTime(dateString, locale = 'fr-FR') {

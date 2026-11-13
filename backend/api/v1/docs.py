@@ -187,8 +187,12 @@ Systeme fonctionne 100% hors ligne avec base de donnees PostgreSQL locale.
 - GET /api/v1/sales/{id} - Obtenir une vente
 
 ### Caisse
-- GET /api/v1/cash/queue - File d'attente
-- POST /api/v1/cash/payment - Encaisser paiement
+- GET /api/v1/cash/current - Etat de la session de caisse
+- POST /api/v1/cash/open - Ouvrir la caisse (fonds initial)
+- GET /api/v1/cash/summary - Rapport de synthese temps reel
+- POST /api/v1/cash/close - Cloturer la caisse (montant compte)
+- GET /api/v1/cash/sessions - Historique des sessions
+- GET /api/v1/cash/sessions/{id} - Detail d'une session
 
 ### Fournisseurs
 - GET /api/v1/suppliers - Lister fournisseurs

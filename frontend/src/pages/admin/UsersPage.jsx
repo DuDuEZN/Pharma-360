@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, Plus, Search, Edit, Trash2, Shield, Mail, Phone, User, Eye, EyeOff, Check, X } from 'lucide-react'
+import { Users, Plus, Search, Edit, Trash2, Shield, Mail, Phone, User, Eye, EyeOff, Check, X, AlertTriangle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useDisclosure } from '@/hooks/useDisclosure'
 import { useTable } from '@/hooks/useTable'
@@ -9,7 +9,7 @@ import { useToast } from '@/components/common/Toast'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
-import { Select } from '@/components/ui/select.jsx'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table.jsx'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
@@ -40,7 +40,7 @@ function UsersPage() {
     first_name: '',
     last_name: '',
     phone: '',
-    role: 'vendeur',
+    role: 'seller',
     is_active: true
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -66,9 +66,9 @@ function UsersPage() {
 
   const roleOptions = [
     { value: 'admin', label: 'Administrateur' },
-    { value: 'gestionnaire', label: 'Gestionnaire' },
-    { value: 'vendeur', label: 'Vendeur' },
-    { value: 'caissier', label: 'Caissier' },
+    { value: 'manager', label: 'Gestionnaire' },
+    { value: 'seller', label: 'Vendeur' },
+    { value: 'cashier', label: 'Caissier' },
   ]
 
   const {
@@ -80,7 +80,7 @@ function UsersPage() {
     currentPage,
     pageSize
   } = useTable(users, { 
-    searchKeys: ['username', 'email', 'first_name', 'last_name', 'role'],
+    searchKeys: ['username', 'email', 'full_name', 'role'],
     initialPageSize: 10
   })
 
@@ -142,7 +142,15 @@ function UsersPage() {
 
     setIsSubmitting(true)
     try {
-      await api.post('/users', formData)
+      const payload = {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        full_name: [formData.first_name, formData.last_name].filter(Boolean).join(' ') || formData.username,
+        role: formData.role,
+        is_active: formData.is_active,
+      }
+      await api.post('/users', payload)
       addToast({
         type: 'success',
         title: 'Utilisateur créé',
@@ -156,7 +164,7 @@ function UsersPage() {
         first_name: '',
         last_name: '',
         phone: '',
-        role: 'vendeur',
+        role: 'seller',
         is_active: true
       })
       fetchUsers()
@@ -177,7 +185,17 @@ function UsersPage() {
     
     setIsSubmitting(true)
     try {
-      await api.put(`/users/${selectedUser.id}`, formData)
+      const payload = {
+        username: formData.username,
+        email: formData.email,
+        full_name: [formData.first_name, formData.last_name].filter(Boolean).join(' ') || formData.username,
+        role: formData.role,
+        is_active: formData.is_active,
+      }
+      if (formData.password) {
+        payload.password = formData.password
+      }
+      await api.put(`/users/${selectedUser.id}`, payload)
       addToast({
         type: 'success',
         title: 'Utilisateur mis à jour',
@@ -224,13 +242,14 @@ function UsersPage() {
 
   const handleOpenEditModal = (user) => {
     setSelectedUser(user)
+    const nameParts = (user.full_name || '').split(' ')
     setFormData({
       username: user.username,
       email: user.email,
       password: '',
-      first_name: user.first_name || '',
-      last_name: user.last_name || '',
-      phone: user.phone || '',
+      first_name: nameParts[0] || '',
+      last_name: nameParts.slice(1).join(' ') || '',
+      phone: '',
       role: user.role,
       is_active: user.is_active
     })
@@ -245,9 +264,9 @@ function UsersPage() {
   const getRoleColor = (role) => {
     switch (role) {
       case 'admin': return 'danger'
-      case 'gestionnaire': return 'warning'
-      case 'vendeur': return 'info'
-      case 'caissier': return 'success'
+      case 'manager': return 'warning'
+      case 'seller': return 'info'
+      case 'cashier': return 'success'
       default: return 'secondary'
     }
   }
@@ -330,7 +349,7 @@ function UsersPage() {
                           <div>
                             <p className="font-medium">{user.username}</p>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {user.first_name} {user.last_name}
+                              {user.full_name || '—'}
                             </p>
                           </div>
                         </div>
@@ -511,10 +530,19 @@ function UsersPage() {
                 </label>
                 <Select
                   value={formData.role}
-                  onChange={(value) => handleSelectChange('role', value)}
-                  options={roleOptions}
-                  placeholder="Sélectionnez un rôle"
-                />
+                  onValueChange={(value) => handleSelectChange('role', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionnez un rôle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">
@@ -628,10 +656,19 @@ function UsersPage() {
                 </label>
                 <Select
                   value={formData.role}
-                  onChange={(value) => handleSelectChange('role', value)}
-                  options={roleOptions}
-                  placeholder="Sélectionnez un rôle"
-                />
+                  onValueChange={(value) => handleSelectChange('role', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionnez un rôle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">

@@ -5,7 +5,12 @@ const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const [storedTheme, setStoredTheme] = useLocalStorage('pharma360-theme', 'system');
-  const [theme, setTheme] = useState(storedTheme);
+
+  // Keep theme in sync with storedTheme so the UI reflects the persisted value
+  const [theme, setThemeState] = useState(storedTheme);
+  useEffect(() => {
+    setThemeState(storedTheme);
+  }, [storedTheme]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -42,12 +47,12 @@ export const ThemeProvider = ({ children }) => {
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
-    setTheme(newTheme);
+    setThemeState(newTheme);
     setStoredTheme(newTheme);
   };
 
   const setThemeValue = (newTheme) => {
-    setTheme(newTheme);
+    setThemeState(newTheme);
     setStoredTheme(newTheme);
   };
 

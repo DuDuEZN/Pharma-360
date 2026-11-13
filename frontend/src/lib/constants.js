@@ -3,7 +3,7 @@
  */
 
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
 export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
 
 // Authentication
@@ -22,10 +22,10 @@ export const APP_DESCRIPTION = 'Système ERP de gestion de pharmacie pour le mar
 // User roles
 export const ROLES = {
   ADMIN: 'admin',
-  MANAGER: 'gestionnaire',
-  SELLER: 'vendeur',
-  CASHIER: 'caissier',
-  SUPERVISOR: 'superviseur'
+  MANAGER: 'manager',
+  SELLER: 'seller',
+  CASHIER: 'cashier',
+  SUPERVISOR: 'supervisor'
 }
 
 // Role labels

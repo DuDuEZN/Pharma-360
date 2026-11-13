@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, Link, useParams } from 'react-router-dom'
 import { ShoppingCart, ChevronLeft, Save, X, Package, Plus, Minus, Trash2, Search, Barcode, User, CreditCard, Receipt, AlertCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card.jsx'
+import { Label } from '@/components/ui/label.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select.jsx'
@@ -679,7 +680,7 @@ function SaleFormPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="percentage">%</SelectItem>
-                              <SelectItem value="fixed">MAD</SelectItem>
+                              <SelectItem value="fixed">F CFA</SelectItem>
                             </SelectContent>
                           </Select>
                           <Input

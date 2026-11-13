@@ -2,25 +2,38 @@
  * Hook for managing table state (pagination, sorting, filtering)
  */
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { TABLE, PAGINATION } from '@/lib/constants'
 
 const useTable = (initialData = [], options = {}) => {
   const {
     pageSize: initialPageSize = PAGINATION.DEFAULT_PAGE_SIZE,
+    // Compatibilité avec les appels historiques (`initialPageSize`).
+    initialPageSize: legacyInitialPageSize,
     sortBy: initialSortBy = TABLE.DEFAULT_SORT,
     sortOrder: initialSortOrder = TABLE.DEFAULT_ORDER,
     searchable = true,
-    filterable = true
+    filterable = true,
+    initialFilters = {}
   } = options
 
-  const [data, setData] = useState(initialData)
+  const defaultPageSize = legacyInitialPageSize ?? initialPageSize
+  const safeInitialData = Array.isArray(initialData) ? initialData : []
+
+  const [data, setData] = useState(safeInitialData)
   const [page, setPage] = useState(PAGINATION.DEFAULT_PAGE)
-  const [pageSize, setPageSize] = useState(initialPageSize)
+  const [pageSize, setPageSize] = useState(defaultPageSize)
   const [sortBy, setSortBy] = useState(initialSortBy)
   const [sortOrder, setSortOrder] = useState(initialSortOrder)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filters, setFilters] = useState({})
+  const [searchQuery, setSearchQueryState] = useState('')
+  const [filters, setFiltersState] = useState(initialFilters)
+
+  // Les données viennent souvent d'un fetch asynchrone : il faut les
+  // resynchroniser quand le parent les remplace (sinon le tableau reste vide).
+  useEffect(() => {
+    setData(Array.isArray(initialData) ? initialData : [])
+    setPage(PAGINATION.DEFAULT_PAGE)
+  }, [initialData])
 
   // Handle sort
   const handleSort = useCallback((column) => {
@@ -34,7 +47,7 @@ const useTable = (initialData = [], options = {}) => {
     }
     // Reset to first page when sorting changes
     setPage(PAGINATION.DEFAULT_PAGE)
-  }, [sortBy, sortOrder])
+  }, [sortBy])
 
   // Handle pagination
   const handlePageChange = useCallback((newPage) => {
@@ -47,14 +60,25 @@ const useTable = (initialData = [], options = {}) => {
   }, [])
 
   // Handle search
-  const handleSearch = useCallback((query) => {
-    setSearchQuery(query)
+  const handleSearch = useCallback((query = '') => {
+    setSearchQueryState(query)
     setPage(PAGINATION.DEFAULT_PAGE) // Reset to first page
+  }, [])
+
+  // Setters exposés : les pages contrôlent directement l'input et les filtres.
+  const setSearchQuery = useCallback((query) => {
+    setSearchQueryState(query ?? '')
+    setPage(PAGINATION.DEFAULT_PAGE)
+  }, [])
+
+  const setFilters = useCallback((newFilters) => {
+    setFiltersState(newFilters ?? {})
+    setPage(PAGINATION.DEFAULT_PAGE)
   }, [])
 
   // Handle filter change
   const handleFilterChange = useCallback((filterName, filterValue) => {
-    setFilters((prev) => ({
+    setFiltersState((prev) => ({
       ...prev,
       [filterName]: filterValue
     }))
@@ -63,14 +87,14 @@ const useTable = (initialData = [], options = {}) => {
 
   // Handle multiple filter changes
   const handleFiltersChange = useCallback((newFilters) => {
-    setFilters(newFilters)
+    setFiltersState(newFilters ?? {})
     setPage(PAGINATION.DEFAULT_PAGE)
   }, [])
 
   // Clear filters
   const clearFilters = useCallback(() => {
-    setFilters({})
-    setSearchQuery('')
+    setFiltersState({})
+    setSearchQueryState('')
     setPage(PAGINATION.DEFAULT_PAGE)
   }, [])
 
@@ -96,6 +120,7 @@ const useTable = (initialData = [], options = {}) => {
       result = result.filter((item) => {
         return Object.values(item).some((value) => {
           if (value === undefined || value === null) return false
+          if (typeof value === 'object') return false
           return String(value).toLowerCase().includes(query)
         })
       })
@@ -106,11 +131,11 @@ const useTable = (initialData = [], options = {}) => {
       result.sort((a, b) => {
         const aValue = a[sortBy]
         const bValue = b[sortBy]
-        
+
         if (aValue === bValue) return 0
         if (aValue === null || aValue === undefined) return 1
         if (bValue === null || bValue === undefined) return -1
-        
+
         if (sortOrder === 'asc') {
           return aValue > bValue ? 1 : -1
         } else {
@@ -137,35 +162,38 @@ const useTable = (initialData = [], options = {}) => {
   // Reset table state
   const resetTable = useCallback(() => {
     setPage(PAGINATION.DEFAULT_PAGE)
-    setPageSize(initialPageSize)
+    setPageSize(defaultPageSize)
     setSortBy(initialSortBy)
     setSortOrder(initialSortOrder)
-    setSearchQuery('')
-    setFilters({})
-  }, [initialPageSize, initialSortBy, initialSortOrder])
+    setSearchQueryState('')
+    setFiltersState(initialFilters)
+  }, [defaultPageSize, initialSortBy, initialSortOrder, initialFilters])
 
   return {
     // State
     data,
     page,
+    currentPage: page,
     pageSize,
     sortBy,
     sortOrder,
     searchQuery,
     filters,
-    
+
     // Processed data
     processedData,
     paginatedData,
-    
+
     // Pagination info
     total,
     totalPages,
     hasNextPage,
     hasPrevPage,
-    
+
     // Handlers
     setData,
+    setSearchQuery,
+    setFilters,
     handleSort,
     handlePageChange,
     handlePageSizeChange,

@@ -25,8 +25,8 @@ function OrderFormPage() {
   const [order, setOrder] = useState({
     supplier_id: '',
     reference: '',
-    order_date: formatDate(new Date()),
-    expected_delivery_date: '',
+    order_date: new Date().toISOString().slice(0, 10),
+    expected_delivery_date: new Date().toISOString().slice(0, 10),
     status: 'pending',
     priority: 'normal',
     notes: '',
@@ -55,6 +55,17 @@ function OrderFormPage() {
   ]
 
   useEffect(() => {
+    // Statut par défaut selon le paramètre de validation des commandes
+    if (!id) {
+      try {
+        const raw = localStorage.getItem('pharma360_manager_settings')
+        const s = raw ? JSON.parse(raw) : {}
+        const approvalRequired = s.order_approval_required !== false
+        setOrder(prev => ({ ...prev, status: approvalRequired ? 'pending' : 'confirmed' }))
+      } catch (e) {
+        console.error('Failed to read order approval setting', e)
+      }
+    }
     fetchSuppliers()
     fetchProducts()
     if (id) {
@@ -85,7 +96,7 @@ function OrderFormPage() {
     try {
       setIsLoading(true)
       const response = await api.get(`/manager/orders/${id}`)
-      setOrder(response.data.order)
+      setOrder(response.data)
     } catch (error) {
       addToast({ type: 'error', title: 'Erreur', message: 'Commande non trouvée' })
     } finally {
@@ -144,19 +155,36 @@ function OrderFormPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
-    
+
+    const items = (order.items || [])
+      .filter(item => item.product_id)
+      .map(item => ({
+        product_id: parseInt(item.product_id, 10),
+        quantity: parseInt(item.quantity, 10) || 1,
+        unit_price: parseFloat(item.unit_price) || 0
+      }))
+
+    if (items.length === 0) {
+      addToast({ type: 'error', title: 'Erreur', message: 'Ajoutez au moins un article' })
+      return
+    }
+
+    const payload = { ...order, items }
+
     try {
       setIsSubmitting(true)
       if (id) {
-        await api.put(`/manager/orders/${id}`, order)
+        await api.put(`/manager/orders/${id}`, payload)
         addToast({ type: 'success', title: 'Succès', message: 'Commande mise à jour' })
       } else {
-        await api.post('/manager/orders', order)
+        await api.post('/manager/orders', payload)
         addToast({ type: 'success', title: 'Succès', message: 'Commande créée' })
       }
       navigate('/manager/orders')
     } catch (error) {
-      const message = error.response?.data?.message || 'Échec de la sauvegarde'
+      const message = error.response?.data?.message ||
+                      error.response?.data?.detail ||
+                      'Échec de la sauvegarde'
       addToast({ type: 'error', title: 'Erreur', message })
     } finally {
       setIsSubmitting(false)
@@ -327,7 +355,7 @@ function OrderFormPage() {
                 
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                   <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                    Total: {calculateTotal()} MAD
+                    Total: {calculateTotal()}
                   </p>
                 </div>
 
@@ -375,12 +403,12 @@ function OrderFormPage() {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor={`item-price-${index}`}>Prix unitaire (MAD)</Label>
+                          <Label htmlFor={`item-price-${index}`}>Prix unitaire</Label>
                           <Input
                             id={`item-price-${index}`}
                             type="number"
-                            value={item.unit_price}
-                            onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                            value={item.unit_price ? item.unit_price : ''}
+                            onChange={(e) => handleItemChange(index, 'unit_price', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)}
                             min="0"
                             step="0.01"
                           />

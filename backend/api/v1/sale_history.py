@@ -3,7 +3,7 @@ Sale History API Endpoints for Pharmacie 360 Backend
 FastAPI endpoints for sale history and analytics (BKND-014)
 """
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -82,10 +82,55 @@ async def create_sale_history(
 @router.get("/daily", summary="Get daily sales", description="Get daily sales summary")
 async def get_daily_sales(
     target_date: Annotated[Optional[date], Query()] = None,
+    start_date: Annotated[Optional[str], Query()] = None,
+    end_date: Annotated[Optional[str], Query()] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get daily sales endpoint"""
+    """Get daily sales endpoint.
+
+    - target_date : résumé d'une seule journée
+    - start_date / end_date (ISO, l'heure est ignorée) : série journalière
+      [{date, total_sales, total_quantity, total_revenue, average_sale}] pour le tableau de bord
+    """
+    if start_date or end_date:
+        from sqlalchemy import func, select
+
+        from ...models.sale_history import SaleHistory
+
+        try:
+            end = date.fromisoformat(end_date[:10]) if end_date else date.today()
+            start = (
+                date.fromisoformat(start_date[:10])
+                if start_date
+                else end - timedelta(days=29)
+            )
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Format de date invalide (attendu : YYYY-MM-DD)",
+            )
+        result = await db.execute(
+            select(
+                SaleHistory.sale_day,
+                func.count(SaleHistory.id),
+                func.coalesce(func.sum(SaleHistory.quantity), 0),
+                func.coalesce(func.sum(SaleHistory.total_price), 0),
+            )
+            .where(SaleHistory.sale_day.between(start, end))
+            .group_by(SaleHistory.sale_day)
+            .order_by(SaleHistory.sale_day)
+        )
+        return [
+            {
+                "date": day.isoformat(),
+                "total_sales": count,
+                "total_quantity": int(qty),
+                "total_revenue": float(revenue),
+                "average_sale": float(revenue) / count if count else 0.0,
+            }
+            for day, count, qty, revenue in result.all()
+        ]
     return await SaleHistoryService.get_daily_sales(target_date, db)
 
 
@@ -120,17 +165,24 @@ async def get_sale_analytics(
 
 
 @router.get(
-    "/products/{product_id}",
-    summary="Get product sales analytics",
-    description="Get sales analytics for a specific product",
+    "/top-products",
+    summary="Top selling products (list)",
+    description="Liste des produits les plus vendus (utilisée par le tableau de bord)",
 )
-async def get_product_sales(
-    product_id: int,
+async def get_top_products_list(
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    start_date: Annotated[Optional[date], Query()] = None,
+    end_date: Annotated[Optional[date], Query()] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get product sales analytics endpoint"""
-    return await SaleHistoryService.get_product_sales_analytics(product_id, db)
+    analytics = await SaleHistoryService.get_sale_analytics(
+        period="custom", start_date=start_date, end_date=end_date, db=db
+    )
+    return [
+        {**item, "total_quantity": item.get("quantity", 0)}
+        for item in analytics.top_products[:limit]
+    ]
 
 
 @router.get(
@@ -157,6 +209,20 @@ async def get_top_products(
         "end_date": end_date.isoformat() if end_date else None,
         "top_products": analytics.top_products[:limit],
     }
+
+
+@router.get(
+    "/products/{product_id}",
+    summary="Get product sales analytics",
+    description="Get sales analytics for a specific product",
+)
+async def get_product_sales(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get product sales analytics endpoint"""
+    return await SaleHistoryService.get_product_sales_analytics(product_id, db)
 
 
 @router.get(
@@ -227,6 +293,8 @@ async def get_sale_history_stats(
 
     return {
         "total_records": total_records,
+        "total_sales": total_records,
+        "total_products": unique_products,
         "total_quantity": total_quantity,
         "total_revenue": float(total_revenue),
         "unique_products": unique_products,

@@ -104,15 +104,37 @@ function ReportFormPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
-    
+
+    // Mappe le type de rapport vers l'endpoint backend correspondant.
+    const type = report.report_type
+    let endpoint = null
+    if (['sales', 'daily', 'monthly'].includes(type)) endpoint = '/reports/sales'
+    else if (['stock', 'inventory', 'expiry'].includes(type)) endpoint = '/reports/stock'
+    else if (type === 'cash') endpoint = '/reports/cash'
+    else {
+      addToast({ type: 'error', title: 'Erreur', message: 'Type de rapport non supporté par le serveur' })
+      return
+    }
+
+    const formatMap = { pdf: 'pdf', excel: 'xlsx', csv: 'csv' }
+
+    const payload = {
+      report_type: type,
+      title: report.title,
+      description: report.description || null,
+      file_format: formatMap[report.format] || 'pdf',
+      data_range_start: report.start_date || null,
+      data_range_end: report.end_date || null,
+      filters: report.filters || {}
+    }
+
     try {
       setIsSubmitting(true)
-      
-      // For new reports, generate and download
-      const response = await api.post('/manager/reports/generate', report, {
+
+      const response = await api.post(endpoint, payload, {
         responseType: 'blob'
       })
-      
+
       // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]))
       const link = document.createElement('a')
@@ -121,13 +143,13 @@ function ReportFormPage() {
       document.body.appendChild(link)
       link.click()
       link.remove()
-      
-      addToast({ 
-        type: 'success', 
-        title: 'Succès', 
-        message: 'Rapport généré et téléchargé' 
+
+      addToast({
+        type: 'success',
+        title: 'Succès',
+        message: 'Rapport généré et téléchargé'
       })
-      
+
       navigate('/manager/reports')
     } catch (error) {
       const message = error.response?.data?.message || 'Échec de la génération du rapport'

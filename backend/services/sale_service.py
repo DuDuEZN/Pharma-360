@@ -8,8 +8,10 @@ from typing import Optional
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..models.batch import Batch
+from ..models.cash_session import CashSession
 from ..models.customer import Customer
 from ..models.movement import Movement
 from ..models.product import Product
@@ -197,8 +199,17 @@ class SaleService:
 
     @staticmethod
     async def get_sale_by_id(sale_id: int, db: AsyncSession) -> Optional[Sale]:
-        """Get sale by ID"""
-        result = await db.execute(select(Sale).where(Sale.id == sale_id))
+        """Get sale by ID with its relations eagerly loaded"""
+        result = await db.execute(
+            select(Sale)
+            .options(
+                selectinload(Sale.user),
+                selectinload(Sale.customer),
+                selectinload(Sale.items).selectinload(SaleItem.product),
+                selectinload(Sale.items).selectinload(SaleItem.batch),
+            )
+            .where(Sale.id == sale_id)
+        )
         return result.scalar_one_or_none()
 
     @staticmethod
@@ -263,7 +274,18 @@ class SaleService:
         total = total_result.scalar()
 
         # Execute main query
-        query = query.offset(offset).limit(page_size).order_by(Sale.created_at.desc())
+        # Les relations sont chargées explicitement : l'accès paresseux à
+        # `user` / `items` hors greenlet provoque une MissingGreenlet.
+        query = (
+            query.options(
+                selectinload(Sale.user),
+                selectinload(Sale.customer),
+                selectinload(Sale.items),
+            )
+            .offset(offset)
+            .limit(page_size)
+            .order_by(Sale.created_at.desc())
+        )
         result = await db.execute(query)
         sales = result.scalars().all()
 
@@ -273,17 +295,33 @@ class SaleService:
         # Convert to response objects
         sale_responses = []
         for sale in sales:
-            response = SaleResponse.model_validate(sale, from_attributes=True)
-
-            # Add computed fields
-            response.customer_name = sale.customer.name if sale.customer else None
-            response.user_name = sale.user.username
-            response.is_pending = sale.is_pending
-            response.is_paid = sale.is_paid
-            response.is_cancelled = sale.is_cancelled
-            response.is_refunded = sale.is_refunded
-            response.item_count = sale.item_count
-            response.total_items = sale.total_items
+            # Construction explicite : SaleResponse exige `user_name`,
+            # `item_count` et `total_items` qui ne sont pas des colonnes.
+            response = SaleResponse(
+                id=sale.id,
+                sale_number=sale.sale_number,
+                customer_id=sale.customer_id,
+                user_id=sale.user_id,
+                status=sale.status,
+                subtotal=sale.subtotal,
+                tax_amount=sale.tax_amount,
+                discount=sale.discount,
+                total=sale.total,
+                payment_method=sale.payment_method,
+                payment_reference=sale.payment_reference,
+                notes=sale.notes,
+                customer_name=sale.customer.name if sale.customer else None,
+                user_name=sale.user.username if sale.user else "",
+                is_pending=sale.is_pending,
+                is_paid=sale.is_paid,
+                is_cancelled=sale.is_cancelled,
+                is_refunded=sale.is_refunded,
+                item_count=sale.item_count,
+                total_items=sale.total_items,
+                payment_date=sale.payment_date,
+                created_at=sale.created_at,
+                updated_at=sale.updated_at,
+            )
 
             sale_responses.append(response)
 
@@ -332,11 +370,46 @@ class SaleService:
                 error=f"La vente ne peut pas être validée (statut: {sale.status})",
             )
 
-        # Update sale status
+        # Une vente ne peut être encaissée que dans une session de caisse
+        # ouverte par le caissier : chaque vente est ainsi corrélée en temps réel.
+        if current_user is None:
+            return SalePaymentResponse(
+                success=False,
+                sale_id=sale_id,
+                sale_number=sale.sale_number,
+                payment_date=None,
+                error="Utilisateur requis pour valider le paiement.",
+            )
+
+        cash_session_query = (
+            select(CashSession)
+            .where(
+                CashSession.user_id == current_user.id,
+                CashSession.status == "open",
+            )
+            .order_by(CashSession.opening_at.desc())
+            .limit(1)
+        )
+        cash_session = (await db.execute(cash_session_query)).scalars().first()
+
+        if not cash_session:
+            return SalePaymentResponse(
+                success=False,
+                sale_id=sale_id,
+                sale_number=sale.sale_number,
+                payment_date=None,
+                error=(
+                    "Aucune session de caisse ouverte. Ouvrez la caisse avec "
+                    "un fonds initial avant d'encaisser une vente."
+                ),
+            )
+
+        # Update sale status and attach it to the cash session
         sale.status = "paid"
         sale.payment_method = payment_method
         sale.payment_reference = payment_reference
         sale.payment_date = datetime.now(timezone.utc)
+        sale.cash_session_id = cash_session.id
 
         # Update batch quantities (final deduction)
         result = await db.execute(select(SaleItem).where(SaleItem.sale_id == sale.id))
@@ -372,6 +445,7 @@ class SaleService:
             sale_id=sale.id,
             sale_number=sale.sale_number,
             payment_date=sale.payment_date,
+            cash_session_id=sale.cash_session_id,
             error=None,
         )
 

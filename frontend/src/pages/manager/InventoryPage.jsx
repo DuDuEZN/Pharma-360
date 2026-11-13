@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { Package, Search, Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle, Filter, Calendar, ArrowUp, ArrowDown, Warehouse, RefreshCw, DollarSign } from 'lucide-react'
+import { Package, Search, Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle, Filter, Calendar, ArrowUp, ArrowDown, Warehouse, RefreshCw, DollarSign, FileText } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useDisclosure } from '@/hooks/useDisclosure'
 import { useTable } from '@/hooks/useTable'
@@ -8,7 +8,7 @@ import { useToast } from '@/components/common/Toast'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
-import { Select } from '@/components/ui/select.jsx'
+import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table.jsx'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
@@ -25,6 +25,8 @@ import { cn, formatCurrency, formatDate } from '@/lib/utils'
 function InventoryPage() {
   const { user } = useAuth()
   const { addToast } = useToast()
+  
+  const isStockManager = user && (user.role === 'admin' || user.role === 'manager')
   
   const [products, setProducts] = useState([])
   const [batches, setBatches] = useState([])
@@ -45,6 +47,7 @@ function InventoryPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteBatchId, setDeleteBatchId] = useState(null)
+  const [importing, setImporting] = useState(false)
 
   const {
     isOpen: isBatchModalOpen,
@@ -279,6 +282,111 @@ function InventoryPage() {
     }
   }
 
+  // ============ Stock Management (Gestionnaire + Admin) ============
+
+  const handleRemoveExpired = async () => {
+    if (!isStockManager) {
+      addToast({
+        type: 'error',
+        title: 'Accès refusé',
+        message: 'Seul le gestionnaire de stock peut retirer les produits périmés'
+      })
+      return
+    }
+    if (!window.confirm('Voulez-vous retirer tous les lots périmés du stock ?')) return
+
+    setIsSubmitting(true)
+    try {
+      const response = await api.post('/inventory/remove-expired')
+      addToast({
+        type: 'success',
+        title: 'Périmés retirés',
+        message: `${response.data.batches_removed} lot(s) retiré(s), ${response.data.quantity_removed} unité(s)`
+      })
+      fetchInventory()
+    } catch (err) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: err.response?.data?.message || 'Échec du retrait des périmés'
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleAdjustStock = async () => {
+    if (!adjustBatchId) return
+
+    setIsSubmitting(true)
+    try {
+      await api.post('/inventory/adjust', {
+        batch_id: adjustBatchId,
+        quantity: parseInt(adjustQuantity) || 0,
+        movement_type: 'adjustment',
+        reason: adjustReason || 'Réajustement stock',
+        reference: `INV-${adjustBatchId}`
+      })
+      addToast({
+        type: 'success',
+        title: 'Stock réajusté',
+        message: 'Le stock a été mis à jour avec succès'
+      })
+      setAdjustBatchId(null)
+      setAdjustQuantity('')
+      setAdjustReason('')
+      fetchInventory()
+    } catch (err) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: err.response?.data?.message || 'Échec du réajustement'
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleImportStock = async (e) => {
+    if (!isStockManager) {
+      addToast({
+        type: 'error',
+        title: 'Accès refusé',
+        message: 'Seul le gestionnaire de stock peut importer un fichier'
+      })
+      return
+    }
+    const file = e.target.files[0]
+    if (!file) return
+
+    setImporting(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await api.post('/inventory/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      addToast({
+        type: 'success',
+        title: 'Import terminé',
+        message: `${response.data.imported} lot(s) importé(s)` + (response.data.errors?.length ? `, ${response.data.errors.length} erreur(s)` : '')
+      })
+      if (response.data.errors?.length) {
+        console.warn('Import errors:', response.data.errors)
+      }
+      fetchInventory()
+    } catch (err) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: err.response?.data?.message || 'Échec de l\'import'
+      })
+    } finally {
+      setImporting(false)
+      e.target.value = ''
+    }
+  }
+
   const handleOpenEditModal = (batch) => {
     setSelectedBatch(batch)
     setFormData({
@@ -344,6 +452,34 @@ function InventoryPage() {
               placeholder="Filtrer par statut"
               className="w-48"
             />
+            {isStockManager && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRemoveExpired}
+                  className="text-danger-600 hover:text-danger-700 border-danger-200"
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Retirer Périmés
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('import-stock-file')?.click()}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Importer CSV
+                </Button>
+                <input
+                  id="import-stock-file"
+                  type="file"
+                  accept=".csv"
+                  onChange={handleImportStock}
+                  className="hidden"
+                />
+              </div>
+            )}
             <Button onClick={openBatchModal}>
               <Plus className="w-4 h-4 mr-2" />
               Ajouter un Lot
@@ -540,6 +676,28 @@ function InventoryPage() {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
+                            {isStockManager && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  const newQty = window.confirm(
+                                    `Réajuster le stock du lot ${batch.batch_number} ?\nQuantité actuelle : ${batch.quantity}\nNouvelle quantité :`
+                                  )
+                                  if (newQty !== null) {
+                                    const qty = prompt('Nouvelle quantité :', batch.quantity.toString())
+                                    if (qty !== null) {
+                                      setAdjustBatchId(batch.id)
+                                      setAdjustQuantity(qty)
+                                      setAdjustReason('Réajustement après inventaire')
+                                      handleAdjustStock()
+                                    }
+                                  }
+                                }}
+                              >
+                                <RefreshCw className="w-4 h-4 text-blue-600" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -626,10 +784,13 @@ function InventoryPage() {
                 <label className="text-sm font-medium">
                   Date de Péremption *
                 </label>
-                <DatePickerInput
+                <Input
+                  name="expiry_date"
+                  type="date"
                   value={formData.expiry_date}
-                  onChange={(date) => handleSelectChange('expiry_date', date)}
+                  onChange={handleInputChange}
                   placeholder="Sélectionnez une date"
+                  required
                 />
               </div>
               <div className="space-y-2">

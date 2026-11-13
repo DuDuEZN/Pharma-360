@@ -53,7 +53,12 @@ class SaleItemResponse(BaseModel):
     batch_id: int = Field(..., description="Batch ID")
     product_id: int = Field(..., description="Product ID")
     product_name: str = Field(..., description="Product name")
+    product_code: Optional[str] = Field(None, description="Product code/SKU")
+    product_barcode: Optional[str] = Field(None, description="Product barcode")
     batch_number: str = Field(..., description="Batch number")
+    batch_location: Optional[str] = Field(
+        None, description="Batch storage location (rayon)"
+    )
     quantity: int = Field(..., description="Quantity")
     unit_price: Decimal = Field(..., description="Unit price")
     total_price: Decimal = Field(..., description="Total price")
@@ -149,8 +154,11 @@ class SalePaymentResponse(BaseModel):
 
     success: bool = Field(..., description="Whether payment was successful")
     sale_id: int = Field(..., description="Sale ID")
-    sale_number: str = Field(..., description="Sale number")
-    payment_date: datetime = Field(..., description="Payment date")
+    sale_number: Optional[str] = Field(None, description="Sale number")
+    payment_date: Optional[datetime] = Field(None, description="Payment date")
+    cash_session_id: Optional[int] = Field(
+        None, description="Cash session that processed the payment"
+    )
     error: Optional[str] = Field(None, description="Error message if failed")
 
 

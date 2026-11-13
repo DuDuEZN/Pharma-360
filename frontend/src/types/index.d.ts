@@ -3,7 +3,7 @@
  */
 
 // User types
-export type UserRole = 'admin' | 'gestionnaire' | 'vendeur' | 'caissier' | 'superviseur'
+export type UserRole = 'admin' | 'manager' | 'seller' | 'cashier' | 'supervisor'
 
 export interface User {
   id: string

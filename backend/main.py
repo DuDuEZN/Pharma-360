@@ -88,6 +88,7 @@ from backend.api.websocket import router as websocket_router
 for router in v1_routers:
     app.include_router(router, prefix="/api/v1")
 app.include_router(websocket_router, prefix="/api")
+app.include_router(websocket_router)  # /ws/... : URL utilisée par le frontend
 
 
 @app.middleware("http")

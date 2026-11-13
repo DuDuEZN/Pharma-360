@@ -6,15 +6,19 @@ import { Button } from '@/components/ui/button.jsx'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select.jsx'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { Badge } from '@/components/ui/badge.jsx'
 import { useToast } from '@/components/common/Toast'
 import api from '@/lib/api'
-import { cn, formatCurrency, formatDate, formatPercentage } from '@/lib/utils'
+import { cn, formatCurrency, formatDate, formatDateShort, formatPercentage } from '@/lib/utils'
 
 function AnalyticsPage() {
   const [stats, setStats] = useState(null)
   const [salesData, setSalesData] = useState(null)
   const [stockData, setStockData] = useState(null)
   const [topProducts, setTopProducts] = useState([])
+  const [marginTrend, setMarginTrend] = useState(null)
+  const [productStats, setProductStats] = useState([])
+  const [trendProductId, setTrendProductId] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('month')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -51,17 +55,21 @@ function AnalyticsPage() {
       setIsLoading(true)
       
       // Fetch all analytics data in parallel
-      const [statsRes, salesRes, stockRes, productsRes] = await Promise.all([
+      const [statsRes, salesRes, stockRes, productsRes, marginRes, productStatsRes] = await Promise.all([
         api.get('/analytics/stats', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
         api.get('/analytics/sales', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
         api.get('/analytics/stock', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
-        api.get('/analytics/top-products', { params: { range: timeRange, limit: 10 } })
+        api.get('/analytics/top-products', { params: { range: timeRange, limit: 10 } }),
+        api.get('/analytics/product-margin-trend', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
+        api.get('/analytics/product-stats', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } })
       ])
       
       setStats(statsRes.data)
       setSalesData(salesRes.data)
       setStockData(stockRes.data)
       setTopProducts(productsRes.data.products || [])
+      setMarginTrend(marginRes.data)
+      setProductStats(productStatsRes.data.products || [])
     } catch (error) {
       addToast({
         type: 'error',
@@ -191,12 +199,13 @@ function AnalyticsPage() {
   }
 
   // Simple Line Chart component using CSS
-  const SimpleLineChart = ({ data, title }) => {
+  const SimpleLineChart = ({ data, title, actions = null }) => {
     if (!data || !data.labels || !data.datasets) {
       return (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle>{title}</CardTitle>
+            {actions}
           </CardHeader>
           <CardContent>
             <p className="text-center text-gray-500 py-8">Aucune donnée disponible</p>
@@ -210,21 +219,23 @@ function AnalyticsPage() {
 
     return (
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>{title}</CardTitle>
+          {actions}
         </CardHeader>
         <CardContent>
           <div className="h-64 relative">
             {data.datasets.map((dataset, dsIndex) => (
-              <svg key={dsIndex} className="absolute inset-0 w-full h-full">
+              <svg key={dsIndex} className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <polyline
                   fill="none"
                   stroke={colors[dsIndex % colors.length]}
                   strokeWidth="2"
+                  vectorEffect="non-scaling-stroke"
                   points={dataset.data.map((value, i) => {
-                    const x = (i / (data.labels.length - 1)) * 100
+                    const x = data.labels.length > 1 ? (i / (data.labels.length - 1)) * 100 : 50
                     const y = 100 - ((value / maxValue) * 100)
-                    return `${x}%,${y}%`
+                    return `${x},${y}`
                   }).join(' ')}
                 />
               </svg>
@@ -253,7 +264,7 @@ function AnalyticsPage() {
     if (!salesData) return null
     
     return {
-      labels: salesData.daily?.map(d => formatDate(d.date, 'dd MMM')) || [],
+      labels: salesData.daily?.map(d => formatDateShort(d.date)) || [],
       datasets: [
         {
           label: 'Ventes',
@@ -291,6 +302,49 @@ function AnalyticsPage() {
       colors: '#10b981'
     }
   }, [topProducts])
+
+  // Évolution du prix d'achat et de la marge par produit (tous produits ou
+  // un produit sélectionné). Les points proviennent des lots reçus.
+  const marginChartData = useMemo(() => {
+    const allSeries = marginTrend?.series || []
+    const series = trendProductId === 'all'
+      ? allSeries
+      : allSeries.filter((item) => String(item.product_id) === String(trendProductId))
+
+    const byDate = new Map()
+    series.forEach((item) => {
+      ;(item.points || []).forEach((point) => {
+        const entry = byDate.get(point.date) || { purchase: 0, margin: 0, count: 0 }
+        entry.purchase += Number(point.purchase_price || 0)
+        entry.margin += Number(point.margin || 0)
+        entry.count += 1
+        byDate.set(point.date, entry)
+      })
+    })
+
+    const dates = Array.from(byDate.keys()).sort()
+    if (dates.length === 0) return null
+
+    return {
+      labels: dates.map((d) => formatDateShort(d)),
+      datasets: [
+        {
+          label: "Prix d'achat moyen",
+          data: dates.map((d) => {
+            const entry = byDate.get(d)
+            return Math.round((entry.purchase / entry.count) * 100) / 100
+          })
+        },
+        {
+          label: 'Marge moyenne',
+          data: dates.map((d) => {
+            const entry = byDate.get(d)
+            return Math.round((entry.margin / entry.count) * 100) / 100
+          })
+        }
+      ]
+    }
+  }, [marginTrend, trendProductId])
 
   return (
     <div className="space-y-6">
@@ -358,7 +412,7 @@ function AnalyticsPage() {
             <StatCard
               icon={DollarSign}
               title="Chiffre d'affaires"
-              value={stats?.total_sales ? formatCurrency(stats.total_sales) : '0 MAD'}
+              value={stats?.total_sales ? formatCurrency(stats.total_sales) : formatCurrency(0)}
               change={stats?.sales_change ? formatPercentage(stats.sales_change) : null}
               changeType={stats?.sales_change && stats.sales_change >= 0 ? 'increase' : 'decrease'}
               trend={timeRanges.find(r => r.value === timeRange)?.label}
@@ -405,7 +459,7 @@ function AnalyticsPage() {
             <StatCard
               icon={TrendingUp}
               title="Valeur stock"
-              value={stats?.stock_value ? formatCurrency(stats.stock_value) : '0 MAD'}
+              value={stats?.stock_value ? formatCurrency(stats.stock_value) : formatCurrency(0)}
               change={null}
               trend={null}
             />
@@ -492,7 +546,7 @@ function AnalyticsPage() {
                                     style={{ width: `${data ? data.percentage : 0}%` }}
                                   />
                                 </div>
-                                <span className="font-medium">{data ? formatCurrency(data.amount) : '0 MAD'}</span>
+                                <span className="font-medium">{data ? formatCurrency(data.amount) : formatCurrency(0)}</span>
                               </div>
                             </div>
                           )
@@ -719,13 +773,98 @@ function AnalyticsPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-green-600">{formatPercentage(product.margin)}</p>
+                            <p className="font-bold text-green-600">{Number(product.margin).toFixed(1)}%</p>
                             <p className="text-sm text-gray-600 dark:text-gray-300">
                               {formatCurrency(product.selling_price)} - {formatCurrency(product.purchase_price)}
                             </p>
                           </div>
                         </div>
                       ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">Aucune donnée disponible</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Évolution du prix d'achat et de la marge par produit */}
+              <SimpleLineChart
+                data={marginChartData}
+                title="Évolution du prix d'achat et de la marge"
+                actions={
+                  <Select value={trendProductId} onValueChange={setTrendProductId}>
+                    <SelectTrigger className="w-56">
+                      <SelectValue placeholder="Produit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les produits</SelectItem>
+                      {(marginTrend?.products || []).map((product) => (
+                        <SelectItem key={product.product_id} value={String(product.product_id)}>
+                          {product.product_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                }
+              />
+
+              {/* Statistiques journalières/périodiques par produit */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Statistiques par produit</CardTitle>
+                  <CardDescription>
+                    Ventes de la période et état de stock (colonne binaire « rupture de stock »)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {productStats.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
+                            <th className="py-2 pr-3 font-semibold">Produit</th>
+                            <th className="py-2 pr-3 font-semibold text-right">Qté vendue</th>
+                            <th className="py-2 pr-3 font-semibold text-right">Chiffre d'affaires</th>
+                            <th className="py-2 pr-3 font-semibold text-right">Prix d'achat</th>
+                            <th className="py-2 pr-3 font-semibold text-right">Marge</th>
+                            <th className="py-2 pr-3 font-semibold text-right">Stock</th>
+                            <th className="py-2 font-semibold text-right">Rupture de stock</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {productStats.map((product) => (
+                            <tr
+                              key={product.product_id}
+                              className="border-b border-gray-100 dark:border-gray-800 last:border-0"
+                            >
+                              <td className="py-2 pr-3">
+                                <p className="font-medium">{product.product_name}</p>
+                                <p className="text-xs text-gray-500">{product.barcode || '—'}</p>
+                              </td>
+                              <td className="py-2 pr-3 text-right">{product.quantity_sold}</td>
+                              <td className="py-2 pr-3 text-right">{formatCurrency(product.revenue)}</td>
+                              <td className="py-2 pr-3 text-right">{formatCurrency(product.purchase_price)}</td>
+                              <td className="py-2 pr-3 text-right">
+                                <span className={cn(
+                                  'font-medium',
+                                  product.margin >= 0 ? 'text-green-600' : 'text-red-600'
+                                )}>
+                                  {formatCurrency(product.margin)}
+                                </span>
+                                <span className="text-xs text-gray-500 ml-1">
+                                  ({Number(product.margin_rate).toFixed(1)}%)
+                                </span>
+                              </td>
+                              <td className="py-2 pr-3 text-right">{product.current_stock} {product.unit}</td>
+                              <td className="py-2 text-right">
+                                <Badge variant={product.stockout ? 'destructive' : 'success'}>
+                                  {product.stockout ? '1 · Rupture' : '0 · Disponible'}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   ) : (
                     <p className="text-gray-500 text-center py-4">Aucune donnée disponible</p>

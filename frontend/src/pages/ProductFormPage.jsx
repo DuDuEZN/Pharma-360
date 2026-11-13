@@ -73,7 +73,16 @@ function ProductFormPage() {
     try {
       setIsLoading(true)
       const response = await api.get(`/products/${id}`)
-      setProduct(response.data.product)
+      const data = response.data.product || response.data
+      // Le backend expose "price"/"cost_price" et "code" : on les mappe sur
+      // les champs du formulaire.
+      setProduct((prev) => ({
+        ...prev,
+        ...data,
+        sku: data.code || data.sku || '',
+        selling_price: data.price ?? data.selling_price ?? '',
+        purchase_price: data.cost_price ?? data.purchase_price ?? '',
+      }))
     } catch (error) {
       addToast({
         type: 'error',
@@ -110,22 +119,22 @@ function ProductFormPage() {
       newErrors.name = 'Le nom est obligatoire'
     }
     
-    if (!product.barcode.trim()) {
-      newErrors.barcode = 'Le code-barres est obligatoire'
-    }
-    
     if (!product.category_id) {
       newErrors.category_id = 'La catégorie est obligatoire'
     }
-    
-    if (!product.purchase_price || parseFloat(product.purchase_price) <= 0) {
-      newErrors.purchase_price = 'Le prix d\'achat doit être supérieur à 0'
-    }
-    
-    if (!product.selling_price || parseFloat(product.selling_price) <= 0) {
-      newErrors.selling_price = 'Le prix de vente doit être supérieur à 0'
-    } else if (parseFloat(product.selling_price) < parseFloat(product.purchase_price || 0)) {
-      newErrors.selling_price = 'Le prix de vente doit être supérieur au prix d\'achat'
+
+    // À la création, le prix est inconnu : les champs tarifaires ne sont pas
+    // demandés. Ils ne deviennent obligatoires qu'en modification.
+    if (id) {
+      if (!product.purchase_price || parseFloat(product.purchase_price) <= 0) {
+        newErrors.purchase_price = 'Le prix d\'achat doit être supérieur à 0'
+      }
+
+      if (!product.selling_price || parseFloat(product.selling_price) <= 0) {
+        newErrors.selling_price = 'Le prix de vente doit être supérieur à 0'
+      } else if (parseFloat(product.selling_price) < parseFloat(product.purchase_price || 0)) {
+        newErrors.selling_price = 'Le prix de vente doit être supérieur au prix d\'achat'
+      }
     }
     
     if (product.has_expiry && (!product.expiry_days || parseInt(product.expiry_days) <= 0)) {
@@ -146,16 +155,33 @@ function ProductFormPage() {
     setIsSubmitting(true)
     
     try {
-      const payload = {
-        ...product,
-        purchase_price: parseFloat(product.purchase_price) || 0,
-        selling_price: parseFloat(product.selling_price) || 0,
-        cost_price: parseFloat(product.cost_price) || 0,
-        quantity: parseInt(product.quantity) || 0,
-        min_stock_level: parseInt(product.min_stock_level) || 5,
-        expiry_days: product.has_expiry ? parseInt(product.expiry_days) || 30 : null,
+      // Le système génère systématiquement un code-barres si aucun n'a été saisi.
+      const barcode = (product.barcode || '').trim() ||
+        ('PH' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase())
+
+      const basePayload = {
+        name: product.name,
+        barcode,
+        code: product.sku || null,
+        dci: product.dci || null,
+        category_id: product.category_id ? parseInt(product.category_id, 10) : null,
+        description: product.description || null,
+        unit: product.unit,
+        is_active: product.is_active,
+        stock_min: parseInt(product.min_stock_level) || 0,
       }
-      
+
+      const payload = id
+        ? {
+            ...basePayload,
+            // Le backend attend "price" pour le prix de vente.
+            price: parseFloat(product.selling_price) || 0,
+            cost_price: parseFloat(product.cost_price || product.purchase_price) || 0,
+          }
+        // À la création, aucun prix n'est envoyé : ils resteront à 0 tant que
+        // le produit n'a pas été réceptionné/facturé.
+        : basePayload
+
       if (id) {
         // Update existing product
         await api.put(`/products/${id}`, payload)
@@ -272,7 +298,7 @@ function ProductFormPage() {
                       {/* Barcode */}
                       <div className="space-y-2">
                         <Label htmlFor="barcode" className="flex items-center gap-1">
-                          Code-barres <span className="text-red-500">*</span>
+                          Code-barres <span className="text-xs text-gray-500">(généré automatiquement si vide)</span>
                         </Label>
                         <div className="flex gap-2">
                           <Input
@@ -391,7 +417,9 @@ function ProductFormPage() {
                     </div>
                   </div>
 
-                  {/* Pricing Information */}
+                  {/* Pricing Information — uniquement en modification : à la
+                      création le prix d'achat/vente est encore inconnu. */}
+                  {id && (
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b pb-2">
                       Informations tarifaires
@@ -401,7 +429,7 @@ function ProductFormPage() {
                       {/* Purchase Price */}
                       <div className="space-y-2">
                         <Label htmlFor="purchase_price" className="flex items-center gap-1">
-                          Prix d'achat (MAD) <span className="text-red-500">*</span>
+                          Prix d'achat (F CFA) <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -428,7 +456,7 @@ function ProductFormPage() {
                       {/* Selling Price */}
                       <div className="space-y-2">
                         <Label htmlFor="selling_price" className="flex items-center gap-1">
-                          Prix de vente (MAD) <span className="text-red-500">*</span>
+                          Prix de vente (F CFA) <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -454,7 +482,7 @@ function ProductFormPage() {
 
                       {/* Cost Price */}
                       <div className="space-y-2">
-                        <Label htmlFor="cost_price">Coût moyen (MAD)</Label>
+                        <Label htmlFor="cost_price">Coût moyen (F CFA)</Label>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                           <Input
@@ -472,6 +500,7 @@ function ProductFormPage() {
                       </div>
                     </div>
                   </div>
+                  )}
 
                   {/* Stock Information */}
                   <div className="space-y-4">

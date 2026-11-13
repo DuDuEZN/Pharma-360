@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart3, TrendingUp, TrendingDown, Package, DollarSign, Calendar, Users, ShoppingCart, ArrowUp, ArrowDown, Filter, Download, RefreshCw, Shield, Activity, AlertCircle } from 'lucide-react'
+import { BarChart3, TrendingUp, TrendingDown, Package, DollarSign, Calendar, Users, ShoppingCart, ArrowUp, ArrowDown, Filter, Download, RefreshCw, Shield, Activity, AlertCircle, Clock } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
+import { Badge } from '@/components/ui/Badge'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select.jsx'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -283,7 +284,7 @@ function AdminAnalyticsPage() {
             <StatCard
               icon={DollarSign}
               title="Chiffre d'affaires total"
-              value={stats?.total_sales ? formatCurrency(stats.total_sales) : '0 MAD'}
+              value={stats?.total_sales ? formatCurrency(stats.total_sales) : formatCurrency(0)}
               change={stats?.sales_change ? formatPercentage(stats.sales_change) : null}
               changeType={stats?.sales_change && stats.sales_change >= 0 ? 'increase' : 'decrease'}
               trend={timeRanges.find(r => r.value === timeRange)?.label}
@@ -330,7 +331,7 @@ function AdminAnalyticsPage() {
             <StatCard
               icon={TrendingUp}
               title="Valeur stock"
-              value={stats?.stock_value ? formatCurrency(stats.stock_value) : '0 MAD'}
+              value={stats?.stock_value ? formatCurrency(stats.stock_value) : formatCurrency(0)}
               change={null}
               trend={null}
             />
@@ -373,7 +374,7 @@ function AdminAnalyticsPage() {
             <StatCard
               icon={ShoppingCart}
               title="Ventes par utilisateur"
-              value={usersData?.avg_sales_per_user ? formatCurrency(usersData.avg_sales_per_user) : '0 MAD'}
+              value={usersData?.avg_sales_per_user ? formatCurrency(usersData.avg_sales_per_user) : formatCurrency(0)}
               change={null}
               trend={null}
             />
@@ -381,7 +382,7 @@ function AdminAnalyticsPage() {
             <StatCard
               icon={DollarSign}
               title="CA moyen par utilisateur"
-              value={usersData?.avg_revenue_per_user ? formatCurrency(usersData.avg_revenue_per_user) : '0 MAD'}
+              value={usersData?.avg_revenue_per_user ? formatCurrency(usersData.avg_revenue_per_user) : formatCurrency(0)}
               change={null}
               trend={null}
             />

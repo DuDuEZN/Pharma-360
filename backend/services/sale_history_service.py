@@ -200,7 +200,7 @@ class SaleHistoryService:
 
         return [
             DailySalesResponse(
-                date=target_date,
+                sale_date=target_date,
                 total_sales=row.total_sales,
                 total_quantity=row.total_quantity,
                 total_revenue=float(row.total_revenue),
@@ -374,6 +374,8 @@ class SaleHistoryService:
                 start_date = end_date - timedelta(days=29)
             elif period == "year":
                 start_date = end_date - timedelta(days=364)
+            else:  # "custom" sans date de début : 30 derniers jours par défaut
+                start_date = end_date - timedelta(days=29)
 
         # Get basic stats
         total_sales_result = await db.execute(
@@ -456,7 +458,7 @@ class SaleHistoryService:
             .join(Product, SaleHistory.product_id == Product.id)
             .join(Category, Product.category_id == Category.id)
             .where(between(SaleHistory.sale_day, start_date, end_date))
-            .group_by("category_id", "category_name")
+            .group_by(Category.id, Category.name)
         )
         sales_by_category = [
             {

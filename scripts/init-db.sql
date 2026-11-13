@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS products (
     id SERIAL PRIMARY KEY,
     name VARCHAR(200) NOT NULL,
     dci VARCHAR(100),  -- Denomination Commune Internationale
+    code VARCHAR(50) UNIQUE,
     barcode VARCHAR(50) UNIQUE,
     category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
     description TEXT,
@@ -148,6 +149,35 @@ CREATE TABLE IF NOT EXISTS invoices (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 3.6b. Table: cash_sessions (dépend de users)
+-- Description: Sessions de caisse (ouverture, clôture, rapport d'écart)
+CREATE TABLE IF NOT EXISTS cash_sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'open'
+        CHECK (status IN ('open', 'closed')),
+    opening_amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    closing_amount DECIMAL(12, 2),
+    cash_sales DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    total_sales DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    sales_count INTEGER NOT NULL DEFAULT 0,
+    cash_sales_count INTEGER NOT NULL DEFAULT 0,
+    actual_revenue DECIMAL(12, 2),
+    difference DECIMAL(12, 2),
+    opening_at TIMESTAMPTZ NOT NULL,
+    closing_at TIMESTAMPTZ,
+    notes TEXT,
+    closing_notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cash_sessions_user ON cash_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_cash_sessions_status ON cash_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_cash_sessions_opening ON cash_sessions(opening_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cash_sessions_one_open_per_user
+    ON cash_sessions (user_id) WHERE status = 'open';
+
 -- 3.7. Table: batches (dépend de products, suppliers, invoices)
 -- Description: LOTS - CŒUR DU SYSTÈME FEFO/FIFO
 CREATE TABLE IF NOT EXISTS batches (
@@ -186,6 +216,7 @@ CREATE TABLE IF NOT EXISTS sales (
     payment_method VARCHAR(50),
     payment_reference VARCHAR(100),  -- Référence de paiement
     payment_date TIMESTAMP,
+    cash_session_id INTEGER REFERENCES cash_sessions(id) ON DELETE SET NULL,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -348,6 +379,7 @@ CREATE INDEX IF NOT EXISTS idx_sales_user ON sales(user_id);
 CREATE INDEX IF NOT EXISTS idx_sales_customer ON sales(customer_id);
 CREATE INDEX IF NOT EXISTS idx_sales_status ON sales(status);
 CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(created_at);
+CREATE INDEX IF NOT EXISTS idx_sales_cash_session ON sales(cash_session_id);
 
 -- Index pour sale_items
 CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id);
@@ -582,6 +614,7 @@ BEGIN
     RAISE NOTICE '  ✓ users';
     RAISE NOTICE '  ✓ products';
     RAISE NOTICE '  ✓ invoices';
+    RAISE NOTICE '  ✓ cash_sessions (caisse)';
     RAISE NOTICE '  ✓ batches (CŒUR FEFO/FIFO)';
     RAISE NOTICE '  ✓ sales';
     RAISE NOTICE '  ✓ sale_items';

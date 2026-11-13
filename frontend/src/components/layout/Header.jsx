@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 
 function Header() {
   const { user, logout } = useAuth()
-  const { theme, setTheme } = useTheme()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [unreadNotifications, setUnreadNotifications] = useState(3)
@@ -20,10 +20,6 @@ function Header() {
   const handleLogout = async () => {
     await logout()
     navigate('/login')
-  }
-
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light')
   }
 
   return (
@@ -57,7 +53,7 @@ function Header() {
             size="icon"
             onClick={toggleTheme}
             className="hidden sm:flex"
-            aria-label="Toggle theme"
+            aria-label="Basculer le thème"
           >
             {theme === 'light' ? (
               <Moon className="w-5 h-5 text-gray-600 dark:text-white" />

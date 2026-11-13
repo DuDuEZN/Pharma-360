@@ -6,19 +6,21 @@ import {
   LayoutDashboard,
   Package,
   ShoppingCart,
+  ClipboardList,
   CreditCard,
   Users,
   Settings,
   BarChart3,
   FileText,
   HelpCircle,
+  Truck,
   Moon,
   Sun,
   Monitor
 } from 'lucide-react'
 import { cn, truncate } from '@/lib/utils'
 import { Badge } from '../ui/Badge'
-import Tooltip from '../ui/Tooltip'
+
 
 function Sidebar() {
   const { user } = useAuth()
@@ -30,25 +32,31 @@ function Sidebar() {
       name: 'Tableau de bord', 
       href: '/', 
       icon: LayoutDashboard,
-      roles: ['admin', 'gestionnaire', 'vendeur', 'caissier']
+      roles: ['admin', 'manager']
     },
     { 
       name: 'Produits', 
       href: '/products', 
       icon: Package,
-      roles: ['admin', 'gestionnaire', 'vendeur']
+      roles: ['admin', 'manager', 'seller']
     },
     { 
       name: 'Ventes', 
       href: '/sales', 
       icon: ShoppingCart,
-      roles: ['admin', 'gestionnaire', 'vendeur']
+      roles: ['admin', 'manager', 'seller']
     },
     { 
       name: 'Caisse', 
       href: '/cashier', 
       icon: CreditCard,
-      roles: ['admin', 'caissier', 'vendeur']
+      roles: ['admin', 'cashier']
+    },
+    {
+      name: 'Commandes',
+      href: '/manager/orders',
+      icon: ClipboardList,
+      roles: ['seller']
     },
     { 
       name: 'Administrateur', 
@@ -60,25 +68,31 @@ function Sidebar() {
       name: 'Gestionnaire', 
       href: '/manager', 
       icon: BarChart3,
-      roles: ['admin', 'gestionnaire']
+      roles: ['admin', 'manager']
+    },
+    {
+      name: 'Livraisons',
+      href: '/manager/deliveries',
+      icon: Truck,
+      roles: ['seller']
     },
     { 
       name: 'Rapports', 
       href: '/reports', 
       icon: FileText,
-      roles: ['admin', 'gestionnaire']
+      roles: ['admin', 'manager']
     },
     { 
       name: 'Paramètres', 
       href: '/settings', 
       icon: Settings,
-      roles: ['admin', 'gestionnaire']
+      roles: ['admin', 'manager']
     },
     { 
       name: 'Aide', 
       href: '/help', 
       icon: HelpCircle,
-      roles: ['admin', 'gestionnaire', 'vendeur', 'caissier']
+      roles: ['admin', 'manager', 'seller', 'cashier']
     },
   ]
 
@@ -111,28 +125,27 @@ function Sidebar() {
                            location.pathname.startsWith(item.href + '/')
           
           return (
-            <Tooltip key={item.href} content={item.name} position="right">
-              <NavLink
-                to={item.href}
-                className={({ isActive: linkActive }) => cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-                  isActive || linkActive
-                    ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
-                )}
-              >
-                <item.icon className={cn(
-                  'w-5 h-5 transition-colors',
-                  isActive 
-                    ? 'text-primary-600 dark:text-primary-400' 
-                    : 'text-gray-400 dark:text-gray-500'
-                )} />
-                <span>{truncate(item.name, 20)}</span>
-                {item.name === 'Caisse' && user?.role === 'caissier' && (
-                  <Badge variant="success" size="xs">Nouveau</Badge>
-                )}
-              </NavLink>
-            </Tooltip>
+            <NavLink
+              key={item.href}
+              to={item.href}
+              className={({ isActive: linkActive }) => cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+                isActive || linkActive
+                  ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+              )}
+            >
+              <item.icon className={cn(
+                'w-5 h-5 transition-colors',
+                isActive 
+                  ? 'text-primary-600 dark:text-primary-400' 
+                  : 'text-gray-400 dark:text-gray-500'
+              )} />
+              <span>{truncate(item.name, 20)}</span>
+              {item.name === 'Caisse' && user?.role === 'cashier' && (
+                <Badge variant="success" size="xs">Nouveau</Badge>
+              )}
+            </NavLink>
           )
         })}
       </nav>
@@ -141,19 +154,19 @@ function Sidebar() {
       <div className="absolute bottom-4 left-4 right-4">
         <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
           {themeItems.map((themeItem) => (
-            <Tooltip key={themeItem.value} content={themeItem.label} position="top">
-              <button
-                onClick={() => setTheme(themeItem.value)}
-                className={cn(
-                  'p-1.5 rounded-lg transition-colors hover:bg-gray-200 dark:hover:bg-gray-700',
-                  theme === themeItem.value 
-                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400' 
-                    : 'text-gray-400 dark:text-gray-500'
-                )}
-              >
-                <themeItem.icon className="w-4 h-4" />
-              </button>
-            </Tooltip>
+            <button
+              key={themeItem.value}
+              onClick={() => setTheme(themeItem.value)}
+              title={themeItem.label}
+              className={cn(
+                'p-1.5 rounded-lg transition-colors hover:bg-gray-200 dark:hover:bg-gray-700',
+                theme === themeItem.value 
+                  ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400' 
+                  : 'text-gray-400 dark:text-gray-500'
+              )}
+            >
+              <themeItem.icon className="w-4 h-4" />
+            </button>
           ))}
         </div>
       </div>

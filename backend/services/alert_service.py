@@ -14,6 +14,8 @@ from sqlalchemy.orm import joinedload
 from ..models.batch import Batch
 from ..models.product import Product
 from ..schemas.alert import (
+    ExpiryStats,
+    StockStats,
     AlertListResponse,
     AlertResponse,
     AlertStatsResponse,
@@ -201,12 +203,12 @@ class AlertService:
 
         return AlertStatsResponse(
             total_alerts=len(stock_alerts) + len(expiry_alerts),
-            stock_alerts=AlertStatsResponse.StockStats(
+            stock_alerts=StockStats(
                 total=len(stock_alerts),
                 low_stock=low_stock_count,
                 over_stock=over_stock_count,
             ),
-            expiry_alerts=AlertStatsResponse.ExpiryStats(
+            expiry_alerts=ExpiryStats(
                 total=len(expiry_alerts),
                 expired=expired_count,
                 critical=critical_count,

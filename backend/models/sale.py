@@ -22,6 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 
 if TYPE_CHECKING:
+    from .cash_session import CashSession
     from .customer import Customer
     from .sale_history import SaleHistory
     from .sale_item import SaleItem
@@ -75,6 +76,13 @@ class Sale(Base):
     payment_date: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    cash_session_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("cash_sessions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Session de caisse ayant encaissé la vente",
+    )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -91,6 +99,9 @@ class Sale(Base):
         "Customer", back_populates="sales"
     )
     user: Mapped["User"] = relationship("User", back_populates="sales")
+    cash_session: Mapped[Optional["CashSession"]] = relationship(
+        "CashSession", back_populates="sales"
+    )
     items: Mapped[list["SaleItem"]] = relationship(
         "SaleItem",
         back_populates="sale",
