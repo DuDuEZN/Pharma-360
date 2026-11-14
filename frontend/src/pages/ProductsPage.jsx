@@ -10,6 +10,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { Skeleton, SkeletonText } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/common/Toast'
 import { useAlerts } from '@/hooks/useAlerts'
+import { useAuth } from '@/hooks/useAuth'
 import api from '@/lib/api'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import { useTable } from '@/hooks/useTable'
@@ -23,6 +24,11 @@ function ProductsPage() {
   const [barcodeInput, setBarcodeInput] = useState('')
   const { addToast } = useToast()
   const { hasAlerts, getAlertCountForProduct, getProductAlertSeverity } = useAlerts()
+  const { user } = useAuth()
+  // Seul le gestionnaire de stock (manager) ou l'admin peut créer/modifier un produit.
+  const canManageProducts = ['admin', 'manager'].includes(user?.role)
+  // La suppression reste réservée à l'administrateur (règle backend).
+  const canDeleteProducts = user?.role === 'admin'
 
   const { 
     searchQuery, 
@@ -118,9 +124,11 @@ function ProductsPage() {
   }
 
   const getStockStatus = (product) => {
-    if (product.current_stock === 0) return { text: 'Rupture', variant: 'danger' }
-    if (product.current_stock <= (product.stock_min || 5)) return { text: 'Stock faible', variant: 'warning' }
-    if (product.current_stock >= (product.stock_max || 100)) return { text: 'Surstock', variant: 'warning' }
+    const boxes = Number(product.current_stock || 0)
+    const bulkUnits = Number(product.current_bulk_stock || 0)
+    if (boxes === 0 && bulkUnits === 0) return { text: 'Rupture', variant: 'danger' }
+    if (boxes <= (product.stock_min || 5) && bulkUnits === 0) return { text: 'Stock faible', variant: 'warning' }
+    if (boxes >= (product.stock_max || 100)) return { text: 'Surstock', variant: 'warning' }
     return { text: 'OK', variant: 'success' }
   }
 
@@ -218,10 +226,12 @@ function ProductsPage() {
                 </Button>
               )}
               
-              <Button size="sm" onClick={() => navigate('/products/new')}>
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline ml-1">Ajouter</span>
-              </Button>
+              {canManageProducts && (
+                <Button size="sm" onClick={() => navigate('/products/new')}>
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline ml-1">Ajouter</span>
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -289,6 +299,11 @@ function ProductsPage() {
                               />
                             )}
                             <span className="font-medium">{product.name}</span>
+                            {product.is_bulk && (
+                              <Badge variant="primary" size="xs">
+                                Vrac · {product.units_per_box || 1}/boîte
+                              </Badge>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -301,7 +316,14 @@ function ProductsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span>{product.current_stock || 0}</span>
+                            <div className="flex flex-col">
+                              <span>{product.current_stock || 0} boîte(s)</span>
+                              {product.is_bulk && (
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {product.current_bulk_stock || 0} unité(s) vrac
+                                </span>
+                              )}
+                            </div>
                             {hasAlerts && getAlertCountForProduct(product.id) > 0 && (
                               <Badge variant={alertSeverity === 'high' ? 'danger' : 'warning'}>
                                 {getAlertCountForProduct(product.id)}
@@ -323,18 +345,25 @@ function ProductsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="icon" asChild>
-                              <Link to={`/products/${product.id}/edit`}>
-                                <Edit className="w-4 h-4" />
-                              </Link>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(product)}
-                            >
-                              <Trash2 className="w-4 h-4 text-danger-500" />
-                            </Button>
+                            {canManageProducts && (
+                              <Button variant="ghost" size="icon" asChild>
+                                <Link to={`/products/${product.id}/edit`}>
+                                  <Edit className="w-4 h-4" />
+                                </Link>
+                              </Button>
+                            )}
+                            {canDeleteProducts && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(product)}
+                              >
+                                <Trash2 className="w-4 h-4 text-danger-500" />
+                              </Button>
+                            )}
+                            {!canManageProducts && !canDeleteProducts && (
+                              <span className="text-xs text-gray-400">—</span>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

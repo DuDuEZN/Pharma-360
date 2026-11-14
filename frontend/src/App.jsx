@@ -92,8 +92,22 @@ function App() {
                       
                       {/* Products */}
                       <Route path="/products" element={<ProductsPage />} />
-                      <Route path="/products/new" element={<ProductFormPage />} />
-                      <Route path="/products/:id/edit" element={<ProductFormPage />} />
+                      <Route
+                        path="/products/new"
+                        element={
+                          <RoleRoute roles={['admin', 'manager']}>
+                            <ProductFormPage />
+                          </RoleRoute>
+                        }
+                      />
+                      <Route
+                        path="/products/:id/edit"
+                        element={
+                          <RoleRoute roles={['admin', 'manager']}>
+                            <ProductFormPage />
+                          </RoleRoute>
+                        }
+                      />
                       
                       {/* Sales */}
                       <Route path="/sales" element={<SalesPage />} />

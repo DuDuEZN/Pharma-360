@@ -15,6 +15,7 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Moda
 import { Table, TableBody, TableRow, TableCell } from '@/components/ui/table.jsx'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Separator } from '@/components/ui/Separator'
+import BulkLabelSheet from '@/components/sales/BulkLabelSheet'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
 
 /**
@@ -48,6 +49,9 @@ function SalesPage() {
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [isLoadingBatches, setIsLoadingBatches] = useState(false)
   const [quantity, setQuantity] = useState(1)
+  const [saleUnit, setSaleUnit] = useState('box')
+  const [bulkLabels, setBulkLabels] = useState([])
+  const [pendingSaleId, setPendingSaleId] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const {
@@ -96,6 +100,7 @@ function SalesPage() {
     setSelectedProduct(product)
     setSelectedBatch(null)
     setQuantity(1)
+    setSaleUnit('box')
     setIsLoadingBatches(true)
     openProductModal()
 
@@ -106,9 +111,28 @@ function SalesPage() {
       setSelectedProduct(detail)
 
       // Sélection FEFO : lot disponible dont la péremption est la plus proche.
-      const fefoBatch = (detail.batches || [])
-        .filter(batch => Number(batch.quantity) > 0 && batch.is_available !== false)
-        .sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date))[0] || null
+      // Si le produit est vendu en vrac et qu'aucune boîte scellée ne reste,
+      // on sélectionne un lot qui contient déjà des unités de vrac.
+      const availableBatches = (detail.batches || []).filter(
+        batch => batch.is_available !== false
+      )
+      const fefoOf = (list) =>
+        [...list].sort(
+          (a, b) => new Date(a.expiry_date) - new Date(b.expiry_date)
+        )[0] || null
+
+      let fefoBatch = fefoOf(
+        availableBatches.filter(batch => Number(batch.quantity) > 0)
+      )
+
+      if (!fefoBatch && detail.is_bulk) {
+        fefoBatch = fefoOf(
+          availableBatches.filter(
+            batch => Number(batch.bulk_quantity || 0) > 0
+          )
+        )
+        if (fefoBatch) setSaleUnit('bulk')
+      }
 
       setSelectedBatch(fefoBatch)
     } catch (error) {
@@ -154,7 +178,53 @@ function SalesPage() {
   }
 
   const handleSelectBatch = (batch) => {
+    if (
+      selectedProduct &&
+      saleUnit === 'box' &&
+      Number(batch.quantity || 0) === 0 &&
+      Number(batch.bulk_quantity || 0) > 0
+    ) {
+      // Ce lot n'a plus de boîte scellée : on passe automatiquement en vrac.
+      setSaleUnit('bulk')
+    }
     setSelectedBatch(batch)
+  }
+
+  const getUnitsPerBox = (product) => {
+    const units = Number(product?.units_per_box || 1)
+    return units > 0 ? units : 1
+  }
+
+  const getSaleUnitPrice = (product, batch, unit = saleUnit) => {
+    if (unit === 'bulk') {
+      const bulkPrice = Number(product?.bulk_price || 0)
+      if (bulkPrice > 0) return bulkPrice
+      return Number(product?.price || 0) / getUnitsPerBox(product)
+    }
+    const batchPrice = batch?.selling_price
+    if (batchPrice !== undefined && batchPrice !== null) return Number(batchPrice)
+    return Number(product?.price || 0)
+  }
+
+  const getMaxQuantity = (product, batch, unit = saleUnit) => {
+    if (!batch) return 0
+    if (unit === 'bulk') {
+      return Number(batch.bulk_quantity || 0) +
+        Number(batch.quantity || 0) * getUnitsPerBox(product)
+    }
+    return Number(batch.quantity || 0)
+  }
+
+  const handleSaleUnitChange = (unit) => {
+    setSaleUnit(unit)
+    setQuantity(1)
+    // Le lot courant peut ne plus convenir à l'unité choisie : on le libère
+    // pour éviter une quantité maximale nulle.
+    if (selectedProduct && selectedBatch) {
+      if (getMaxQuantity(selectedProduct, selectedBatch, unit) <= 0) {
+        setSelectedBatch(null)
+      }
+    }
   }
 
   const handleAddToCart = () => {
@@ -169,39 +239,47 @@ function SalesPage() {
       return
     }
 
-    const maxQuantity = Number(selectedBatch.quantity ?? 0)
+    const maxQuantity = getMaxQuantity(selectedProduct, selectedBatch)
     if (quantity > maxQuantity) {
       addToast({
         type: 'warning',
         title: 'Stock insuffisant',
-        message: `Il reste ${maxQuantity} unité(s) dans ce lot`
+        message: saleUnit === 'bulk'
+          ? `Il reste ${maxQuantity} unité(s) de vrac disponible(s)`
+          : `Il reste ${maxQuantity} unité(s) dans ce lot`
       })
       return
     }
 
-    addItem(selectedProduct, selectedBatch, quantity)
+    addItem(selectedProduct, selectedBatch, quantity, saleUnit)
     addToast({
       type: 'success',
       title: 'Produit ajouté',
-      message: `${selectedProduct.name} x${quantity}`
+      message: `${selectedProduct.name} x${quantity}${
+        saleUnit === 'bulk' ? ' (vrac)' : ''
+      }`
     })
     closeProductModal()
     setQuantity(1)
     setSelectedBatch(null)
     setSelectedProduct(null)
+    setSaleUnit('box')
   }
 
-  const handleUpdateQuantity = (productId, batchId, delta) => {
+  const handleUpdateQuantity = (productId, batchId, unit, delta) => {
     const currentItem = cartItems.find(
-      item => item.product.id === productId && item.batch?.id === batchId
+      item =>
+        item.product.id === productId &&
+        item.batch?.id === batchId &&
+        (item.saleUnit || 'box') === unit
     )
     if (!currentItem) return
 
     const newQuantity = currentItem.quantity + delta
     if (newQuantity > 0) {
-      updateItemQuantity(productId, batchId, newQuantity)
+      updateItemQuantity(productId, batchId, unit, newQuantity)
     } else {
-      removeItem(productId, batchId)
+      removeItem(productId, batchId, unit)
     }
   }
 
@@ -249,7 +327,8 @@ function SalesPage() {
         product_id: item.product.id,
         batch_id: item.batch?.id,
         quantity: item.quantity,
-        unit_price: getItemUnitPrice(item)
+        unit_price: getItemUnitPrice(item),
+        sale_unit: item.saleUnit === 'bulk' ? 'bulk' : 'box'
       }))
     }
 
@@ -268,6 +347,22 @@ function SalesPage() {
       }
 
       clearCart()
+
+      const labels = payload.bulk_labels || []
+      if (labels.length > 0) {
+        addToast({
+          type: 'success',
+          title: 'Vente préparée',
+          message:
+            `Les produits ont été envoyés à la caisse. ` +
+            `${payload.reconditioned_boxes || 0} boîte(s) reconditionnée(s) : ` +
+            `impression des étiquettes de vrac.`
+        })
+        setBulkLabels(labels)
+        setPendingSaleId(payload.sale_id)
+        return
+      }
+
       addToast({
         type: 'success',
         title: 'Vente préparée',
@@ -465,7 +560,7 @@ function SalesPage() {
                 <Table>
                   <TableBody>
                     {cartItems.map((item) => (
-                      <TableRow key={`${item.product.id}-${item.batch?.id}`}>
+                      <TableRow key={`${item.product.id}-${item.batch?.id}-${item.saleUnit || 'box'}`}>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Button
@@ -473,7 +568,7 @@ function SalesPage() {
                               size="icon-xs"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                handleUpdateQuantity(item.product.id, item.batch?.id, -1)
+                                handleUpdateQuantity(item.product.id, item.batch?.id, item.saleUnit || 'box', -1)
                               }}
                               className="h-6 w-6"
                             >
@@ -485,7 +580,7 @@ function SalesPage() {
                               size="icon-xs"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                handleUpdateQuantity(item.product.id, item.batch?.id, 1)
+                                handleUpdateQuantity(item.product.id, item.batch?.id, item.saleUnit || 'box', 1)
                               }}
                               className="h-6 w-6"
                             >
@@ -495,7 +590,12 @@ function SalesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="font-medium text-sm">{item.product.name}</span>
+                            <span className="font-medium text-sm">
+                              {item.product.name}
+                              {item.saleUnit === 'bulk' && (
+                                <Badge variant="primary" size="xs" className="ml-2">Vrac</Badge>
+                              )}
+                            </span>
                             {item.product.barcode && (
                               <span className="text-xs text-gray-500">
                                 Code-barres: {item.product.barcode}
@@ -505,6 +605,11 @@ function SalesPage() {
                               <span className="text-xs text-gray-500">
                                 Lot: {item.batch.batch_number}
                                 {item.batch.location ? ` · Rayon: ${item.batch.location}` : ''}
+                              </span>
+                            )}
+                            {item.saleUnit === 'bulk' && (
+                              <span className="text-xs text-gray-500">
+                                {getUnitsPerBox(item.product)} unités / boîte
                               </span>
                             )}
                           </div>
@@ -518,7 +623,7 @@ function SalesPage() {
                             size="icon-xs"
                             onClick={(e) => {
                               e.stopPropagation()
-                              removeItem(item.product.id, item.batch?.id)
+                              removeItem(item.product.id, item.batch?.id, item.saleUnit || 'box')
                             }}
                             className="h-6 w-6 text-danger-500 hover:text-danger-600"
                           >
@@ -588,16 +693,50 @@ function SalesPage() {
                     Catégorie: {selectedProduct.category_name || 'Sans catégorie'}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Prix: {formatCurrency(selectedProduct.price || 0)}
+                    Prix boîte: {formatCurrency(selectedProduct.price || 0)}
                   </p>
+                  {selectedProduct.is_bulk && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Vrac: {formatCurrency(
+                        Number(selectedProduct.bulk_price) > 0
+                          ? selectedProduct.bulk_price
+                          : (selectedProduct.price || 0) / getUnitsPerBox(selectedProduct)
+                      )} / unité · {getUnitsPerBox(selectedProduct)} unités / boîte
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {selectedProduct.is_bulk && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Type de vente
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={saleUnit === 'box' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleSaleUnitChange('box')}
+                    >
+                      Boîte
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={saleUnit === 'bulk' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleSaleUnitChange('bulk')}
+                    >
+                      Vrac (à l'unité)
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Lots Disponibles (Sélection FEFO automatique)
                 </h4>
-                
                 {isLoadingBatches ? (
                   <div className="space-y-2">
                     <Skeleton className="h-16 w-full" />
@@ -606,7 +745,8 @@ function SalesPage() {
                 ) : selectedProduct.batches && selectedProduct.batches.length > 0 ? (
                   <div className="grid grid-cols-1 gap-2">
                     {selectedProduct.batches
-                      .filter(batch => Number(batch.quantity) > 0)
+                      .filter(batch => Number(batch.quantity) > 0 ||
+                        (selectedProduct.is_bulk && Number(batch.bulk_quantity || 0) > 0))
                       .sort((a, b) => {
                         const dateA = new Date(a.expiry_date)
                         const dateB = new Date(b.expiry_date)
@@ -639,12 +779,18 @@ function SalesPage() {
                                   Rayon: {batch.location || '—'}
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  Stock: {batch.quantity}
+                                  Stock: {batch.quantity} boîte(s)
+                                  {selectedProduct.is_bulk && Number(batch.bulk_quantity || 0) > 0
+                                    ? ` · ${batch.bulk_quantity} unité(s) vrac`
+                                    : ''}
                                 </p>
                               </div>
                               <div className="text-right">
                                 <p className="font-medium text-sm">
-                                  {formatCurrency(batch.selling_price ?? selectedProduct.price ?? 0)}
+                                  {formatCurrency(getSaleUnitPrice(selectedProduct, batch))}
+                                  {saleUnit === 'bulk' && selectedProduct.is_bulk && (
+                                    <span className="text-xs text-gray-500"> / unité</span>
+                                  )}
                                 </p>
                                 {daysDiff <= 30 && (
                                   <Badge variant={daysDiff < 0 ? 'danger' : 'warning'} size="xs" className="mt-1">
@@ -688,13 +834,13 @@ function SalesPage() {
                       onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                       className="w-16 text-center"
                       min={1}
-                      max={selectedBatch?.quantity || undefined}
+                      max={selectedBatch ? getMaxQuantity(selectedProduct, selectedBatch) : undefined}
                     />
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => setQuantity(quantity + 1)}
-                      disabled={Boolean(selectedBatch) && quantity >= Number(selectedBatch.quantity)}
+                      disabled={Boolean(selectedBatch) && quantity >= getMaxQuantity(selectedProduct, selectedBatch)}
                     >
                       <PlusIcon className="w-4 h-4" />
                     </Button>
@@ -747,6 +893,18 @@ function SalesPage() {
           </Button>
         </ModalFooter>
       </Modal>
+
+      {bulkLabels.length > 0 && (
+        <BulkLabelSheet
+          labels={bulkLabels}
+          onDone={() => {
+            const saleId = pendingSaleId
+            setBulkLabels([])
+            setPendingSaleId(null)
+            navigate('/cashier', { state: { saleId } })
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -36,6 +36,15 @@ class ProductBase(BaseModel):
     requires_prescription: bool = Field(
         default=False, description="Whether prescription is required"
     )
+    is_bulk: bool = Field(
+        default=False, description="Produit vendable en vrac (à l'unité)"
+    )
+    units_per_box: int = Field(
+        default=1, ge=1, description="Nombre d'unités contenues dans une boîte"
+    )
+    bulk_price: Decimal = Field(
+        default=0.00, ge=0, description="Prix de vente d'une unité en vrac"
+    )
 
 
 # Product Create Schema
@@ -63,6 +72,9 @@ class ProductUpdate(BaseModel):
     manufacturer: Optional[str] = Field(None, max_length=100)
     is_active: Optional[bool] = Field(None)
     requires_prescription: Optional[bool] = Field(None)
+    is_bulk: Optional[bool] = Field(None)
+    units_per_box: Optional[int] = Field(None, ge=1)
+    bulk_price: Optional[Decimal] = Field(None, ge=0)
 
 
 # Product Response Schema
@@ -72,6 +84,12 @@ class ProductResponse(ProductBase):
     id: int = Field(..., description="Product ID")
     category_name: Optional[str] = Field(None, description="Category name")
     current_stock: int = Field(default=0, description="Current total stock")
+    current_bulk_stock: int = Field(
+        default=0, description="Unités de vrac déjà reconditionnées"
+    )
+    bulk_unit_price: Decimal = Field(
+        default=0, description="Prix effectif d'une unité en vrac"
+    )
     is_low_stock: bool = Field(
         default=False, description="Whether stock is below minimum"
     )

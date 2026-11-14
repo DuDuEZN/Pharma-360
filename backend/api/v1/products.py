@@ -219,7 +219,10 @@ async def create_product(
     if not RBACUtils.has_permission(current_user.role, "manager"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only manager or admin users can create products",
+            detail=(
+                "Seul le gestionnaire de stock (ou un administrateur) "
+                "peut créer un produit"
+            ),
         )
 
     # Le système génère systématiquement un code-barres unique si aucun
@@ -250,6 +253,9 @@ async def create_product(
         manufacturer=product_data.manufacturer,
         is_active=product_data.is_active,
         requires_prescription=product_data.requires_prescription,
+        is_bulk=product_data.is_bulk,
+        units_per_box=max(int(product_data.units_per_box or 1), 1),
+        bulk_price=product_data.bulk_price,
     )
     db.add(product)
     await db.flush()

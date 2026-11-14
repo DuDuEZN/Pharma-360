@@ -63,8 +63,12 @@ class InventoryService:
             reserved_quantity = sum(
                 getattr(batch, "reserved_quantity", 0) for batch in product.batches
             )
+            bulk_quantity = sum(
+                int(getattr(batch, "bulk_quantity", 0) or 0)
+                for batch in product.batches
+            )
 
-            if low_stock_only and total_quantity > 10:
+            if low_stock_only and total_quantity > 10 and bulk_quantity == 0:
                 continue
 
             batches_data = [
@@ -74,6 +78,7 @@ class InventoryService:
                     "quantity": batch.quantity,
                     "available_quantity": batch.quantity
                     - getattr(batch, "reserved_quantity", 0),
+                    "bulk_quantity": int(getattr(batch, "bulk_quantity", 0) or 0),
                     "expiry_date": batch.expiry_date,
                     "unit_price": (
                         float(batch.selling_price) if batch.selling_price else 0.0
@@ -93,6 +98,7 @@ class InventoryService:
                     total_quantity=total_quantity,
                     available_quantity=available_quantity,
                     reserved_quantity=reserved_quantity,
+                    bulk_quantity=bulk_quantity,
                     unit_price=float(product.price) if product.price else 0.0,
                     location=batches_data[0]["location"] if batches_data else None,
                     supplier_id=product.supplier_id,
@@ -130,6 +136,9 @@ class InventoryService:
         reserved_quantity = sum(
             getattr(batch, "reserved_quantity", 0) for batch in product.batches
         )
+        bulk_quantity = sum(
+            int(getattr(batch, "bulk_quantity", 0) or 0) for batch in product.batches
+        )
 
         batches_data = [
             {
@@ -138,6 +147,7 @@ class InventoryService:
                 "quantity": batch.quantity,
                 "available_quantity": batch.quantity
                 - getattr(batch, "reserved_quantity", 0),
+                "bulk_quantity": int(getattr(batch, "bulk_quantity", 0) or 0),
                 "expiry_date": batch.expiry_date,
                 "unit_price": (
                     float(batch.selling_price) if batch.selling_price else 0.0
@@ -156,6 +166,7 @@ class InventoryService:
             total_quantity=total_quantity,
             available_quantity=available_quantity,
             reserved_quantity=reserved_quantity,
+            bulk_quantity=bulk_quantity,
             unit_price=float(product.price) if product.price else 0.0,
             location=batches_data[0]["location"] if batches_data else None,
             supplier_id=product.supplier_id,
@@ -226,7 +237,12 @@ class InventoryService:
         low_stock_items = []
         for product in products:
             total_quantity = sum(batch.quantity for batch in product.batches)
-            if total_quantity <= threshold:
+            bulk_quantity = sum(
+                int(getattr(batch, "bulk_quantity", 0) or 0)
+                for batch in product.batches
+            )
+            # Un produit dont il reste des unités de vrac n'est pas en rupture.
+            if total_quantity <= threshold and bulk_quantity == 0:
                 low_stock_items.append(
                     LowStockItemResponse(
                         product_id=product.id,
@@ -323,20 +339,33 @@ class InventoryService:
         result = await db.execute(select(func.coalesce(func.sum(Batch.quantity), 0)))
         total_quantity = int(result.scalar() or 0)
 
+        # Unités de vrac déjà reconditionnées (vendables à l'unité)
+        result = await db.execute(
+            select(func.coalesce(func.sum(Batch.bulk_quantity), 0))
+        )
+        total_bulk_quantity = int(result.scalar() or 0)
+
         # Calculate total value
         result = await db.execute(
             select(func.coalesce(func.sum(Batch.quantity * Batch.selling_price), 0))
         )
         total_value = float(result.scalar() or 0)
 
-        # Count low stock items
+        # Count low stock items + valeur du vrac
         low_stock_count = 0
+        total_bulk_value = 0.0
         result = await db.execute(select(Product))
-        products = result.scalars().all()
+        products = result.scalars().unique().all()
         for product in products:
             total_qty = sum(batch.quantity for batch in product.batches)
-            if total_qty <= 10:
+            product_bulk_qty = sum(
+                int(getattr(batch, "bulk_quantity", 0) or 0)
+                for batch in product.batches
+            )
+            if total_qty <= 10 and product_bulk_qty == 0:
                 low_stock_count += 1
+            if product_bulk_qty:
+                total_bulk_value += product_bulk_qty * float(product.bulk_unit_price)
 
         # Count expiring soon items
         expiry_date = date.today() + timedelta(days=30)
@@ -374,7 +403,9 @@ class InventoryService:
         return InventorySummaryResponse(
             total_products=total_products,
             total_quantity=total_quantity,
+            total_bulk_quantity=total_bulk_quantity,
             total_value=total_value,
+            total_bulk_value=total_bulk_value,
             low_stock_count=low_stock_count,
             expiring_soon_count=expiring_soon_count,
             categories=categories,
@@ -396,6 +427,10 @@ class InventoryService:
             reserved_quantity = sum(
                 getattr(batch, "reserved_quantity", 0) for batch in product.batches
             )
+            bulk_quantity = sum(
+                int(getattr(batch, "bulk_quantity", 0) or 0)
+                for batch in product.batches
+            )
 
             batches_data = [
                 {
@@ -404,6 +439,7 @@ class InventoryService:
                     "quantity": batch.quantity,
                     "available_quantity": batch.quantity
                     - getattr(batch, "reserved_quantity", 0),
+                    "bulk_quantity": int(getattr(batch, "bulk_quantity", 0) or 0),
                     "expiry_date": batch.expiry_date,
                     "unit_price": (
                         float(batch.selling_price) if batch.selling_price else 0.0
@@ -423,6 +459,7 @@ class InventoryService:
                     total_quantity=total_quantity,
                     available_quantity=available_quantity,
                     reserved_quantity=reserved_quantity,
+                    bulk_quantity=bulk_quantity,
                     unit_price=float(product.price) if product.price else 0.0,
                     location=batches_data[0]["location"] if batches_data else None,
                     supplier_id=product.supplier_id,

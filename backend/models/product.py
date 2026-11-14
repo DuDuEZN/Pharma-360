@@ -79,6 +79,13 @@ class Product(Base):
     requires_prescription: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
     )
+    # Vente en vrac : le produit reste unique (même code-barres). Une boîte
+    # peut être reconditionnée en unités vendables à l'unité.
+    is_bulk: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    units_per_box: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    bulk_price: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), default=0.00, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -153,6 +160,27 @@ class Product(Base):
     def is_low_stock(self) -> bool:
         """Check if product is below minimum stock level"""
         return self.current_stock < self.stock_min
+
+    @property
+    def current_bulk_stock(self) -> int:
+        """Unités de vrac déjà reconditionnées (tous lots actifs confondus)"""
+        if self.batches:
+            return sum(
+                int(batch.bulk_quantity or 0)
+                for batch in self.batches
+                if batch.status == "active"
+            )
+        return 0
+
+    @property
+    def bulk_unit_price(self) -> Decimal:
+        """Prix d'une unité en vrac (prix dédié, sinon prix boîte / unités)"""
+        if self.bulk_price and float(self.bulk_price) > 0:
+            return Decimal(str(self.bulk_price))
+        units = int(self.units_per_box or 1)
+        if units <= 0:
+            units = 1
+        return Decimal(str(self.price or 0)) / Decimal(units)
 
     @is_low_stock.inplace.expression
     @classmethod

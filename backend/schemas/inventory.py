@@ -22,6 +22,9 @@ class InventoryItemResponse(BaseModel):
         ..., description="Available quantity (not reserved)"
     )
     reserved_quantity: int = Field(default=0, description="Reserved quantity")
+    bulk_quantity: int = Field(
+        default=0, description="Unités de vrac disponibles (hors boîtes)"
+    )
     unit_price: float = Field(..., description="Unit price")
     location: Optional[str] = Field(None, description="Storage location")
     supplier_id: Optional[int] = Field(None, description="Supplier ID")
@@ -93,7 +96,13 @@ class InventorySummaryResponse(BaseModel):
 
     total_products: int = Field(..., description="Total number of products")
     total_quantity: int = Field(..., description="Total quantity in stock")
+    total_bulk_quantity: int = Field(
+        default=0, description="Total d'unités de vrac disponibles"
+    )
     total_value: float = Field(..., description="Total value of inventory")
+    total_bulk_value: float = Field(
+        default=0.0, description="Valeur totale du stock en vrac"
+    )
     low_stock_count: int = Field(..., description="Number of low stock items")
     expiring_soon_count: int = Field(..., description="Number of items expiring soon")
     categories: list[dict] = Field(

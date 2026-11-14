@@ -62,6 +62,12 @@ class Batch(Base):
     quantity: Mapped[int] = mapped_column(
         Integer, default=0, nullable=False, comment="Current available quantity"
     )
+    bulk_quantity: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="Unités de vrac déjà reconditionnées et disponibles",
+    )
     reserved_quantity: Mapped[int] = mapped_column(
         Integer, default=0, nullable=False, comment="Quantity reserved for sales"
     )

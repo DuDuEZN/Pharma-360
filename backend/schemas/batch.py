@@ -25,6 +25,9 @@ class BatchBase(BaseModel):
     )
     expiry_date: date_type = Field(..., description="Expiration date (YYYY-MM-DD)")
     quantity: int = Field(default=0, ge=0, description="Current quantity")
+    bulk_quantity: int = Field(
+        default=0, ge=0, description="Unités de vrac déjà reconditionnées"
+    )
     reserved_quantity: int = Field(default=0, ge=0, description="Reserved quantity")
     initial_quantity: int = Field(default=0, ge=0, description="Initial quantity")
     location: Optional[str] = Field(None, max_length=50, description="Storage location")
@@ -57,6 +60,7 @@ class BatchUpdate(BaseModel):
     batch_number: Optional[str] = Field(None, min_length=1, max_length=50)
     expiry_date: Optional[date_type] = Field(None)
     quantity: Optional[int] = Field(None, ge=0)
+    bulk_quantity: Optional[int] = Field(None, ge=0)
     initial_quantity: Optional[int] = Field(None, ge=0)
     location: Optional[str] = Field(None, max_length=50)
     received_date: Optional[date_type] = Field(None)
@@ -78,6 +82,9 @@ class BatchResponse(BaseModel):
     batch_number: str = Field(..., description="Batch number")
     expiry_date: date_type = Field(..., description="Expiration date")
     quantity: int = Field(..., description="Current quantity")
+    bulk_quantity: int = Field(
+        default=0, description="Unités de vrac déjà reconditionnées"
+    )
     initial_quantity: int = Field(..., description="Initial quantity")
     location: Optional[str] = Field(None, description="Storage location")
     received_date: date_type = Field(..., description="Date received")

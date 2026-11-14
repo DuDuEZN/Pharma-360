@@ -62,6 +62,12 @@ class SaleItem(Base):
         index=True,
     )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    sale_unit: Mapped[str] = mapped_column(
+        String(10),
+        default="box",
+        nullable=False,
+        comment="Unité vendue : 'box' (boîte) ou 'bulk' (vrac)",
+    )
     unit_price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     total_price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     expiry_date: Mapped[Optional[date]] = mapped_column(

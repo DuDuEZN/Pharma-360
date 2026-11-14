@@ -3,6 +3,7 @@ Sale Service for Pharmacie 360 Backend
 Handles sale creation, FEFO batch selection, and sale processing
 """
 
+import math
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -51,12 +52,71 @@ class SaleService:
         # Validate items and select FEFO batches
         validated_items = []
         errors = []
+        # Quantités de vrac déjà demandées par les autres lignes du panier,
+        # pour ne pas survendre un même lot sur plusieurs lignes.
+        bulk_requests: dict[int, int] = {}
 
         for item in sale_data.items:
             # Get product
             product = await ProductService.get_product_by_id(item.product_id, db)
             if not product:
                 errors.append(f"Produit {item.product_id} non trouvé")
+                continue
+
+            sale_unit = "bulk" if (item.sale_unit or "box") == "bulk" else "box"
+
+            if sale_unit == "bulk":
+                if not product.is_bulk:
+                    errors.append(
+                        f"Produit {product.name}: ce produit n'est pas vendable en vrac"
+                    )
+                    continue
+
+                units_per_box = int(product.units_per_box or 1)
+                if units_per_box < 1:
+                    errors.append(
+                        f"Produit {product.name}: nombre d'unités par boîte invalide"
+                    )
+                    continue
+
+                batch = await ProductService.get_batch_for_bulk(
+                    product_id=product.id,
+                    quantity=item.quantity,
+                    units_per_box=units_per_box,
+                    db=db,
+                    preferred_batch_id=item.batch_id,
+                )
+
+                if not batch:
+                    errors.append(
+                        f"Produit {product.name}: stock vrac insuffisant "
+                        f"({item.quantity} unité(s) demandée(s))"
+                    )
+                    continue
+
+                already_requested = bulk_requests.get(batch.id, 0)
+                batch_capacity = (
+                    int(batch.bulk_quantity or 0)
+                    + batch.quantity * units_per_box
+                )
+                if already_requested + item.quantity > batch_capacity:
+                    errors.append(
+                        f"Produit {product.name}, lot {batch.batch_number}: "
+                        f"stock vrac insuffisant pour la quantité totale "
+                        f"demandée ({batch_capacity} unité(s) disponible(s))"
+                    )
+                    continue
+                bulk_requests[batch.id] = already_requested + item.quantity
+
+                validated_items.append(
+                    {
+                        "item": item,
+                        "product": product,
+                        "batch": batch,
+                        "sale_unit": "bulk",
+                        "units_per_box": units_per_box,
+                    }
+                )
                 continue
 
             # Get FEFO batch
@@ -97,7 +157,15 @@ class SaleService:
                 continue
 
             # All validations passed
-            validated_items.append({"item": item, "product": product, "batch": batch})
+            validated_items.append(
+                {
+                    "item": item,
+                    "product": product,
+                    "batch": batch,
+                    "sale_unit": "box",
+                    "units_per_box": 1,
+                }
+            )
 
         # If there are errors, return them
         if errors:
@@ -114,10 +182,16 @@ class SaleService:
                 errors=["Aucun article valide dans la vente"],
             )
 
-        # Generate sale number
-        from datetime import datetime
-
-        sale_number = f"SALE-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        # Generate a unique sale number. Deux ventes peuvent être créées dans
+        # la même seconde : on ajoute un suffixe tant que le numéro existe.
+        base_number = f"SALE-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        sale_number = base_number
+        suffix = 1
+        while (
+            await db.execute(select(Sale.id).where(Sale.sale_number == sale_number))
+        ).scalar_one_or_none() is not None:
+            suffix += 1
+            sale_number = f"{base_number}-{suffix}"
 
         # Create sale
         new_sale = Sale(
@@ -139,11 +213,119 @@ class SaleService:
 
         # Create sale items and reserve stock
         total_subtotal = 0.00
+        bulk_labels: dict[tuple[int, int], dict] = {}
+        reconditioned_boxes = 0
+        now_iso = datetime.now().isoformat()
+
         for validated_item in validated_items:
             item = validated_item["item"]
             product = validated_item["product"]
             batch = validated_item["batch"]
+            sale_unit = validated_item["sale_unit"]
 
+            if sale_unit == "bulk":
+                units_per_box = validated_item["units_per_box"]
+                needed = item.quantity
+
+                # Reconditionnement : on ouvre juste assez de boîtes pour
+                # couvrir la quantité de vrac demandée. Le code-barres du
+                # produit reste inchangé, seules de nouvelles étiquettes sont
+                # imprimées pour les unités obtenues.
+                opened_units = 0
+                if int(batch.bulk_quantity or 0) < needed:
+                    missing = needed - int(batch.bulk_quantity or 0)
+                    boxes_to_open = math.ceil(missing / units_per_box)
+                    opened_units = boxes_to_open * units_per_box
+
+                    old_boxes = batch.quantity
+                    batch.quantity -= boxes_to_open
+                    batch.bulk_quantity = int(batch.bulk_quantity or 0) + opened_units
+                    reconditioned_boxes += boxes_to_open
+
+                    db.add(
+                        Movement(
+                            type="reconditioning",
+                            reference_id=new_sale.id,
+                            reference_type="sale",
+                            product_id=product.id,
+                            batch_id=batch.id,
+                            old_quantity=old_boxes,
+                            new_quantity=batch.quantity,
+                            quantity_change=-boxes_to_open,
+                            user_id=current_user.id,
+                            notes=(
+                                f"Reconditionnement vrac {product.name} : "
+                                f"{boxes_to_open} boîte(s) ouverte(s) "
+                                f"→ {opened_units} unité(s)"
+                            ),
+                        )
+                    )
+
+                # Déduction des unités de vrac réellement vendues
+                old_bulk = int(batch.bulk_quantity or 0)
+                batch.bulk_quantity = old_bulk - needed
+
+                # Prix de vente du vrac : prix dédié, sinon prix boîte / unités
+                unit_price = float(product.bulk_unit_price)
+                total_price = unit_price * needed
+                total_subtotal += total_price
+
+                db.add(
+                    SaleItem(
+                        sale_id=new_sale.id,
+                        batch_id=batch.id,
+                        product_id=product.id,
+                        quantity=needed,
+                        sale_unit="bulk",
+                        unit_price=unit_price,
+                        total_price=total_price,
+                        expiry_date=batch.expiry_date,
+                    )
+                )
+
+                db.add(
+                    Movement(
+                        type="sale",
+                        reference_id=new_sale.id,
+                        reference_type="sale",
+                        product_id=product.id,
+                        batch_id=batch.id,
+                        old_quantity=old_bulk,
+                        new_quantity=batch.bulk_quantity,
+                        quantity_change=-needed,
+                        user_id=current_user.id,
+                        notes=(
+                            f"Réservation vrac pour vente {new_sale.sale_number} "
+                            f"({needed} unité(s))"
+                        ),
+                    )
+                )
+
+                if opened_units > 0:
+                    key = (product.id, batch.id)
+                    label = bulk_labels.setdefault(
+                        key,
+                        {
+                            "product_id": product.id,
+                            "product_name": product.name,
+                            "barcode": product.barcode,
+                            "price": unit_price,
+                            "batch_number": batch.batch_number,
+                            "expiry_date": (
+                                batch.expiry_date.isoformat()
+                                if batch.expiry_date
+                                else None
+                            ),
+                            "sale_date": now_iso,
+                            "quantity": 0,
+                            "units_per_box": units_per_box,
+                        },
+                    )
+                    label["quantity"] += opened_units
+
+                continue
+
+            # Vente à la boîte (comportement historique)
             # Calculate prices
             unit_price = float(item.unit_price)
             total_price = unit_price * item.quantity
@@ -155,6 +337,7 @@ class SaleService:
                 batch_id=batch.id,
                 product_id=product.id,
                 quantity=item.quantity,
+                sale_unit="box",
                 unit_price=unit_price,
                 total_price=total_price,
                 expiry_date=batch.expiry_date,
@@ -195,6 +378,8 @@ class SaleService:
             sale_id=new_sale.id,
             sale_number=new_sale.sale_number,
             errors=[],
+            bulk_labels=list(bulk_labels.values()),
+            reconditioned_boxes=reconditioned_boxes,
         )
 
     @staticmethod
@@ -421,6 +606,14 @@ class SaleService:
             batch = result.scalar_one_or_none()
 
             if batch:
+                is_bulk = (item.sale_unit or "box") == "bulk"
+                if is_bulk:
+                    old_quantity = int(batch.bulk_quantity or 0) + item.quantity
+                    new_quantity = int(batch.bulk_quantity or 0)
+                else:
+                    old_quantity = batch.quantity + item.quantity
+                    new_quantity = batch.quantity
+
                 # Create final movement record
                 movement = Movement(
                     type="sale",
@@ -428,11 +621,14 @@ class SaleService:
                     reference_type="sale",
                     product_id=item.product_id,
                     batch_id=batch.id,
-                    old_quantity=batch.quantity + item.quantity,
-                    new_quantity=batch.quantity,
+                    old_quantity=old_quantity,
+                    new_quantity=new_quantity,
                     quantity_change=-item.quantity,
                     user_id=current_user.id,
-                    notes=f"Vente finalisée {sale.sale_number} - paiement validé",
+                    notes=(
+                        f"Vente finalisée {sale.sale_number} - paiement validé"
+                        + (" (vrac)" if is_bulk else "")
+                    ),
                 )
 
                 db.add(movement)
@@ -470,7 +666,21 @@ class SaleService:
             batch = result.scalar_one_or_none()
 
             if batch:
-                batch.quantity += item.quantity
+                is_bulk = (item.sale_unit or "box") == "bulk"
+
+                if is_bulk:
+                    batch.bulk_quantity = int(batch.bulk_quantity or 0) + item.quantity
+                    old_quantity = batch.bulk_quantity - item.quantity
+                    new_quantity = batch.bulk_quantity
+                    note = (
+                        f"Annulation vente {sale.sale_number} - vrac restauré "
+                        f"({item.quantity} unité(s))"
+                    )
+                else:
+                    batch.quantity += item.quantity
+                    old_quantity = batch.quantity - item.quantity
+                    new_quantity = batch.quantity
+                    note = f"Annulation vente {sale.sale_number} - stock restauré"
 
                 # Create movement record for stock restoration
                 movement = Movement(
@@ -479,11 +689,11 @@ class SaleService:
                     reference_type="sale",
                     product_id=item.product_id,
                     batch_id=batch.id,
-                    old_quantity=batch.quantity - item.quantity,
-                    new_quantity=batch.quantity,
+                    old_quantity=old_quantity,
+                    new_quantity=new_quantity,
                     quantity_change=item.quantity,
                     user_id=current_user.id,
-                    notes=f"Annulation vente {sale.sale_number} - stock restauré",
+                    notes=note,
                 )
 
                 db.add(movement)

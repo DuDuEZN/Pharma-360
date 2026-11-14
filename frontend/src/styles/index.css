@@ -145,7 +145,7 @@
 
 @media print {
   /* Quand les étiquettes sont en cours d'impression, on masque le reste. */
-  body.printing-labels > *:not(#delivery-labels-print) {
+  body.printing-labels > *:not(#delivery-labels-print):not(#bulk-labels-print) {
     display: none !important;
   }
 
@@ -153,7 +153,8 @@
     display: none !important;
   }
 
-  body.printing-labels #delivery-labels-print {
+  body.printing-labels #delivery-labels-print,
+  body.printing-labels #bulk-labels-print {
     display: grid !important;
     grid-template-columns: repeat(3, 1fr);
     gap: 4mm;
@@ -209,6 +210,67 @@
   }
 
   #delivery-labels-print .delivery-label-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5mm;
+    margin-top: 1mm;
+    font-size: 7.5pt;
+    line-height: 1.2;
+  }
+}
+
+/* Étiquettes de vrac : mêmes styles que les étiquettes de livraison. */
+@media print {
+  #bulk-labels-print .delivery-label {
+    border: 1px dashed #999;
+    border-radius: 2mm;
+    padding: 3mm;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    text-align: center;
+    max-width: 62mm;
+  }
+
+  #bulk-labels-print .delivery-label-pharmacy {
+    margin: 0;
+    font-size: 10pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3pt;
+  }
+
+  #bulk-labels-print .delivery-label-product {
+    margin: 1mm 0 0;
+    font-size: 9pt;
+    font-weight: 600;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  #bulk-labels-print .delivery-label-bulk-tag {
+    font-weight: 700;
+  }
+
+  #bulk-labels-print .delivery-label-price {
+    margin: 1mm 0;
+    font-size: 12pt;
+    font-weight: 700;
+  }
+
+  #bulk-labels-print .delivery-label-barcode svg {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: 16mm;
+  }
+
+  #bulk-labels-print .delivery-label-barcode-text {
+    margin: 0;
+    font-family: monospace;
+    font-size: 8pt;
+  }
+
+  #bulk-labels-print .delivery-label-dates {
     display: flex;
     flex-direction: column;
     gap: 0.5mm;

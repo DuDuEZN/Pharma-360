@@ -33,6 +33,9 @@ function ProductFormPage() {
     supplier_id: '',
     sku: '',
     unit: 'unité',
+    is_bulk: false,
+    units_per_box: 2,
+    bulk_price: '',
   })
   
   const [categories, setCategories] = useState([])
@@ -140,6 +143,15 @@ function ProductFormPage() {
     if (product.has_expiry && (!product.expiry_days || parseInt(product.expiry_days) <= 0)) {
       newErrors.expiry_days = 'Les jours d\'expiration doivent être supérieurs à 0'
     }
+
+    if (product.is_bulk) {
+      if (!product.units_per_box || parseInt(product.units_per_box) < 2) {
+        newErrors.units_per_box = 'Une boîte doit contenir au moins 2 unités'
+      }
+      if (id && (!product.bulk_price || parseFloat(product.bulk_price) <= 0)) {
+        newErrors.bulk_price = 'Le prix de vente du vrac doit être supérieur à 0'
+      }
+    }
     
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -169,6 +181,10 @@ function ProductFormPage() {
         unit: product.unit,
         is_active: product.is_active,
         stock_min: parseInt(product.min_stock_level) || 0,
+        is_bulk: Boolean(product.is_bulk),
+        units_per_box: product.is_bulk
+          ? Math.max(parseInt(product.units_per_box) || 2, 2)
+          : 1,
       }
 
       const payload = id
@@ -177,6 +193,7 @@ function ProductFormPage() {
             // Le backend attend "price" pour le prix de vente.
             price: parseFloat(product.selling_price) || 0,
             cost_price: parseFloat(product.cost_price || product.purchase_price) || 0,
+            bulk_price: product.is_bulk ? parseFloat(product.bulk_price) || 0 : 0,
           }
         // À la création, aucun prix n'est envoyé : ils resteront à 0 tant que
         // le produit n'a pas été réceptionné/facturé.
@@ -586,6 +603,82 @@ function ProductFormPage() {
                             <p className="text-sm text-red-500 flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" />
                               {errors.expiry_days}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {/* Vente en vrac */}
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="is_bulk"
+                          checked={product.is_bulk}
+                          onCheckedChange={(checked) => handleSwitchChange('is_bulk', checked)}
+                          disabled={isSubmitting}
+                        />
+                        <Label htmlFor="is_bulk" className="font-medium">
+                          Produit vendable en vrac (à l'unité)
+                        </Label>
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                        Le produit reste unique : une boîte peut être reconditionnée
+                        en unités vendables à l'unité, sans changer son code-barres.
+                      </p>
+
+                      {product.is_bulk && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="units_per_box" className="flex items-center gap-1">
+                              Unités par boîte <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                              id="units_per_box"
+                              name="units_per_box"
+                              type="number"
+                              min="2"
+                              value={product.units_per_box}
+                              onChange={handleChange}
+                              disabled={isSubmitting}
+                              className={cn(errors.units_per_box && 'border-red-500')}
+                            />
+                            {errors.units_per_box && (
+                              <p className="text-sm text-red-500 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                {errors.units_per_box}
+                              </p>
+                            )}
+                          </div>
+
+                          {id ? (
+                            <div className="space-y-2">
+                              <Label htmlFor="bulk_price" className="flex items-center gap-1">
+                                Prix de vente du vrac (F CFA) <span className="text-red-500">*</span>
+                              </Label>
+                              <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Input
+                                  id="bulk_price"
+                                  name="bulk_price"
+                                  type="number"
+                                  step="0.01"
+                                  value={product.bulk_price}
+                                  onChange={handleChange}
+                                  placeholder="0.00"
+                                  disabled={isSubmitting}
+                                  className={cn('pl-10', errors.bulk_price && 'border-red-500')}
+                                />
+                              </div>
+                              {errors.bulk_price && (
+                                <p className="text-sm text-red-500 flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" />
+                                  {errors.bulk_price}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 self-end">
+                              Le prix du vrac sera défini lors de la modification du produit.
                             </p>
                           )}
                         </div>

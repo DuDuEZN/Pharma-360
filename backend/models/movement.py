@@ -22,7 +22,7 @@ class Movement(Base):
     Movement model - COMPLETE AUDIT TRAIL for stock movements
 
     Tracks EVERY change to stock quantities with:
-    - Type of movement (purchase, sale, return, adjustment, expiry)
+    - Type of movement (purchase, sale, return, adjustment, expiry, reconditioning)
     - Reference to the source document/table
     - Product and batch affected
     - Old and new quantities

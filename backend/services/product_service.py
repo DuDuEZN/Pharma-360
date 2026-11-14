@@ -277,6 +277,56 @@ class ProductService:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_batch_for_bulk(
+        product_id: int,
+        quantity: int,
+        units_per_box: int,
+        db: AsyncSession,
+        preferred_batch_id: Optional[int] = None,
+    ) -> Optional[Batch]:
+        """Sélectionne un lot capable de fournir `quantity` unités de vrac.
+
+        Le stock disponible d'un lot en vrac est :
+        ``bulk_quantity + quantity * units_per_box``
+        (unités déjà reconditionnées + unités encore en boîtes).
+        """
+        units_per_box = max(int(units_per_box or 1), 1)
+
+        def _can_supply(batch: Batch) -> bool:
+            return (
+                int(batch.bulk_quantity or 0) + batch.quantity * units_per_box
+            ) >= quantity
+
+        if preferred_batch_id:
+            preferred = (
+                await db.execute(select(Batch).where(Batch.id == preferred_batch_id))
+            ).scalar_one_or_none()
+            if (
+                preferred
+                and preferred.product_id == product_id
+                and preferred.status == "active"
+                and not preferred.is_expired
+                and _can_supply(preferred)
+            ):
+                return preferred
+
+        result = await db.execute(
+            select(Batch)
+            .where(
+                and_(
+                    Batch.product_id == product_id,
+                    Batch.status == "active",
+                    Batch.expiry_date >= date.today(),
+                )
+            )
+            .order_by(Batch.expiry_date.asc())
+        )
+        for batch in result.scalars().all():
+            if _can_supply(batch):
+                return batch
+        return None
+
+    @staticmethod
     async def get_low_stock_products(db: AsyncSession) -> list[Product]:
         """Get all products with low stock"""
         result = await db.execute(select(Product).where(Product.is_low_stock == True))

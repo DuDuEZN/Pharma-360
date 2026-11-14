@@ -50,7 +50,7 @@ function DashboardPage() {
     },
     { 
       label: 'Nouvelle vente', 
-      href: '/sales/new',
+      href: '/sales',
       icon: ShoppingCart,
       color: 'success'
     },

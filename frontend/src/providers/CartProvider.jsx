@@ -3,28 +3,54 @@ import React, { createContext, useContext, useState, useCallback, useMemo } from
 const CartContext = createContext();
 
 // Prix unitaire d'une ligne de panier : le lot est prioritaire, sinon le produit.
+// En vrac, le prix dédié au vrac prime ; sinon on divise le prix de la boîte
+// par le nombre d'unités qu'elle contient.
 export const getItemUnitPrice = (item) => {
+  if (item?.saleUnit === 'bulk') {
+    const bulkPrice = Number(item?.product?.bulk_price ?? 0);
+    if (bulkPrice > 0) return bulkPrice;
+    const units = Number(item?.product?.units_per_box ?? 1) || 1;
+    return Number(item?.product?.price ?? 0) / units;
+  }
   const batchPrice = item?.batch?.selling_price;
   if (batchPrice !== undefined && batchPrice !== null) return Number(batchPrice);
   return Number(item?.product?.price ?? 0);
+};
+
+// Quantité maximale vendable sur une ligne : boîtes scellées pour 'box',
+// unités déjà reconditionnées + unités encore en boîtes pour 'bulk'.
+export const getItemMaxQuantity = (item) => {
+  const unitsPerBox = Number(item?.product?.units_per_box ?? 1) || 1;
+  if ((item?.saleUnit || 'box') === 'bulk') {
+    return (
+      Number(item?.batch?.bulk_quantity ?? 0) +
+      Number(item?.batch?.quantity ?? 0) * unitsPerBox
+    );
+  }
+  return Number(item?.batch?.quantity ?? Infinity);
 };
 
 export const CartProvider = ({ children }) => {
   const [items, setItems] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
 
-  const addItem = useCallback((product, batch, quantity = 1) => {
+  const addItem = useCallback((product, batch, quantity = 1, saleUnit = 'box') => {
     if (!product?.id) return;
+
+    const unit = saleUnit === 'bulk' ? 'bulk' : 'box';
 
     setItems(prevItems => {
       const existingItemIndex = prevItems.findIndex(
-        item => item.product.id === product.id && item.batch?.id === batch?.id
+        item =>
+          item.product.id === product.id &&
+          item.batch?.id === batch?.id &&
+          (item.saleUnit || 'box') === unit
       );
 
       if (existingItemIndex >= 0) {
         const existingItem = prevItems[existingItemIndex];
-        // Ne jamais dépasser le stock disponible du lot sélectionné.
-        const maxQuantity = Number(batch?.quantity ?? existingItem.batch?.quantity ?? Infinity);
+        // Ne jamais dépasser le stock disponible (boîtes ou unités de vrac).
+        const maxQuantity = getItemMaxQuantity({ ...existingItem, saleUnit: unit });
         const updatedItems = [...prevItems];
         updatedItems[existingItemIndex] = {
           ...existingItem,
@@ -33,28 +59,36 @@ export const CartProvider = ({ children }) => {
         return updatedItems;
       }
 
-      return [...prevItems, { product, batch, quantity, addedAt: new Date() }];
+      return [...prevItems, { product, batch, quantity, saleUnit: unit, addedAt: new Date() }];
     });
   }, []);
 
-  const removeItem = useCallback((productId, batchId) => {
+  const removeItem = useCallback((productId, batchId, saleUnit = 'box') => {
     setItems(prevItems =>
       prevItems.filter(item =>
-        !(item.product.id === productId && item.batch?.id === batchId)
+        !(
+          item.product.id === productId &&
+          item.batch?.id === batchId &&
+          (item.saleUnit || 'box') === saleUnit
+        )
       )
     );
   }, []);
 
-  const updateItemQuantity = useCallback((productId, batchId, newQuantity) => {
+  const updateItemQuantity = useCallback((productId, batchId, saleUnit, newQuantity) => {
     if (newQuantity <= 0) {
-      removeItem(productId, batchId);
+      removeItem(productId, batchId, saleUnit);
       return;
     }
 
     setItems(prevItems =>
       prevItems.map(item => {
-        if (item.product.id !== productId || item.batch?.id !== batchId) return item;
-        const maxQuantity = Number(item.batch?.quantity ?? Infinity);
+        if (
+          item.product.id !== productId ||
+          item.batch?.id !== batchId ||
+          (item.saleUnit || 'box') !== saleUnit
+        ) return item;
+        const maxQuantity = getItemMaxQuantity(item);
         return { ...item, quantity: Math.min(newQuantity, maxQuantity) };
       })
     );

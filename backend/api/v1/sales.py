@@ -184,6 +184,7 @@ async def get_sale(
                 batch_number=item.batch.batch_number if item.batch else "Unknown",
                 batch_location=item.batch.location if item.batch else None,
                 quantity=item.quantity,
+                sale_unit=item.sale_unit or "box",
                 unit_price=item.unit_price,
                 total_price=item.total_price,
                 expiry_date=(

@@ -153,6 +153,12 @@ function InventoryPage() {
     })
   }, [batches, searchTerm, filterStatus])
 
+  // Unités de vrac disponibles (lots reconditionnés à l'unité)
+  const totalBulkUnits = useMemo(
+    () => batches.reduce((sum, b) => sum + Number(b.bulk_quantity || 0), 0),
+    [batches]
+  )
+
   // Calculate stock status
   const getStockStatus = (batch) => {
     if (batch.is_expired) return { label: 'Périmé', variant: 'danger' }
@@ -410,7 +416,7 @@ function InventoryPage() {
   const productOptions = useMemo(() => {
     return products.map(p => ({
       value: p.id,
-      label: `${p.name} (${p.barcode})`
+      label: `${p.name} (${p.barcode})${p.is_bulk ? ` · vrac ${p.units_per_box}/boîte` : ''}`
     }))
   }, [products])
 
@@ -531,6 +537,11 @@ function InventoryPage() {
                     <p className="font-bold text-2xl text-gray-900 dark:text-white">
                       {batches.filter(b => b.quantity > 0).length}
                     </p>
+                    {totalBulkUnits > 0 && (
+                      <p className="text-xs text-primary-600 dark:text-primary-400">
+                        + {totalBulkUnits} unité(s) de vrac
+                      </p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -633,7 +644,14 @@ function InventoryPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span>{batch.quantity}</span>
+                            <div className="flex flex-col">
+                              <span>{batch.quantity} boîte(s)</span>
+                              {Number(batch.bulk_quantity || 0) > 0 && (
+                                <span className="text-xs text-primary-600 dark:text-primary-400">
+                                  + {batch.bulk_quantity} unité(s) vrac
+                                </span>
+                              )}
+                            </div>
                             {batch.quantity > 0 && (
                               <Badge variant="success" size="xs">
                                 {batch.quantity > 50 ? '↑' : batch.quantity > 20 ? '→' : '↓'}

@@ -807,7 +807,12 @@ function CashierPage() {
                                   <Circle className="w-4 h-4 text-gray-300 mt-0.5 shrink-0" />
                                 )}
                                 <div className="flex flex-col">
-                                  <span className="font-medium text-sm">{item.product_name || item.name}</span>
+                                  <span className="font-medium text-sm">
+                                    {item.product_name || item.name}
+                                    {item.sale_unit === 'bulk' && (
+                                      <Badge variant="primary" size="xs" className="ml-2">Vrac</Badge>
+                                    )}
+                                  </span>
                                   <span className="text-xs text-gray-500">
                                     Code-barres: {item.product_barcode || '—'}
                                   </span>
@@ -915,6 +920,9 @@ function CashierPage() {
                             <div className="min-w-0">
                               <p className="text-sm font-medium truncate">
                                 {item.product_name || item.name}
+                                {item.sale_unit === 'bulk' && (
+                                  <Badge variant="primary" size="xs" className="ml-2">Vrac</Badge>
+                                )}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
                                 Code-barres: {item.product_barcode || '—'}
@@ -1365,7 +1373,10 @@ function CashierPage() {
                       <TableRow key={index}>
                         <TableCell className="text-sm">
                           <div className="flex flex-col">
-                            <span>{item.product_name || item.name}</span>
+                            <span>
+                              {item.product_name || item.name}
+                              {item.sale_unit === 'bulk' && ' (vrac)'}
+                            </span>
                             {item.batch_number && (
                               <span className="text-xs text-gray-500">
                                 Lot: {item.batch_number}

@@ -42,6 +42,11 @@ class SaleItemCreate(BaseModel):
     product_id: int = Field(..., description="Product ID")
     quantity: int = Field(..., ge=1, description="Quantity")
     unit_price: Decimal = Field(..., ge=0, description="Unit price")
+    sale_unit: str = Field(
+        default="box",
+        pattern="^(box|bulk)$",
+        description="Unité vendue : 'box' (boîte) ou 'bulk' (vrac)",
+    )
 
 
 # Sale Item Response Schema
@@ -60,6 +65,7 @@ class SaleItemResponse(BaseModel):
         None, description="Batch storage location (rayon)"
     )
     quantity: int = Field(..., description="Quantity")
+    sale_unit: str = Field(default="box", description="box ou bulk")
     unit_price: Decimal = Field(..., description="Unit price")
     total_price: Decimal = Field(..., description="Total price")
     expiry_date: Optional[str] = Field(None, description="Expiry date at time of sale")
@@ -129,6 +135,20 @@ class SaleListResponse(BaseModel):
 
 
 # Sale Validation Response Schema
+class BulkLabel(BaseModel):
+    """Étiquettes à imprimer pour les unités de vrac reconditionnées."""
+
+    product_id: int = Field(..., description="Product ID")
+    product_name: str = Field(..., description="Product name")
+    barcode: Optional[str] = Field(None, description="Product barcode (inchangé)")
+    price: Decimal = Field(default=0, description="Prix de vente de l'unité")
+    batch_number: Optional[str] = Field(None, description="Batch number")
+    expiry_date: Optional[str] = Field(None, description="Date de péremption")
+    sale_date: Optional[str] = Field(None, description="Date de reconditionnement")
+    quantity: int = Field(default=0, description="Nombre d'étiquettes à imprimer")
+    units_per_box: int = Field(default=1, description="Unités par boîte")
+
+
 class SaleValidationResponse(BaseModel):
     """Schema for sale validation response"""
 
@@ -137,6 +157,13 @@ class SaleValidationResponse(BaseModel):
     sale_number: Optional[str] = Field(None, description="Sale number if created")
     errors: List[str] = Field(
         default_factory=list, description="List of validation errors"
+    )
+    bulk_labels: List[BulkLabel] = Field(
+        default_factory=list,
+        description="Étiquettes de vrac à imprimer après reconditionnement",
+    )
+    reconditioned_boxes: int = Field(
+        default=0, description="Nombre de boîtes ouvertes pour le vrac"
     )
 
 
