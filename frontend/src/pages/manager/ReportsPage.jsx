@@ -84,8 +84,15 @@ function ManagerReportsPage() {
     return { from: undefined, to: undefined }
   }
 
+  const [iaData, setIaData] = useState(null)
+
   useEffect(() => {
     fetchReports()
+    // Charger les recommandations et alertes du module IA.
+    fetch('http://localhost:8001/api/v1/dashboard/')
+      .then(r => r.json())
+      .then(d => { if (d?.status === 'success') setIaData(d.data) })
+      .catch(() => {})
   }, [typeFilter, dateFilter])
 
   useEffect(() => {
@@ -263,7 +270,60 @@ function ManagerReportsPage() {
         </div>
       </div>
 
-      {/* Quick Generate Buttons */}
+      {/* IA : recommandations et alertes */}
+      {iaData && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-primary-600" />
+              Recommandations IA — stock et ventes
+            </CardTitle>
+            <CardDescription>
+              Alertes, prédictions et recommandations du module d'intelligence artificielle
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {iaData.alerts?.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Alertes actives ({iaData.alerts.length})</h4>
+                <ul className="space-y-1 text-sm">
+                  {iaData.alerts.slice(0, 5).map((a, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <Badge variant={a.severity === 'danger' ? 'danger' : a.severity === 'warning' ? 'warning' : 'info'}>
+                        {a.severity || 'info'}
+                      </Badge>
+                      <span>{a.message || a.title || JSON.stringify(a)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {iaData.recommendations?.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Recommandations ({iaData.recommendations.length})</h4>
+                <ul className="space-y-1 text-sm list-disc pl-5">
+                  {iaData.recommendations.slice(0, 5).map((r, i) => (
+                    <li key={i}>{typeof r === 'string' ? r : (r.message || r.title || JSON.stringify(r))}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {iaData.predictions?.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Prédictions de stock ({iaData.predictions.length})</h4>
+                <ul className="space-y-1 text-sm">
+                  {iaData.predictions.slice(0, 5).map((p, i) => (
+                    <li key={i}>{typeof p === 'string' ? p : (p.product_name ? `${p.product_name} : ${p.predicted_quantity ?? ''}` : JSON.stringify(p))}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {!iaData.alerts?.length && !iaData.recommendations?.length && !iaData.predictions?.length && (
+              <p className="text-sm text-gray-500">Aucune donnée IA disponible pour le moment.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Générer un rapport rapide</CardTitle>

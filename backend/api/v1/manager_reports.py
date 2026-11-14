@@ -30,6 +30,8 @@ class ReportGenerateRequest(BaseModel):
     data_range_end: Optional[date] = None
     file_format: str = "pdf"
     filters: dict = Field(default_factory=dict)
+    periodicity: Optional[str] = "none"
+    group_by: Optional[str] = "product"
 
 
 def _normalize_format(value: Optional[str]) -> str:
@@ -107,6 +109,12 @@ async def generate_manager_report(
     if file_format:
         request.file_format = file_format
 
+    filters = request.filters or {}
+    if request.periodicity:
+        filters = {**filters, "periodicity": request.periodicity}
+    if request.group_by:
+        filters = {**filters, "group_by": request.group_by}
+
     try:
         report = await ReportService.generate_report_record(
             db=db,
@@ -116,7 +124,7 @@ async def generate_manager_report(
             data_range_start=request.data_range_start,
             data_range_end=request.data_range_end,
             file_format=_normalize_format(request.file_format),
-            filters=request.filters or {},
+            filters=filters,
             user_id=current_user.id,
         )
     except Exception as exc:

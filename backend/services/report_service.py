@@ -96,7 +96,69 @@ class ReportService:
                 return None
 
         if base_type == "sales":
-            query = select(Sale).options(selectinload(Sale.user))
+            periodicity = (filters.get("periodicity") or "none").lower()
+            group_by = (filters.get("group_by") or "product").lower()
+
+            if periodicity in ("daily", "weekly", "monthly"):
+                # Regroupement par période et par produit : extraction pour
+                # prévision (quantités, prix d'achat/vente, ruptures).
+                query = (
+                    select(
+                        Sale.created_at,
+                        SaleItem.product_id,
+                        Product.name,
+                        Product.barcode,
+                        Product.price,
+                        Product.cost_price,
+                        func.coalesce(func.sum(SaleItem.quantity), 0).label("qty"),
+                        func.coalesce(func.sum(SaleItem.total_price), 0).label("total"),
+                    )
+                    .join(SaleItem, SaleItem.sale_id == Sale.id)
+                    .join(Product, Product.id == SaleItem.product_id)
+                )
+                if data_range_start:
+                    query = query.where(Sale.created_at >= datetime.combine(data_range_start, time.min))
+                if data_range_end:
+                    query = query.where(Sale.created_at <= datetime.combine(data_range_end, time.max))
+                product_id = _int_filter("product_id")
+                category_id = _int_filter("category_id")
+                if product_id:
+                    query = query.where(SaleItem.product_id == product_id)
+                if category_id:
+                    query = query.where(Product.category_id == category_id)
+                query = query.group_by(
+                    func.date(Sale.created_at), SaleItem.product_id,
+                    Product.name, Product.barcode, Product.price, Product.cost_price,
+                ).order_by(func.date(Sale.created_at).desc(), Product.name.asc())
+                rows_raw = (await db.execute(query)).all()
+                headers = [
+                    "Période", "Produit", "Code-barres", "Quantité vendue",
+                    "Prix de vente", "Prix d'achat", "Chiffre d'affaires",
+                ]
+                rows = []
+                total = 0.0
+                for r in rows_raw:
+                    period_date = r.created_at.date() if hasattr(r.created_at, "date") else r.created_at
+                    if periodicity == "weekly":
+                        # lundi de la semaine
+                        period_date = period_date - timedelta(days=period_date.weekday())
+                    elif periodicity == "monthly":
+                        period_date = period_date.replace(day=1)
+                    price = float(r.price or 0)
+                    cost = float(r.cost_price or 0)
+                    qty = int(r.qty or 0)
+                    line_total = float(r.total or 0)
+                    total += line_total
+                    rows.append([
+                        period_date.strftime("%d/%m/%Y"),
+                        r.name,
+                        r.barcode or "",
+                        qty,
+                        f"{price:.2f}",
+                        f"{cost:.2f}",
+                        f"{line_total:.2f}",
+                    ])
+                return headers, rows, total, len(rows)
             if data_range_start:
                 query = query.where(Sale.created_at >= datetime.combine(data_range_start, time.min))
             if data_range_end:

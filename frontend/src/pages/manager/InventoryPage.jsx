@@ -34,6 +34,9 @@ function InventoryPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [filterCategory, setFilterCategory] = useState('all')
+  const [filterLocation, setFilterLocation] = useState('all')
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10))
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [formData, setFormData] = useState({
     product_id: '',
@@ -143,15 +146,37 @@ function InventoryPage() {
         (batch.batch_number && batch.batch_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (batch.location && batch.location.toLowerCase().includes(searchTerm.toLowerCase()))
       )
-      
-      const matchesStatus = filterStatus === 'all' || 
+
+      const matchesStatus = filterStatus === 'all' ||
         (filterStatus === 'low' && batch.quantity < 10) ||
         (filterStatus === 'expiring' && batch.is_expiring_soon) ||
         (filterStatus === 'expired' && batch.is_expired)
-      
-      return matchesSearch && matchesStatus
+
+      const product = products.find(p => String(p.id) === String(batch.product_id))
+      const matchesCategory = filterCategory === 'all' || String(product?.category_id) === String(filterCategory)
+
+      const matchesLocation = filterLocation === 'all' || (batch.location || '') === filterLocation
+
+      const batchDate = batch.received_date || batch.created_at
+      const matchesDate = !filterDate || !batchDate || new Date(batchDate) <= new Date(filterDate + 'T23:59:59')
+
+      return matchesSearch && matchesStatus && matchesCategory && matchesLocation && matchesDate
     })
-  }, [batches, searchTerm, filterStatus])
+  }, [batches, products, searchTerm, filterStatus, filterCategory, filterLocation, filterDate])
+
+  // Options de filtre dérivées
+  const categoryOptions = useMemo(() => {
+    const map = new Map()
+    products.forEach(p => {
+      if (p.category_id && p.category?.name) map.set(String(p.category_id), p.category.name)
+    })
+    return [{ value: 'all', label: 'Toutes les catégories' }, ...Array.from(map, ([v,l]) => ({ value: v, label: l }))]
+  }, [products])
+
+  const locationOptions = useMemo(() => {
+    const set = new Set(batches.map(b => b.location).filter(Boolean))
+    return [{ value: 'all', label: 'Tous les rayons' }, ...Array.from(set).map(l => ({ value: l, label: l }))]
+  }, [batches])
 
   // Unités de vrac disponibles (lots reconditionnés à l'unité)
   const totalBulkUnits = useMemo(
@@ -439,8 +464,8 @@ function InventoryPage() {
         </CardHeader>
         <CardContent>
           {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
+          <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -457,6 +482,27 @@ function InventoryPage() {
               options={statusOptions}
               placeholder="Filtrer par statut"
               className="w-48"
+            />
+            <Select
+              value={filterCategory}
+              onChange={setFilterCategory}
+              options={categoryOptions}
+              placeholder="Filtrer par catégorie"
+              className="w-52"
+            />
+            <Select
+              value={filterLocation}
+              onChange={setFilterLocation}
+              options={locationOptions}
+              placeholder="Filtrer par rayon"
+              className="w-44"
+            />
+            <Input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="w-44"
+              title="Stock disponible à cette date"
             />
             {isStockManager && (
               <div className="flex items-center gap-2">

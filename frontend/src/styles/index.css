@@ -5,11 +5,6 @@
 @layer base {
   html {
     @apply scroll-smooth;
-    zoom: 0.5;
-  }
-
-  @media print {
-    html { zoom: 1; }
   }
 
   

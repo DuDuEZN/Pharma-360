@@ -37,6 +37,8 @@ function ReportFormPage() {
     include_chart: true,
     include_details: true,
     format: 'pdf',
+    periodicity: 'daily',
+    group_by: 'product',
     notes: ''
   })
   
@@ -130,7 +132,9 @@ function ReportFormPage() {
       data_range_end: report.end_date || null,
       filters: {
         category_id: categoryId,
-        product_id: productId
+        product_id: productId,
+        periodicity: report.periodicity,
+        group_by: report.group_by
       }
     }
 
@@ -349,6 +353,47 @@ function ReportFormPage() {
                             {product.name} ({product.barcode})
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Periodicité */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Périodicité et regroupement
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="periodicity">Périodicité</Label>
+                    <Select
+                      value={report.periodicity}
+                      onValueChange={(value) => handleChange('periodicity', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Aucune (détail)</SelectItem>
+                        <SelectItem value="daily">Quotidien</SelectItem>
+                        <SelectItem value="weekly">Hebdomadaire</SelectItem>
+                        <SelectItem value="monthly">Mensuel</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="group_by">Regrouper par</Label>
+                    <Select
+                      value={report.group_by}
+                      onValueChange={(value) => handleChange('group_by', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="product">Produit</SelectItem>
+                        <SelectItem value="category">Catégorie</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
