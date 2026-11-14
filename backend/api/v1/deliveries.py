@@ -107,22 +107,35 @@ async def upload_invoice(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # La facture fait partie de la saisie de livraison : vendeur/admin seulement.
-    if current_user.role not in ("seller", "admin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Seller or admin required")
+    # La facture fait partie de la saisie de livraison : vendeur, gestionnaire
+    # de stock ou admin.
+    if current_user.role not in ("seller", "manager", "admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Seller, manager or admin required")
     import os, uuid
     delivery = await DeliveryService.get_delivery(db, delivery_id)
     if not delivery:
         raise HTTPException(status_code=404, detail="Delivery not found")
     # Sauvegarder le fichier
     upload_dir = "/app/uploads/invoices"
-    os.makedirs(upload_dir, exist_ok=True)
+    try:
+        os.makedirs(upload_dir, exist_ok=True)
+    except OSError:
+        upload_dir = os.path.join(os.getcwd(), "uploads", "invoices")
+        os.makedirs(upload_dir, exist_ok=True)
     ext = os.path.splitext(file.filename or "")[1] or ".bin"
     filename = "delivery_%d_%s%s" % (delivery_id, uuid.uuid4().hex[:8], ext)
     filepath = os.path.join(upload_dir, filename)
-    with open(filepath, "wb") as f:
+    try:
         content = await file.read()
-        f.write(content)
+        with open(filepath, "wb") as f:
+            f.write(content)
+    except OSError as exc:
+        import logging
+        logging.getLogger(__name__).exception("invoice upload failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Impossible d'enregistrer la facture sur le serveur",
+        ) from exc
     # Mettre à jour la livraison
     orm = await DeliveryService._get_orm(db, delivery_id)
     orm.invoice_path = filepath

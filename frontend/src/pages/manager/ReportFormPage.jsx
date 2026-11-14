@@ -26,10 +26,14 @@ function ReportFormPage() {
   const [report, setReport] = useState({
     title: '',
     report_type: 'sales',
-    start_date: '',
-    end_date: formatDate(new Date()),
-    category_id: '',
-    product_id: '',
+    start_date: (() => {
+      const d = new Date()
+      d.setDate(d.getDate() - 30)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    })(),
+    end_date: new Date().toISOString().slice(0, 10),
+    category_id: 'all',
+    product_id: 'all',
     include_chart: true,
     include_details: true,
     format: 'pdf',
@@ -105,44 +109,63 @@ function ReportFormPage() {
     e.preventDefault()
     if (!validate()) return
 
-    // Mappe le type de rapport vers l'endpoint backend correspondant.
-    const type = report.report_type
-    let endpoint = null
-    if (['sales', 'daily', 'monthly'].includes(type)) endpoint = '/reports/sales'
-    else if (['stock', 'inventory', 'expiry'].includes(type)) endpoint = '/reports/stock'
-    else if (type === 'cash') endpoint = '/reports/cash'
-    else {
-      addToast({ type: 'error', title: 'Erreur', message: 'Type de rapport non supporté par le serveur' })
-      return
+    // Les types d'affichage sont ramenés aux trois générateurs du serveur.
+    const typeMap = {
+      sales: 'sales', financial: 'sales', daily: 'sales', monthly: 'sales',
+      stock: 'stock', inventory: 'stock', expiry: 'stock', supplier: 'stock', returns: 'stock',
+      cash: 'cash'
     }
+    const backendType = typeMap[report.report_type] || 'sales'
 
     const formatMap = { pdf: 'pdf', excel: 'xlsx', csv: 'csv' }
+    const categoryId = report.category_id && report.category_id !== 'all' ? parseInt(report.category_id, 10) : null
+    const productId = report.product_id && report.product_id !== 'all' ? parseInt(report.product_id, 10) : null
 
     const payload = {
-      report_type: type,
+      report_type: backendType,
       title: report.title,
-      description: report.description || null,
+      description: report.notes || null,
       file_format: formatMap[report.format] || 'pdf',
       data_range_start: report.start_date || null,
       data_range_end: report.end_date || null,
-      filters: report.filters || {}
+      filters: {
+        category_id: categoryId,
+        product_id: productId
+      }
     }
 
     try {
       setIsSubmitting(true)
 
-      const response = await api.post(endpoint, payload, {
-        responseType: 'blob'
-      })
+      const response = await api.post('/manager/reports/generate', payload)
+      const reportId = response.data?.id
 
-      // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `${report.title || 'rapport'}.${report.format}`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
+      // Téléchargement automatique du rapport généré.
+      if (reportId) {
+        try {
+          const dl = await api.get(`/manager/reports/${reportId}/download`, {
+            params: { format: report.format || 'pdf' },
+            responseType: 'blob'
+          })
+          let filename = `${report.title || 'rapport'}.${report.format || 'pdf'}`
+          const disposition = dl.headers?.['content-disposition'] || dl.headers?.['Content-Disposition']
+          if (disposition) {
+            const match = disposition.match(/filename="?([^";]+)"?/)
+            if (match) filename = match[1]
+          }
+          const url = window.URL.createObjectURL(new Blob([dl.data]))
+          const link = document.createElement('a')
+          link.href = url
+          link.setAttribute('download', filename)
+          document.body.appendChild(link)
+          link.click()
+          link.remove()
+          window.URL.revokeObjectURL(url)
+        } catch (dlError) {
+          console.error('Report download failed:', dlError)
+          addToast({ type: 'warning', title: 'Attention', message: 'Rapport généré mais téléchargement échoué' })
+        }
+      }
 
       addToast({
         type: 'success',
@@ -152,7 +175,7 @@ function ReportFormPage() {
 
       navigate('/manager/reports')
     } catch (error) {
-      const message = error.response?.data?.message || 'Échec de la génération du rapport'
+      const message = error.response?.data?.detail || 'Échec de la génération du rapport'
       addToast({ type: 'error', title: 'Erreur', message })
     } finally {
       setIsSubmitting(false)
@@ -300,7 +323,7 @@ function ReportFormPage() {
                         <SelectValue placeholder="Toutes les catégories" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Toutes les catégories</SelectItem>
+                        <SelectItem value="all">Toutes les catégories</SelectItem>
                         {categories.map(category => (
                           <SelectItem key={category.id} value={String(category.id)}>
                             {category.name}
@@ -320,7 +343,7 @@ function ReportFormPage() {
                         <SelectValue placeholder="Tous les produits" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Tous les produits</SelectItem>
+                        <SelectItem value="all">Tous les produits</SelectItem>
                         {products.map(product => (
                           <SelectItem key={product.id} value={String(product.id)}>
                             {product.name} ({product.barcode})

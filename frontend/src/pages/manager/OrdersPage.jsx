@@ -118,9 +118,20 @@ function OrdersPage() {
     }
   }
 
-  const handleViewOrder = (order) => {
+  const handleViewOrder = async (order) => {
     setSelectedOrder(order)
     setIsModalOpen(true)
+    // La liste ne contient pas les lignes : on charge le détail complet.
+    try {
+      const response = await api.get(`/manager/orders/${order.id}`)
+      setSelectedOrder(response.data)
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Impossible de charger les articles de la commande'
+      })
+    }
   }
 
   const handleConfirmOrder = async (orderId) => {
@@ -487,36 +498,28 @@ function OrdersPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedOrder.items?.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.product_name}</TableCell>
-                          <TableCell className="font-mono">{item.barcode}</TableCell>
-                          <TableCell>{item.quantity} {item.unit}</TableCell>
-                          <TableCell>{formatCurrency(item.unit_price)}</TableCell>
-                          <TableCell>{formatCurrency(item.total_price)}</TableCell>
+                      {selectedOrder.items?.length ? (
+                        selectedOrder.items.map((item, index) => (
+                          <TableRow key={item.id ?? index}>
+                            <TableCell>{item.product_name}</TableCell>
+                            <TableCell className="font-mono">{item.product_barcode || '—'}</TableCell>
+                            <TableCell>{item.quantity}</TableCell>
+                            <TableCell>{formatCurrency(item.unit_price)}</TableCell>
+                            <TableCell>{formatCurrency(item.total_price)}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-gray-500 py-4">
+                            Aucun article dans cette commande
+                          </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                   
                   <div className="flex justify-end mt-4 border-t pt-4">
                     <div className="space-y-2 text-right">
-                      <div className="flex justify-between gap-8">
-                        <span>Sous-total:</span>
-                        <span>{formatCurrency(selectedOrder.subtotal)}</span>
-                      </div>
-                      {selectedOrder.discount > 0 && (
-                        <div className="flex justify-between gap-8">
-                          <span>Remise:</span>
-                          <span>-{formatCurrency(selectedOrder.discount)}</span>
-                        </div>
-                      )}
-                      {selectedOrder.tax > 0 && (
-                        <div className="flex justify-between gap-8">
-                          <span>Taxe:</span>
-                          <span>{formatCurrency(selectedOrder.tax)}</span>
-                        </div>
-                      )}
                       <div className="flex justify-between gap-8 font-bold text-lg">
                         <span>Total:</span>
                         <span>{formatCurrency(selectedOrder.total_amount)}</span>

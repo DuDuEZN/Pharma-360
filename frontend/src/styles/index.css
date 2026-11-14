@@ -5,7 +5,13 @@
 @layer base {
   html {
     @apply scroll-smooth;
+    zoom: 0.5;
   }
+
+  @media print {
+    html { zoom: 1; }
+  }
+
   
   body {
     @apply bg-gray-50 text-gray-900 font-sans;

@@ -8,7 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class DeliveryItemCreate(BaseModel):
     product_id: Optional[int] = None
     quantity: int = Field(default=1, ge=1)
-    unit_price: float = Field(default=0, ge=0)
+    unit_price: float = Field(default=0, ge=0, description="Prix d'achat unitaire")
+    selling_price: Optional[float] = Field(None, ge=0, description="Prix de vente unitaire")
     received_quantity: int = Field(default=0, ge=0)
     non_conforming_quantity: int = Field(default=0, ge=0)
     expiry_date: Optional[date] = None
@@ -28,6 +29,7 @@ class DeliveryItemResponse(BaseModel):
     product_price: float = 0
     quantity: int
     unit_price: float
+    selling_price: Optional[float] = None
     total_price: float
     received_quantity: int = 0
     non_conforming_quantity: int = 0

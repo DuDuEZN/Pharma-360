@@ -100,7 +100,32 @@ function DeliveryFormPage() {
     try {
       setIsLoading(true)
       const response = await api.get(`/manager/deliveries/${id}`)
-      setDelivery(response.data)
+      const data = response.data || {}
+      setDelivery({
+        ...data,
+        supplier_id: data.supplier_id ? String(data.supplier_id) : '',
+        order_id: data.order_id ? String(data.order_id) : '',
+        delivery_date: data.delivery_date || new Date().toISOString().slice(0, 10),
+        expected_date: data.expected_date || '',
+        status: data.status || 'pending',
+        notes: data.notes || '',
+        reception_notes: data.reception_notes || '',
+        items: (data.items || []).map((item) => ({
+          ...item,
+          product_id: item.product_id ? String(item.product_id) : '',
+          product_barcode: item.product_barcode || '',
+          barcode: item.product_barcode || item.barcode || '',
+          quantity: Number(item.quantity || 1),
+          unit_price: Number(item.unit_price || 0),
+          selling_price: Number(item.selling_price ?? item.product_price ?? 0),
+          received_quantity: Number(item.received_quantity || 0),
+          non_conforming_quantity: Number(item.non_conforming_quantity || 0),
+          expiry_date: item.expiry_date || '',
+          location: item.location || '',
+          notes: item.notes || '',
+          batch_number: item.batch_number || '',
+        })),
+      })
     } catch (error) {
       addToast({ type: 'error', title: 'Erreur', message: 'Livraison non trouvée' })
     } finally {
@@ -119,8 +144,8 @@ function DeliveryFormPage() {
     setDelivery(prev => ({
       ...prev,
       items: [...prev.items, {
-        product_id: '', product_barcode: '', barcode: '', quantity: 1, unit_price: 0,
-        received_quantity: 0, non_conforming_quantity: 0,
+        product_id: '', product_barcode: '', barcode: '', quantity: 1, unit_price: 0, selling_price: 0,
+        received_quantity: 1, non_conforming_quantity: 0,
         expiry_date: '', location: '', notes: '', batch_number: ''
       }]
     }))
@@ -148,7 +173,8 @@ function DeliveryFormPage() {
         barcode: it.product_barcode || '',
         quantity: it.quantity || 1,
         unit_price: it.unit_price || 0,
-        received_quantity: 0,
+        selling_price: products.find(p => String(p.id) === String(it.product_id))?.price || 0,
+        received_quantity: it.quantity || 0,
         non_conforming_quantity: 0,
         expiry_date: '',
         location: '',
@@ -175,8 +201,8 @@ function DeliveryFormPage() {
     }))
   }
 
-  // Sélection d'un produit : pré-remplit le code-barres produit, que le
-  // vendeur peut remplacer par le code scanné sur l'emballage reçu.
+  // Sélection d'un produit : le code-barres est toujours celui du produit
+  // (lecture seule) ; les prix d'achat et de vente sont pré-remplis.
   const handleSelectProduct = (index, productId) => {
     const product = products.find(p => String(p.id) === String(productId))
     setDelivery(prev => ({
@@ -187,8 +213,9 @@ function DeliveryFormPage() {
               ...item,
               product_id: productId,
               product_barcode: product?.barcode || '',
-              barcode: item.barcode || product?.barcode || '',
-              unit_price: item.unit_price || product?.price || 0,
+              barcode: product?.barcode || '',
+              unit_price: item.unit_price || product?.cost_price || product?.price || 0,
+              selling_price: item.selling_price || product?.price || 0,
             }
           : item
       )
@@ -210,6 +237,16 @@ function DeliveryFormPage() {
     return Object.keys(newErrors).length === 0
   }
 
+  const uploadInvoice = async (deliveryId, file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    await api.post(`/manager/deliveries/${deliveryId}/invoice`, formData, {
+      // Upload de photo : le délai par défaut (30 s) est trop court.
+      timeout: 120000,
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
@@ -220,13 +257,13 @@ function DeliveryFormPage() {
         product_id: parseInt(item.product_id, 10),
         quantity: parseInt(item.quantity, 10) || 1,
         unit_price: parseFloat(item.unit_price) || 0,
+        selling_price: parseFloat(item.selling_price) || 0,
         received_quantity: parseInt(item.received_quantity, 10) || 0,
         non_conforming_quantity: parseInt(item.non_conforming_quantity, 10) || 0,
         expiry_date: item.expiry_date || null,
         location: item.location || null,
         notes: item.notes || null,
         batch_number: item.batch_number || null,
-        barcode: item.barcode || item.product_barcode || null
       }))
 
     if (items.length === 0) {
@@ -245,13 +282,15 @@ function DeliveryFormPage() {
       if (id) {
         await api.put(`/manager/deliveries/${id}`, payload)
         if (invoiceFile) {
-          const formData = new FormData()
-          formData.append('file', invoiceFile)
           try {
-            await api.post(`/manager/deliveries/${id}/invoice`, formData)
+            await uploadInvoice(id, invoiceFile)
           } catch (uploadError) {
             console.error('Invoice upload failed:', uploadError)
-            addToast({ type: 'warning', title: 'Attention', message: 'Livraison mise a jour mais echec upload facture' })
+            addToast({
+              type: 'warning',
+              title: 'Attention',
+              message: uploadError.response?.data?.detail || 'Livraison mise à jour mais échec de l\'upload de la facture'
+            })
           }
         }
         addToast({ type: 'success', title: 'Succès', message: 'Livraison mise à jour' })
@@ -259,13 +298,15 @@ function DeliveryFormPage() {
         const response = await api.post('/manager/deliveries', payload)
         const newId = response.data?.id
         if (invoiceFile && newId) {
-          const formData = new FormData()
-          formData.append('file', invoiceFile)
           try {
-            await api.post(`/manager/deliveries/${newId}/invoice`, formData)
+            await uploadInvoice(newId, invoiceFile)
           } catch (uploadError) {
             console.error('Invoice upload failed:', uploadError)
-            addToast({ type: 'warning', title: 'Attention', message: 'Livraison creee mais echec upload facture' })
+            addToast({
+              type: 'warning',
+              title: 'Attention',
+              message: uploadError.response?.data?.detail || 'Livraison créée mais échec de l\'upload de la facture'
+            })
           }
         }
         addToast({ type: 'success', title: 'Succès', message: 'Livraison créée' })
@@ -537,7 +578,31 @@ function DeliveryFormPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={`item-buy-price-${index}`}>Prix d'achat unitaire</Label>
+                          <Input
+                            id={`item-buy-price-${index}`}
+                            type="number"
+                            value={item.unit_price || ''}
+                            onChange={(e) => handleItemChange(index, 'unit_price', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)}
+                            min="0"
+                            step="0.01"
+                            placeholder="Prix d'achat"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`item-sell-price-${index}`}>Prix de vente unitaire</Label>
+                          <Input
+                            id={`item-sell-price-${index}`}
+                            type="number"
+                            value={item.selling_price || ''}
+                            onChange={(e) => handleItemChange(index, 'selling_price', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)}
+                            min="0"
+                            step="0.01"
+                            placeholder="Prix de vente"
+                          />
+                        </div>
                         <div className="space-y-2">
                           <Label htmlFor={`item-nonconf-${index}`}>Non conformes</Label>
                           <Input
@@ -557,6 +622,9 @@ function DeliveryFormPage() {
                             onChange={(e) => handleItemChange(index, 'expiry_date', e.target.value)}
                           />
                         </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                         <div className="space-y-2">
                           <Label htmlFor={`item-location-${index}`}>Rayon / emplacement</Label>
                           <Input
@@ -577,14 +645,16 @@ function DeliveryFormPage() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor={`item-barcode-${index}`}>
-                            Code-barres du produit livré
+                            Code-barres du produit
                           </Label>
                           <Input
                             id={`item-barcode-${index}`}
-                            value={item.barcode ?? item.product_barcode ?? ''}
-                            onChange={(e) => handleItemChange(index, 'barcode', e.target.value)}
-                            placeholder="Scannez ou saisissez le code-barres"
-                            autoComplete="off"
+                            value={item.product_barcode || item.barcode || ''}
+                            placeholder="Défini par le produit"
+                            readOnly
+                            disabled
+                            className="bg-gray-100"
+                            title="Le code-barres est défini par le produit et ne peut pas être modifié"
                           />
                         </div>
                       </div>

@@ -301,6 +301,11 @@ class DeliveryService:
             barcode=i.barcode or product_barcodes.get(i.product_id),
             product_price=product_prices.get(i.product_id, 0) or 0,
             quantity=i.quantity, unit_price=float(i.unit_price or 0),
+            selling_price=(
+                float(i.selling_price)
+                if getattr(i, "selling_price", None) not in (None, 0)
+                else (product_prices.get(i.product_id, 0) or 0)
+            ),
             total_price=float(i.total_price or 0),
             received_quantity=i.received_quantity or 0,
             non_conforming_quantity=i.non_conforming_quantity or 0,
@@ -391,21 +396,41 @@ class DeliveryService:
                     unit_price=float(oi.unit_price or 0),
                 ))
 
+        # Le code-barres n'est jamais saisi librement : il est toujours celui
+        # du produit sélectionné, pour éviter toute incohérence de stock.
+        product_ids = {
+            getattr(it, "product_id", None) for it in items_source
+            if getattr(it, "product_id", None)
+        }
+        product_barcodes = {}
+        product_prices = {}
+        if product_ids:
+            pres = await db.execute(
+                select(Product.id, Product.barcode, Product.price).where(Product.id.in_(product_ids))
+            )
+            for pid, pbarcode, pprice in pres.all():
+                product_barcodes[pid] = pbarcode
+                product_prices[pid] = float(pprice or 0)
+
         for it in items_source:
             qty = getattr(it, "quantity", None) or 1
             up = float(getattr(it, "unit_price", 0) or 0)
+            pid = getattr(it, "product_id", None)
+            selling = getattr(it, "selling_price", None)
+            if selling is None or float(selling or 0) <= 0:
+                selling = product_prices.get(pid, 0)
             ri = getattr(it, "received_quantity", 0) or 0
             nci = getattr(it, "non_conforming_quantity", 0) or 0
             expiry = getattr(it, "expiry_date", None)
             location = getattr(it, "location", None)
             note = getattr(it, "notes", None)
             batch_number = getattr(it, "batch_number", None)
-            barcode = getattr(it, "barcode", None)
             db.add(DeliveryItem(
                 delivery_id=d.id,
-                product_id=getattr(it, "product_id", None),
+                product_id=pid,
                 quantity=qty,
                 unit_price=up,
+                selling_price=Decimal(str(selling or 0)),
                 total_price=qty * up,
                 received_quantity=ri,
                 non_conforming_quantity=nci,
@@ -413,7 +438,7 @@ class DeliveryService:
                 location=location,
                 notes=note,
                 batch_number=batch_number,
-                barcode=barcode,
+                barcode=product_barcodes.get(pid),
             ))
         await db.commit()
         await db.refresh(d)
@@ -437,14 +462,29 @@ class DeliveryService:
         d.invoice_path = data.invoice_path or d.invoice_path
         await db.execute(sql_delete(DeliveryItem).where(DeliveryItem.delivery_id == delivery_id), execution_options={"synchronize_session": False})
         await db.flush()
+        # Code-barres et prix catalogue : source de vérité = produit.
+        product_ids = {it.product_id for it in (data.items or []) if it.product_id}
+        product_barcodes = {}
+        product_prices = {}
+        if product_ids:
+            pres = await db.execute(
+                select(Product.id, Product.barcode, Product.price).where(Product.id.in_(product_ids))
+            )
+            for pid, pbarcode, pprice in pres.all():
+                product_barcodes[pid] = pbarcode
+                product_prices[pid] = float(pprice or 0)
         for it in (data.items or []):
             qty = it.quantity or 1
             up = float(it.unit_price or 0)
+            selling = it.selling_price
+            if selling is None or float(selling or 0) <= 0:
+                selling = product_prices.get(it.product_id, 0)
             db.add(DeliveryItem(
                 delivery_id=d.id,
                 product_id=it.product_id,
                 quantity=qty,
                 unit_price=up,
+                selling_price=Decimal(str(selling or 0)),
                 total_price=qty * up,
                 received_quantity=it.received_quantity or 0,
                 non_conforming_quantity=it.non_conforming_quantity or 0,
@@ -452,7 +492,7 @@ class DeliveryService:
                 location=it.location,
                 notes=it.notes,
                 batch_number=it.batch_number,
-                barcode=it.barcode,
+                barcode=product_barcodes.get(it.product_id),
             ))
         await db.commit()
         return await DeliveryService.get_delivery(db, delivery_id)
@@ -485,7 +525,13 @@ class DeliveryService:
                     received_date=date.today(),
                     supplier_id=d.supplier_id,
                     cost_price=Decimal(str(item.unit_price or 0)),
-                    selling_price=Decimal(str(product.price if product else 0)),
+                    selling_price=Decimal(
+                        str(
+                            item.selling_price
+                            if getattr(item, "selling_price", None) and float(item.selling_price) > 0
+                            else (product.price if product else 0)
+                        )
+                    ),
                     status="active",
                 )
                 db.add(batch)
@@ -541,7 +587,13 @@ class DeliveryService:
                         received_date=date.today(),
                         supplier_id=d.supplier_id,
                         cost_price=Decimal(str(item.unit_price or 0)),
-                        selling_price=Decimal(str(product.price if product else 0)),
+                        selling_price=Decimal(
+                            str(
+                                item.selling_price
+                                if getattr(item, "selling_price", None) and float(item.selling_price) > 0
+                                else (product.price if product else 0)
+                            )
+                        ),
                         status="active",
                     ))
             d.stock_applied = True
@@ -589,6 +641,7 @@ class DeliveryItemCreateProxy:
         self.product_id = product_id
         self.quantity = quantity
         self.unit_price = unit_price
+        self.selling_price = None
         self.received_quantity = 0
         self.non_conforming_quantity = 0
         self.expiry_date = None

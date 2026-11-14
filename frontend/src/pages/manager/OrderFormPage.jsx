@@ -96,7 +96,23 @@ function OrderFormPage() {
     try {
       setIsLoading(true)
       const response = await api.get(`/manager/orders/${id}`)
-      setOrder(response.data)
+      const data = response.data || {}
+      // Normalise la réponse API vers la forme attendue par le formulaire :
+      // les Select attendent des chaînes et les lignes doivent rester éditables.
+      setOrder({
+        supplier_id: data.supplier_id ? String(data.supplier_id) : '',
+        reference: data.reference || '',
+        order_date: data.order_date || new Date().toISOString().slice(0, 10),
+        expected_delivery_date: data.expected_delivery_date || '',
+        status: data.status || 'pending',
+        priority: data.priority || 'normal',
+        notes: data.notes || '',
+        items: (data.items || []).map((item) => ({
+          product_id: item.product_id ? String(item.product_id) : '',
+          quantity: Number(item.quantity || 1),
+          unit_price: Number(item.unit_price || 0),
+        })),
+      })
     } catch (error) {
       addToast({ type: 'error', title: 'Erreur', message: 'Commande non trouvée' })
     } finally {
@@ -371,7 +387,7 @@ function OrderFormPage() {
                 <div className="space-y-4">
                   {order.items.map((item, index) => (
                     <Card key={index} className="p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                         <div className="space-y-2">
                           <Label htmlFor={`item-product-${index}`}>Produit</Label>
                           <Select
@@ -389,6 +405,19 @@ function OrderFormPage() {
                               ))}
                             </SelectContent>
                           </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`item-barcode-${index}`}>Code-barres</Label>
+                          <Input
+                            id={`item-barcode-${index}`}
+                            value={products.find(p => String(p.id) === String(item.product_id))?.barcode || ''}
+                            placeholder="—"
+                            readOnly
+                            disabled
+                            className="bg-gray-100"
+                            title="Le code-barres est défini par le produit et ne peut pas être modifié"
+                          />
                         </div>
                         
                         <div className="space-y-2">

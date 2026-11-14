@@ -200,10 +200,10 @@ function CashierPage() {
       return
     }
 
-    const result = markProductScanned(item, 1)
+    const result = markProductScanned(item, Math.max(required - (scannedByProduct[key] || 0), 1))
     setScanFeedback({
       type: 'success',
-      message: `${item.product_name} validé (${result.nextCount}/${result.required}).`
+      message: `${item.product_name} validé : ${result.nextCount}/${result.required} unité(s) contrôlée(s).`
     })
     setScanCode('')
     scanInputRef.current?.focus()

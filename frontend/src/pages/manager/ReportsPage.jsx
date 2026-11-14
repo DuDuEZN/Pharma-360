@@ -53,29 +53,55 @@ function ManagerReportsPage() {
     totalPages,
     currentPage,
   } = useTable(reports, {
-    searchKeys: ['name', 'type', 'created_at'],
+    searchKeys: ['title', 'report_type', 'generated_at'],
     initialPageSize: 10
   })
 
   const debouncedSearch = useDebounce(searchQuery, 500)
 
+  // Convertit le filtre de période en dates ISO pour l'API.
+  const getDateRange = () => {
+    const now = new Date()
+    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const start = new Date(now)
+    if (dateFilter === 'today') {
+      return { from: fmt(now), to: fmt(now) }
+    }
+    if (dateFilter === 'week') {
+      start.setDate(now.getDate() - 6)
+      return { from: fmt(start), to: fmt(now) }
+    }
+    if (dateFilter === 'month') {
+      return { from: fmt(new Date(now.getFullYear(), now.getMonth(), 1)), to: fmt(now) }
+    }
+    if (dateFilter === 'quarter') {
+      const qStartMonth = Math.floor(now.getMonth() / 3) * 3
+      return { from: fmt(new Date(now.getFullYear(), qStartMonth, 1)), to: fmt(now) }
+    }
+    if (dateFilter === 'year') {
+      return { from: fmt(new Date(now.getFullYear(), 0, 1)), to: fmt(now) }
+    }
+    return { from: undefined, to: undefined }
+  }
+
   useEffect(() => {
     fetchReports()
-  }, [])
+  }, [typeFilter, dateFilter])
 
   useEffect(() => {
     handleSearch()
-  }, [debouncedSearch, typeFilter, dateFilter])
+  }, [debouncedSearch])
 
   const fetchReports = async () => {
     try {
       setIsLoading(true)
+      const { from, to } = getDateRange()
       const response = await api.get('/manager/reports', {
         params: {
-          search: debouncedSearch || undefined,
-          type: typeFilter !== 'all' ? typeFilter : undefined,
-          date: dateFilter !== 'all' ? dateFilter : undefined,
-          limit: 100
+          report_type: typeFilter !== 'all' ? typeFilter : undefined,
+          date_from: from,
+          date_to: to,
+          page_size: 100
         }
       })
       setReports(response.data.reports || [])
@@ -93,18 +119,22 @@ function ManagerReportsPage() {
   const handleGenerateReport = async (type) => {
     try {
       setIsLoading(true)
+      const { from, to } = getDateRange()
+      const today = new Date()
+      const defaultStart = from || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`
+      const defaultEnd = to || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
       const response = await api.post('/manager/reports/generate', {
-        type: type,
-        params: {
-          date_range: dateFilter,
-          category: 'all'
-        }
+        report_type: type,
+        data_range_start: defaultStart,
+        data_range_end: defaultEnd,
+        file_format: 'pdf',
+        filters: {}
       })
       
       addToast({
         type: 'success',
         title: 'Succès',
-        message: 'Rapport généré avec succès'
+        message: `Rapport généré (${response.data?.total_records ?? 0} enregistrement(s))`
       })
       
       fetchReports()
@@ -112,7 +142,7 @@ function ManagerReportsPage() {
       addToast({
         type: 'error',
         title: 'Erreur',
-        message: 'Impossible de générer le rapport'
+        message: error.response?.data?.detail || 'Impossible de générer le rapport'
       })
     } finally {
       setIsLoading(false)
@@ -131,13 +161,21 @@ function ManagerReportsPage() {
         responseType: 'blob'
       })
       
+      let filename = `rapport_${reportId}.${format}`
+      const disposition = response.headers?.['content-disposition'] || response.headers?.['Content-Disposition']
+      if (disposition) {
+        const match = disposition.match(/filename="?([^";]+)"?/)
+        if (match) filename = match[1]
+      }
+      
       const url = window.URL.createObjectURL(new Blob([response.data]))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `rapport_${reportId}.${format}`)
+      link.setAttribute('download', filename)
       document.body.appendChild(link)
       link.click()
       link.parentNode.removeChild(link)
+      window.URL.revokeObjectURL(url)
       
       addToast({
         type: 'success',
@@ -327,20 +365,20 @@ function ManagerReportsPage() {
                 </TableHeader>
                 <TableBody>
                   {paginatedReports.map((report) => {
-                    const Icon = getReportIcon(report.type)
+                    const Icon = getReportIcon(report.report_type)
                     return (
                       <TableRow key={report.id}>
                         <TableCell className="flex items-center gap-2">
                           <Icon className="w-5 h-5 text-primary-600" />
-                          {report.name}
+                          {report.title}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{getReportTypeLabel(report.type)}</Badge>
+                          <Badge variant="secondary">{getReportTypeLabel(report.report_type)}</Badge>
                         </TableCell>
-                        <TableCell>{formatDate(report.created_at)}</TableCell>
-                        <TableCell>{report.size ? `${(report.size / 1024).toFixed(2)} KB` : '-'}</TableCell>
+                        <TableCell>{formatDate(report.generated_at)}</TableCell>
+                        <TableCell>{report.total_records ?? 0}</TableCell>
                         <TableCell>
-                          <Badge variant={report.status === 'completed' ? 'success' : 'warning'}>
+                          <Badge variant={['generated', 'completed'].includes(report.status) ? 'success' : 'warning'}>
                             {report.status}
                           </Badge>
                         </TableCell>
@@ -427,29 +465,29 @@ function ManagerReportsPage() {
                 <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600 dark:text-gray-300">Nom</p>
-                    <p className="font-medium">{selectedReport.name}</p>
+                    <p className="font-medium">{selectedReport.title}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600 dark:text-gray-300">Type</p>
-                    <Badge variant="secondary">{getReportTypeLabel(selectedReport.type)}</Badge>
+                    <Badge variant="secondary">{getReportTypeLabel(selectedReport.report_type)}</Badge>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600 dark:text-gray-300">Statut</p>
-                    <Badge variant={selectedReport.status === 'completed' ? 'success' : 'warning'}>
+                    <Badge variant={['generated', 'completed'].includes(selectedReport.status) ? 'success' : 'warning'}>
                       {selectedReport.status}
                     </Badge>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600 dark:text-gray-300">Date de création</p>
-                    <p className="font-medium">{formatDate(selectedReport.created_at)}</p>
+                    <p className="font-medium">{formatDate(selectedReport.generated_at)}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600 dark:text-gray-300">Date de début</p>
-                    <p className="font-medium">{formatDate(selectedReport.start_date)}</p>
+                    <p className="font-medium">{formatDate(selectedReport.data_range_start)}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600 dark:text-gray-300">Date de fin</p>
-                    <p className="font-medium">{formatDate(selectedReport.end_date)}</p>
+                    <p className="font-medium">{formatDate(selectedReport.data_range_end)}</p>
                   </div>
                 </CardContent>
               </Card>

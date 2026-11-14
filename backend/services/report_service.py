@@ -3,15 +3,18 @@ Report Service for Pharmacie 360 Backend
 Service for generating various reports (sales, stock, cash)
 """
 
+import csv
+import io
 import json
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any, Dict
 from typing import List as ListType
 from typing import Optional
 
 from sqlalchemy import and_, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..models.batch import Batch
 from ..models.category import Category
@@ -36,15 +39,397 @@ from ..schemas.report import (
 class ReportService:
     """Service for generating and managing reports"""
 
-    # Report directory for storing generated files
-    REPORT_DIR = "./reports"
+    # Report directory for storing generated files (volume uploads en prod)
+    REPORT_DIR = os.environ.get("REPORT_DIR", "/app/uploads/reports")
+
+    # Types exposés par l'interface : tous sont ramenés à un des trois
+    # générateurs de base.
+    REPORT_TYPE_ALIASES = {
+        "sales": "sales",
+        "daily": "sales",
+        "monthly": "sales",
+        "daily_sales": "sales",
+        "weekly_sales": "sales",
+        "monthly_sales": "sales",
+        "financial": "sales",
+        "custom": "sales",
+        "stock": "stock",
+        "inventory": "stock",
+        "expiry": "stock",
+        "supplier": "stock",
+        "returns": "stock",
+        "cash": "cash",
+    }
 
     @classmethod
     def get_report_dir(cls) -> str:
-        """Get or create report directory"""
-        if not os.path.exists(cls.REPORT_DIR):
+        """Get or create report directory (fallback si /app/uploads absent)."""
+        try:
             os.makedirs(cls.REPORT_DIR, exist_ok=True)
-        return cls.REPORT_DIR
+            return cls.REPORT_DIR
+        except OSError:
+            fallback = os.path.join(os.getcwd(), "uploads", "reports")
+            os.makedirs(fallback, exist_ok=True)
+            return fallback
+
+    @classmethod
+    def base_report_type(cls, report_type: Optional[str]) -> str:
+        return cls.REPORT_TYPE_ALIASES.get((report_type or "sales").lower(), "sales")
+
+    @staticmethod
+    async def _collect_report_data(
+        db: AsyncSession,
+        base_type: str,
+        report_type: str,
+        data_range_start: Optional[date] = None,
+        data_range_end: Optional[date] = None,
+        filters: Optional[dict] = None,
+    ):
+        """Retourne (entêtes, lignes, montant_total) pour un rapport."""
+        filters = filters or {}
+
+        def _int_filter(name):
+            value = filters.get(name)
+            try:
+                return int(value) if value not in (None, "", "all", "0") else None
+            except (TypeError, ValueError):
+                return None
+
+        if base_type == "sales":
+            query = select(Sale).options(selectinload(Sale.user))
+            if data_range_start:
+                query = query.where(Sale.created_at >= datetime.combine(data_range_start, time.min))
+            if data_range_end:
+                query = query.where(Sale.created_at <= datetime.combine(data_range_end, time.max))
+            product_id = _int_filter("product_id")
+            category_id = _int_filter("category_id")
+            user_id = _int_filter("user_id")
+            customer_id = _int_filter("customer_id")
+            if product_id:
+                query = query.where(
+                    Sale.id.in_(select(SaleItem.sale_id).where(SaleItem.product_id == product_id))
+                )
+            if category_id:
+                query = query.where(
+                    Sale.id.in_(
+                        select(SaleItem.sale_id).where(
+                            SaleItem.product_id.in_(
+                                select(Product.id).where(Product.category_id == category_id)
+                            )
+                        )
+                    )
+                )
+            if user_id:
+                query = query.where(Sale.user_id == user_id)
+            if customer_id:
+                query = query.where(Sale.customer_id == customer_id)
+            query = query.order_by(Sale.created_at.desc())
+            sales = (await db.execute(query)).scalars().all()
+            headers = [
+                "N° vente", "Date", "Caissier", "Statut", "Paiement",
+                "Sous-total", "TVA", "Remise", "Total",
+            ]
+            rows = []
+            total = 0.0
+            for s in sales:
+                cashier = getattr(s.user, "full_name", None) or getattr(s.user, "username", "") if s.user else ""
+                total += float(s.total or 0)
+                rows.append([
+                    s.sale_number,
+                    (s.created_at.strftime("%d/%m/%Y %H:%M") if s.created_at else ""),
+                    cashier,
+                    s.status,
+                    s.payment_method or "",
+                    f"{float(s.subtotal or 0):.2f}",
+                    f"{float(s.tax_amount or 0):.2f}",
+                    f"{float(s.discount or 0):.2f}",
+                    f"{float(s.total or 0):.2f}",
+                ])
+            return headers, rows, total, len(sales)
+
+        if base_type == "cash":
+            query = select(Sale).options(selectinload(Sale.user)).where(Sale.status == "paid")
+            if data_range_start:
+                query = query.where(Sale.payment_date >= datetime.combine(data_range_start, time.min))
+            if data_range_end:
+                query = query.where(Sale.payment_date <= datetime.combine(data_range_end, time.max))
+            payment_method = filters.get("payment_method")
+            if payment_method and payment_method not in ("all", ""):
+                query = query.where(Sale.payment_method == payment_method)
+            user_id = _int_filter("user_id")
+            if user_id:
+                query = query.where(Sale.user_id == user_id)
+            query = query.order_by(Sale.payment_date.desc().nullslast(), Sale.created_at.desc())
+            sales = (await db.execute(query)).scalars().all()
+            headers = ["N° vente", "Date paiement", "Caissier", "Mode de paiement", "Référence", "Total"]
+            rows = []
+            total = 0.0
+            for s in sales:
+                cashier = getattr(s.user, "full_name", None) or getattr(s.user, "username", "") if s.user else ""
+                total += float(s.total or 0)
+                paid_at = s.payment_date or s.created_at
+                rows.append([
+                    s.sale_number,
+                    (paid_at.strftime("%d/%m/%Y %H:%M") if paid_at else ""),
+                    cashier,
+                    s.payment_method or "",
+                    s.payment_reference or "",
+                    f"{float(s.total or 0):.2f}",
+                ])
+            return headers, rows, total, len(sales)
+
+        # Stock / inventaire / péremption / fournisseurs / retours
+        if (report_type or "").lower() == "expiry":
+            query = select(Batch).options(selectinload(Batch.product))
+            limit_date = data_range_end or (date.today() + timedelta(days=90))
+            query = query.where(Batch.expiry_date.is_not(None), Batch.expiry_date <= limit_date)
+            query = query.order_by(Batch.expiry_date.asc())
+            batches = (await db.execute(query)).scalars().all()
+            headers = ["Produit", "Code-barres", "Lot", "Péremption", "Boîtes", "Vrac", "Emplacement"]
+            rows = []
+            total_value = 0.0
+            for b in batches:
+                product = b.product
+                price = float(product.price or 0) if product else 0.0
+                total_value += int(b.quantity or 0) * price
+                rows.append([
+                    product.name if product else "",
+                    product.barcode if product else "",
+                    b.batch_number,
+                    b.expiry_date.strftime("%d/%m/%Y") if b.expiry_date else "",
+                    int(b.quantity or 0),
+                    int(getattr(b, "bulk_quantity", 0) or 0),
+                    b.location or "",
+                ])
+            return headers, rows, total_value, len(batches)
+
+        query = select(Product).options(selectinload(Product.category), selectinload(Product.batches))
+        product_id = _int_filter("product_id")
+        category_id = _int_filter("category_id")
+        if product_id:
+            query = query.where(Product.id == product_id)
+        if category_id:
+            query = query.where(Product.category_id == category_id)
+        min_quantity = _int_filter("min_quantity")
+        if min_quantity:
+            query = query.where(Product.stock_min >= min_quantity)
+        query = query.order_by(Product.name.asc())
+        products = (await db.execute(query)).scalars().all()
+        headers = [
+            "ID", "Produit", "Code-barres", "Catégorie", "Boîtes", "Vrac",
+            "Stock minimum", "Prix", "Valeur stock",
+        ]
+        rows = []
+        total_value = 0.0
+        for p in products:
+            boxes = int(p.current_stock or 0)
+            bulk = int(p.current_bulk_stock or 0)
+            price = float(p.price or 0)
+            bulk_price = float(p.bulk_unit_price or 0)
+            value = boxes * price + bulk * bulk_price
+            total_value += value
+            rows.append([
+                p.id,
+                p.name,
+                p.barcode or "",
+                p.category.name if p.category else "",
+                boxes,
+                bulk,
+                int(p.stock_min or 0),
+                f"{price:.2f}",
+                f"{value:.2f}",
+            ])
+        return headers, rows, total_value, len(products)
+
+    @staticmethod
+    def _build_csv(headers, rows) -> bytes:
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=";")
+        writer.writerow(headers)
+        for row in rows:
+            writer.writerow(row)
+        # BOM UTF-8 : Excel reconnaît les accents.
+        return ("\ufeff" + output.getvalue()).encode("utf-8")
+
+    @staticmethod
+    def _build_pdf(title: str, subtitle: str, headers, rows, total_label: str, total_value: float) -> bytes:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import mm
+        from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, TableStyle
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(A4),
+            leftMargin=12 * mm,
+            rightMargin=12 * mm,
+            topMargin=12 * mm,
+            bottomMargin=12 * mm,
+            title=title,
+            author="Pharma 360",
+        )
+        styles = getSampleStyleSheet()
+        elements = [
+            Paragraph(title, styles["Title"]),
+            Paragraph(subtitle, styles["Normal"]),
+            Spacer(1, 6 * mm),
+        ]
+        data = [list(map(str, headers))] + [list(map(lambda v: "" if v is None else str(v), row)) for row in rows]
+        if len(data) == 1:
+            data.append(["Aucune donnée pour cette période"] + [""] * (len(headers) - 1))
+        table = LongTable(data, repeatRows=1, hAlign="LEFT")
+        table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1d4ed8")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ])
+        )
+        elements.append(table)
+        elements.append(Spacer(1, 6 * mm))
+        elements.append(
+            Paragraph(f"<b>{total_label} : {total_value:,.2f} FCFA</b>", styles["Normal"])
+        )
+        elements.append(
+            Paragraph(
+                f"<i>Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')} par Pharma 360</i>",
+                styles["Normal"],
+            )
+        )
+        doc.build(elements)
+        return buffer.getvalue()
+
+    @classmethod
+    def render_report_content(
+        cls,
+        title: str,
+        report_type: str,
+        headers,
+        rows,
+        total_value: float,
+        file_format: str,
+        data_range_start: Optional[date] = None,
+        data_range_end: Optional[date] = None,
+    ):
+        """Retourne (contenu, extension, media_type)."""
+        fmt = (file_format or "csv").lower()
+        period = "Période non précisée"
+        if data_range_start or data_range_end:
+            period = "Du %s au %s" % (
+                data_range_start.strftime("%d/%m/%Y") if data_range_start else "début",
+                data_range_end.strftime("%d/%m/%Y") if data_range_end else "aujourd'hui",
+            )
+        base = cls.base_report_type(report_type)
+        total_label = "Montant total" if base in ("sales", "cash") else "Valeur du stock"
+        if fmt == "pdf":
+            try:
+                content = cls._build_pdf(title, period, headers, rows, total_label, total_value)
+                return content, "pdf", "application/pdf"
+            except Exception:
+                # reportlab indisponible : on retombe proprement sur le CSV.
+                fmt = "csv"
+        content = cls._build_csv(headers, rows)
+        return content, "csv", "text/csv; charset=utf-8"
+
+    @classmethod
+    async def generate_report_record(
+        cls,
+        db: AsyncSession,
+        report_type: str,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        data_range_start: Optional[date] = None,
+        data_range_end: Optional[date] = None,
+        file_format: str = "pdf",
+        filters: Optional[dict] = None,
+        user_id: Optional[int] = None,
+    ) -> Report:
+        """Génère un rapport, l'enregistre et écrit son fichier téléchargeable."""
+        base_type = cls.base_report_type(report_type)
+        labels = {
+            "sales": "Rapport de ventes",
+            "stock": "Rapport de stock",
+            "cash": "Rapport de caisse",
+        }
+        title = title or f"{labels.get(base_type, 'Rapport')} - {date.today().isoformat()}"
+        description = description or (
+            f"{labels.get(base_type, 'Rapport')} du "
+            f"{data_range_start.isoformat() if data_range_start else 'début'} au "
+            f"{data_range_end.isoformat() if data_range_end else date.today().isoformat()}"
+        )
+        filters = filters or {}
+
+        headers, rows, total_amount, total_records = await cls._collect_report_data(
+            db, base_type, report_type, data_range_start, data_range_end, filters
+        )
+
+        report = Report(
+            report_type=(report_type or base_type).lower(),
+            title=title,
+            description=description,
+            generated_by=user_id,
+            parameters=json.dumps(
+                {
+                    "report_type": report_type,
+                    "filters": filters,
+                    "data_range_start": data_range_start.isoformat() if data_range_start else None,
+                    "data_range_end": data_range_end.isoformat() if data_range_end else None,
+                }
+            ),
+            file_format=file_format,
+            data_range_start=data_range_start,
+            data_range_end=data_range_end,
+            total_records=total_records,
+            total_amount=total_amount,
+            status="generated",
+        )
+        db.add(report)
+        await db.commit()
+        await db.refresh(report)
+
+        content, ext, _media = cls.render_report_content(
+            title, report_type, headers, rows, total_amount, file_format,
+            data_range_start, data_range_end,
+        )
+        report_dir = cls.get_report_dir()
+        filename = f"report_{report.id}_{date.today().isoformat()}.{ext}"
+        filepath = os.path.join(report_dir, filename)
+        with open(filepath, "wb") as fh:
+            fh.write(content)
+        report.file_path = filepath
+        report.file_format = ext
+        await db.commit()
+        await db.refresh(report)
+        return report
+
+    @classmethod
+    async def build_report_file(cls, report: Report, db: AsyncSession):
+        """Reconstruit le fichier d'un rapport (utilisé au téléchargement)."""
+        try:
+            params = json.loads(report.parameters or "{}")
+        except (TypeError, ValueError):
+            params = {}
+        filters = params.get("filters") or {}
+        base_type = cls.base_report_type(report.report_type)
+        headers, rows, total_amount, _total_records = await cls._collect_report_data(
+            db, base_type, report.report_type,
+            report.data_range_start, report.data_range_end, filters,
+        )
+        content, ext, media_type = cls.render_report_content(
+            report.title, report.report_type, headers, rows, total_amount,
+            report.file_format or "csv", report.data_range_start, report.data_range_end,
+        )
+        filename = f"rapport_{report.id}_{date.today().isoformat()}.{ext}"
+        return content, filename, media_type
 
     @staticmethod
     async def generate_sales_report(
@@ -183,7 +568,11 @@ class ReportService:
         products = result.scalars().all()
 
         total_records = len(products)
-        total_value = sum(p.current_stock * p.selling_price for p in products)
+        total_value = sum(
+            int(p.current_stock or 0) * float(p.price or 0)
+            + int(p.current_bulk_stock or 0) * float(p.bulk_unit_price or 0)
+            for p in products
+        )
 
         # Create report record
         report = Report(
@@ -307,7 +696,7 @@ class ReportService:
         offset = (page - 1) * page_size
 
         # Build query
-        query = select(Report)
+        query = select(Report).options(selectinload(Report.generated_by_user))
         count_query = select(func.count()).select_from(Report)
 
         # Apply filters
