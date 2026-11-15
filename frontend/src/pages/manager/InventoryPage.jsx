@@ -75,6 +75,7 @@ function InventoryPage() {
   const statusOptions = [
     { value: 'all', label: 'Tous' },
     { value: 'low', label: 'Stock Faible' },
+    { value: 'rupture', label: 'Rupture' },
     { value: 'expiring', label: 'Péremption Proche' },
     { value: 'expired', label: 'Périmé' },
   ]
@@ -143,7 +144,8 @@ function InventoryPage() {
       )
 
       const matchesStatus = filterStatus === 'all' ||
-        (filterStatus === 'low' && batch.quantity < 10) ||
+        (filterStatus === 'low' && batch.quantity < 10 && batch.quantity > 0) ||
+        (filterStatus === 'rupture' && (batch.quantity === 0 || batch.quantity === null)) ||
         (filterStatus === 'expiring' && batch.is_expiring_soon) ||
         (filterStatus === 'expired' && batch.is_expired)
 

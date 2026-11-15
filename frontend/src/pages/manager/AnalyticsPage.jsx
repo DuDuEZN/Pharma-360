@@ -18,10 +18,13 @@ function AnalyticsPage() {
   const [topProducts, setTopProducts] = useState([])
   const [marginTrend, setMarginTrend] = useState(null)
   const [productStats, setProductStats] = useState([])
+  const [iaPredictions, setIaPredictions] = useState([])
   const [trendProductId, setTrendProductId] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('month')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [productFilter, setProductFilter] = useState('all')
+  const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const { addToast } = useToast()
 
@@ -39,12 +42,14 @@ function AnalyticsPage() {
 
   useEffect(() => {
     fetchAnalytics()
-  }, [timeRange, categoryFilter])
+  }, [timeRange, categoryFilter, productFilter])
 
   const fetchCategories = async () => {
     try {
       const response = await api.get('/products/categories')
       setCategories(response.data.categories || [])
+      const prodRes = await api.get('/products', { params: { page: 1, page_size: 200, is_active: true } })
+      setProducts(prodRes.data.products || [])
     } catch (error) {
       console.error('Failed to fetch categories:', error)
     }
@@ -60,8 +65,8 @@ function AnalyticsPage() {
         api.get('/analytics/sales', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
         api.get('/analytics/stock', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
         api.get('/analytics/top-products', { params: { range: timeRange, limit: 10 } }),
-        api.get('/analytics/product-margin-trend', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
-        api.get('/analytics/product-stats', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } })
+        api.get('/analytics/product-margin-trend', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined, product_id: productFilter !== 'all' ? productFilter : undefined } }),
+        api.get('/analytics/product-stats', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined, product_id: productFilter !== 'all' ? productFilter : undefined } })
       ])
       
       setStats(statsRes.data)
@@ -70,6 +75,15 @@ function AnalyticsPage() {
       setTopProducts(productsRes.data.products || [])
       setMarginTrend(marginRes.data)
       setProductStats(productStatsRes.data.products || [])
+
+      // Prévisions IA (best-effort, ne bloque pas l'affichage).
+      try {
+        const iaRes = await fetch('http://localhost:8001/api/v1/dashboard/predictions')
+        const iaJson = await iaRes.json()
+        setIaPredictions(iaJson?.data || [])
+      } catch {
+        setIaPredictions([])
+      }
     } catch (error) {
       addToast({
         type: 'error',
@@ -383,6 +397,20 @@ function AnalyticsPage() {
               {categories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id.toString()}>
                   {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select value={productFilter} onValueChange={setProductFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Produit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les produits</SelectItem>
+              {products.map((p) => (
+                <SelectItem key={p.id} value={p.id.toString()}>
+                  {p.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -808,7 +836,34 @@ function AnalyticsPage() {
                 }
               />
 
-              {/* Statistiques journalières/périodiques par produit */}
+              {/* Prévisions IA */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    Prévisions IA (ventes)
+                  </CardTitle>
+                  <CardDescription>
+                    Prévisions générées par le module IA à partir des données de ventes et de stock.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {iaPredictions.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4 text-sm">
+                      Aucune prévision disponible pour le moment (le module IA nécessite des données historiques).
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {iaPredictions.slice(0, 10).map((p, i) => (
+                        <div key={i} className="flex items-center justify-between text-sm border-b border-gray-100 dark:border-gray-700 py-2">
+                          <span>{p.product_name || p.product || `Produit ${i + 1}`}</span>
+                          <span className="font-medium">{p.predicted_sales ?? p.value ?? '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>}
               <Card>
                 <CardHeader>
                   <CardTitle>Statistiques par produit</CardTitle>

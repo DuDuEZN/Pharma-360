@@ -9,6 +9,7 @@ from .customer import Customer
 from .order import Order, OrderItem, Delivery, DeliveryItem
 from .invoice import Invoice
 from .movement import Movement
+from .permission import Permission, RolePermission
 from .product import Product
 from .report import Report
 from .return_ import Return

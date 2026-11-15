@@ -76,6 +76,33 @@ async def startup_event():
                 await conn.execute(text("ALTER TABLE expired_products_log ALTER COLUMN expiry_date TYPE DATE USING expiry_date::date"))
             except Exception:
                 pass
+            # Tables RBAC roles/permissions (création idempotente).
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS roles (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(50) UNIQUE NOT NULL,
+                    description TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS permissions (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(80) UNIQUE NOT NULL,
+                    description TEXT,
+                    category VARCHAR(50),
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS role_permissions (
+                    id SERIAL PRIMARY KEY,
+                    role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+                    permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+                    UNIQUE(role_id, permission_id)
+                )
+            """))
     except Exception as exc:
         logger.warning("Audit tables init failed: %s", exc)
 

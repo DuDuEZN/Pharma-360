@@ -22,6 +22,7 @@ from .ocr_integration import router as ocr_router
 from .orders import router as orders_router
 from .products import router as products_router
 from .reports import router as reports_router
+from .roles import router as roles_router
 from .returns import router as returns_router
 from .settings import router as settings_router
 from .manager_reports import router as manager_reports_router
@@ -54,6 +55,7 @@ routers = [
     suppliers_router,
     sale_history_router,
     reports_router,
+    roles_router,
     docs_router,
     ocr_router,
     orders_router,
