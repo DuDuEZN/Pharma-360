@@ -119,7 +119,8 @@ async def metrics():
     from backend.models.batch import Batch
     from backend.models.sale import Sale
     from backend.models.user import User
-    from datetime import date, datetime, time
+    from backend.models.category import Category
+    from datetime import date, datetime, time, timedelta
 
     lines = []
     lines.append("# HELP pharma360_up Service Pharma-360 disponible")
@@ -140,6 +141,32 @@ async def metrics():
             revenue_today = (await session.execute(
                 select(func.coalesce(func.sum(Sale.total), 0)).where(Sale.created_at >= today_start)
             )).scalar() or 0
+            sales_total = (await session.execute(select(func.count(Sale.id)))).scalar() or 0
+            revenue_total = (await session.execute(select(func.coalesce(func.sum(Sale.total), 0)))).scalar() or 0
+            low_stock = (await session.execute(
+                select(func.count(Product.id)).where(Product.current_stock <= Product.stock_min)
+            )).scalar() or 0
+            expiring_soon = (await session.execute(
+                select(func.count(Batch.id)).where(
+                    Batch.expiry_date >= date.today(),
+                    Batch.expiry_date <= date.today() + timedelta(days=30),
+                    Batch.status == "active",
+                )
+            )).scalar() or 0
+
+            cat_rows = (await session.execute(
+                select(Category.name, func.coalesce(func.sum(Batch.quantity), 0))
+                .select_from(Category)
+                .join(Product, Product.category_id == Category.id, isouter=True)
+                .join(Batch, Batch.product_id == Product.id, isouter=True)
+                .group_by(Category.name)
+            )).all()
+
+            price_rows = (await session.execute(
+                select(Product.id, Product.name, Product.price, Product.cost_price)
+                .where(Product.is_active == True)
+            )).all()
+
         lines.append("# HELP pharma360_products_total Nombre de produits")
         lines.append("# TYPE pharma360_products_total gauge")
         lines.append(f"pharma360_products_total {products_total}")
@@ -158,6 +185,31 @@ async def metrics():
         lines.append("# HELP pharma360_revenue_today Chiffre d'affaires aujourd'hui")
         lines.append("# TYPE pharma360_revenue_today gauge")
         lines.append(f"pharma360_revenue_today {revenue_today}")
+        lines.append("# HELP pharma360_sales_total Ventes cumulees (compteur)")
+        lines.append("# TYPE pharma360_sales_total counter")
+        lines.append(f"pharma360_sales_total {sales_total}")
+        lines.append("# HELP pharma360_revenue_total Chiffre d'affaires cumule (compteur)")
+        lines.append("# TYPE pharma360_revenue_total counter")
+        lines.append(f"pharma360_revenue_total {revenue_total}")
+        lines.append("# HELP pharma360_low_stock_total Nombre de produits en stock faible")
+        lines.append("# TYPE pharma360_low_stock_total gauge")
+        lines.append(f"pharma360_low_stock_total {low_stock}")
+        lines.append("# HELP pharma360_expiring_soon_total Lots expirant sous 30 jours")
+        lines.append("# TYPE pharma360_expiring_soon_total gauge")
+        lines.append(f"pharma360_expiring_soon_total {expiring_soon}")
+
+        lines.append("# HELP pharma360_stock_by_category Stock par categorie")
+        lines.append("# TYPE pharma360_stock_by_category gauge")
+        for name, qty in cat_rows:
+            safe = (name or "Autres").replace('"', '\\"')
+            lines.append(f'pharma360_stock_by_category{{category="{safe}"}} {qty or 0}')
+
+        lines.append("# HELP pharma360_product_price Prix d'achat et de vente par produit")
+        lines.append("# TYPE pharma360_product_price gauge")
+        for pid, name, selling, cost in price_rows:
+            safe = (name or f"Produit {pid}").replace('"', '\\"')
+            lines.append(f'pharma360_product_price{{product="{safe}",type="purchase"}} {float(cost or 0)}')
+            lines.append(f'pharma360_product_price{{product="{safe}",type="selling"}} {float(selling or 0)}')
     except Exception as exc:
         lines.append(f"# error: {exc}")
     return Response(content="\n".join(lines) + "\n", media_type="text/plain; version=0.0.4")
