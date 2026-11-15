@@ -1,6 +1,7 @@
 # Models Package
 # Contains SQLAlchemy models for all database tables
 
+from .audit_log import AuditLog, ExpiredProductLog
 from .batch import Batch
 from .cash_session import CashSession
 from .category import Category
@@ -32,6 +33,8 @@ __all__ = [
     "Customer",
     "Invoice",
     "Movement",
+    "AuditLog",
+    "ExpiredProductLog",
     "SaleHistory",
     "Report",
 ]

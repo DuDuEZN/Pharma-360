@@ -123,11 +123,9 @@ function ManagerSettingsPage() {
       // tickets, factures et étiquettes : ils sont stockés côté serveur.
       try {
         const response = await api.get('/settings/pharmacy')
-        const remote = Object.fromEntries(
-          Object.entries(response.data || {}).filter(
-            ([, value]) => value !== '' && value !== null && value !== undefined
-          )
-        )
+        const remote = response.data || {}
+        // On applique aussi les valeurs vides : vider un champ dans les
+        // paramètres doit le retirer des documents et du cache local.
         setSettings(prev => ({ ...prev, ...remote }))
         localStorage.setItem(
           'pharma360_manager_settings',

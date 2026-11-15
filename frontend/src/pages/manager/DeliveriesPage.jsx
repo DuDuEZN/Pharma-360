@@ -540,27 +540,28 @@ function DeliveriesPage() {
                         <TableHead>Code-barres</TableHead>
                         <TableHead>Commandé</TableHead>
                         <TableHead>Reçu</TableHead>
+                        <TableHead>Retourné</TableHead>
+                        <TableHead>Entré en stock</TableHead>
                         <TableHead>Lot</TableHead>
                         <TableHead>Péremption</TableHead>
-                        <TableHead>Écart</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedDelivery.items?.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.product_name}</TableCell>
-                          <TableCell className="font-mono">{item.barcode || item.product_barcode || '—'}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>{item.received_quantity || 0}</TableCell>
-                          <TableCell className="font-mono">{item.batch_number || '—'}</TableCell>
-                          <TableCell>{item.expiry_date ? formatDate(item.expiry_date) : '—'}</TableCell>
-                          <TableCell>
-                            <Badge variant={(item.non_conforming_quantity || 0) > 0 ? 'warning' : 'success'}>
-                              {item.non_conforming_quantity || 0} non conforme(s)
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {selectedDelivery.items?.map((item, index) => {
+                        const entered = Math.max(0, (item.received_quantity || 0) - (item.non_conforming_quantity || 0))
+                        return (
+                          <TableRow key={index}>
+                            <TableCell>{item.product_name}</TableCell>
+                            <TableCell className="font-mono">{item.barcode || item.product_barcode || '—'}</TableCell>
+                            <TableCell>{item.quantity}</TableCell>
+                            <TableCell>{item.received_quantity || 0}</TableCell>
+                            <TableCell>{item.non_conforming_quantity || 0}</TableCell>
+                            <TableCell className="font-semibold text-success-700">{entered}</TableCell>
+                            <TableCell className="font-mono">{item.batch_number || '—'}</TableCell>
+                            <TableCell>{item.expiry_date ? formatDate(item.expiry_date) : '—'}</TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </CardContent>

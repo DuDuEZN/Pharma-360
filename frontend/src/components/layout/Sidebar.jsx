@@ -66,7 +66,7 @@ function Sidebar({ mobileOpen = false, onClose }) {
 
       <aside
         className={cn(
-          'fixed left-0 top-0 z-50 flex h-screen w-[264px] flex-col border-r border-black/[0.06] bg-white/75 backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-[320ms] ease-spring dark:border-white/10 dark:bg-[#161617]/80 lg:translate-x-0',
+          'fixed left-0 top-0 z-50 flex h-screen w-[264px] flex-col border-r border-black/[0.06] bg-gray-100/60 backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-[320ms] ease-spring dark:border-white/10 dark:bg-[#161617]/80 lg:translate-x-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >

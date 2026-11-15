@@ -19,7 +19,7 @@ function Header({ onMenuClick }) {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-white/70 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-black/60">
+    <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-gray-100/60 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-black/60">
       <div className="mx-auto flex h-[68px] w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         {/* Mobile menu button */}
         <button

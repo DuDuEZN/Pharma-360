@@ -30,6 +30,7 @@ function InventoryPage() {
   
   const [products, setProducts] = useState([])
   const [batches, setBatches] = useState([])
+  const [categories, setCategories] = useState([])
   const [suppliers, setSuppliers] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -103,6 +104,14 @@ function InventoryPage() {
       })
       setProducts(productsResponse.data.products || [])
       
+      // Fetch categories (pour le filtre déroulant)
+      try {
+        const categoriesResponse = await api.get('/products/categories')
+        setCategories(categoriesResponse.data.categories || [])
+      } catch (e) {
+        setCategories([])
+      }
+      
       // Fetch batches
       const batchesResponse = await api.get('/batches', {
         params: { 
@@ -166,12 +175,15 @@ function InventoryPage() {
 
   // Options de filtre dérivées
   const categoryOptions = useMemo(() => {
+    if (categories.length > 0) {
+      return [{ value: 'all', label: 'Toutes les catégories' }, ...categories.map(c => ({ value: String(c.id), label: c.name }))]
+    }
     const map = new Map()
     products.forEach(p => {
       if (p.category_id && p.category?.name) map.set(String(p.category_id), p.category.name)
     })
     return [{ value: 'all', label: 'Toutes les catégories' }, ...Array.from(map, ([v,l]) => ({ value: v, label: l }))]
-  }, [products])
+  }, [categories, products])
 
   const locationOptions = useMemo(() => {
     const set = new Set(batches.map(b => b.location).filter(Boolean))
@@ -344,6 +356,39 @@ function InventoryPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handlePrintInventorySheet = () => {
+    const rows = filteredBatches.map(b => {
+      const p = products.find(x => String(x.id) === String(b.product_id))
+      const conforming = Math.max(0, Number(b.quantity || 0))
+      return `<tr>
+        <td>${p?.name || ''}</td>
+        <td>${p?.barcode || ''}</td>
+        <td>${p?.category?.name || ''}</td>
+        <td>${b.batch_number || ''}</td>
+        <td>${b.location || ''}</td>
+        <td style="text-align:center">${b.quantity || 0}</td>
+        <td style="text-align:center">${b.bulk_quantity || 0}</td>
+        <td>${b.expiry_date ? new Date(b.expiry_date).toLocaleDateString('fr-FR') : ''}</td>
+      </tr>`
+    }).join('')
+    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Fiche d'inventaire</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:24px;color:#111}
+h1{font-size:18px;margin:0 0 4px}
+p{margin:0 0 12px;color:#555;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th,td{border:1px solid #999;padding:5px 7px;text-align:left}
+th{background:#f2f2f2}
+@media print{body{margin:0}}
+</style></head><body onload="window.print()">
+<h1>Fiche d'inventaire</h1>
+<p>Générée le ${new Date().toLocaleDateString('fr-FR')} — ${filteredBatches.length} lot(s)</p>
+<table><thead><tr><th>Produit</th><th>Code-barres</th><th>Catégorie</th><th>Lot</th><th>Emplacement</th><th>Boîtes</th><th>Vrac</th><th>Péremption</th></tr></thead><tbody>${rows || '<tr><td colspan="8" style="text-align:center">Aucun lot</td></tr>'}</tbody></table>
+</body></html>`
+    const w = window.open('', '_blank')
+    if (w) { w.document.write(html); w.document.close() }
   }
 
   const handleAdjustStock = async () => {
@@ -522,6 +567,14 @@ function InventoryPage() {
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   Importer CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrintInventorySheet}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Fiche d'inventaire
                 </Button>
                 <input
                   id="import-stock-file"

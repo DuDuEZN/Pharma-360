@@ -12,7 +12,6 @@ import {
   PHARMACY_UPDATED_EVENT,
   getCachedPharmacy,
   normalizePharmacy,
-  readLocalPharmacySettings,
 } from '@/lib/pharmacy'
 
 const PharmacyContext = createContext(null)
@@ -28,8 +27,10 @@ export function PharmacyProvider({ children }) {
   const refresh = useCallback(async () => {
     try {
       const { data } = await api.get('/settings/pharmacy')
-      // Les paramètres serveur priment, le cache local complète les champs vides.
-      setPharmacy(normalizePharmacy(data, readLocalPharmacySettings()))
+      // Le serveur est la source de vérité : un champ vidé dans les
+      // paramètres doit aussi disparaître des documents. Le cache local ne
+      // sert qu'à l'affichage immédiat avant la réponse réseau.
+      setPharmacy(normalizePharmacy(data))
     } catch {
       // Hors ligne ou non authentifié : on garde la valeur du cache.
       setPharmacy(getCachedPharmacy())
@@ -42,10 +43,9 @@ export function PharmacyProvider({ children }) {
   }, [user, refresh])
 
   useEffect(() => {
-    const handleUpdated = (event) => {
-      setPharmacy(
-        normalizePharmacy(event?.detail, readLocalPharmacySettings())
-      )
+    const handleUpdated = () => {
+      // Les paramètres viennent d'être enregistrés : on relit la source de
+      // vérité serveur plutôt que de fusionner un éventuel ancien cache.
       if (user) refresh()
     }
     window.addEventListener(PHARMACY_UPDATED_EVENT, handleUpdated)

@@ -34,6 +34,45 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup_event():
     logger.info("Application starting up")
+    # Création idempotente des tables d'audit (pour les déploiements existants).
+    try:
+        from sqlalchemy import text
+        from backend.core.database import engine
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    id SERIAL PRIMARY KEY,
+                    action VARCHAR(50) NOT NULL,
+                    entity_type VARCHAR(50),
+                    entity_id INTEGER,
+                    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    username VARCHAR(100),
+                    method VARCHAR(10),
+                    path VARCHAR(255),
+                    details TEXT,
+                    ip_address VARCHAR(45),
+                    status_code INTEGER,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS expired_products_log (
+                    id SERIAL PRIMARY KEY,
+                    product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+                    batch_id INTEGER REFERENCES batches(id) ON DELETE SET NULL,
+                    batch_number VARCHAR(50),
+                    quantity INTEGER NOT NULL DEFAULT 0,
+                    expiry_date TIMESTAMP,
+                    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    reason TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_action ON audit_logs(action)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_created_at ON audit_logs(created_at)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_expired_products_log_created_at ON expired_products_log(created_at)"))
+    except Exception as exc:
+        logger.warning("Audit tables init failed: %s", exc)
 
 
 @app.on_event("shutdown")
@@ -108,6 +147,45 @@ async def logging_middleware(request: Request, call_next):
             duration_ms=process_time,
             client=request.client.host if request.client else None,
         )
+
+    # Audit trail pour toutes les actions modifiantes (POST/PUT/PATCH/DELETE).
+    # Best-effort : ne doit jamais faire échouer la requête.
+    if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.url.path.startswith("/api"):
+        try:
+            import asyncio
+            from backend.services.audit_service import AuditService
+            from backend.core.database import async_session_maker
+            from backend.core.security import JWTUtils
+
+            token = None
+            auth = request.headers.get("authorization", "")
+            if auth.lower().startswith("bearer "):
+                token = auth.split(" ", 1)[1].strip()
+            user_id = None
+            username = None
+            if token:
+                try:
+                    payload = JWTUtils.decode_token(token)
+                    if payload.get("sub"):
+                        user_id = int(payload.get("sub"))
+                        username = payload.get("username")
+                except Exception:
+                    pass
+            # Ignore les endpoints d'audit pour éviter la récursion.
+            if not request.url.path.startswith("/api/v1/audit"):
+                async with async_session_maker() as session:
+                    await AuditService.log(
+                        db=session,
+                        action=f"{request.method} {request.url.path}",
+                        user_id=user_id,
+                        username=username,
+                        method=request.method,
+                        path=str(request.url.path),
+                        ip_address=request.client.host if request.client else None,
+                        status_code=response.status_code,
+                    )
+        except Exception:
+            pass
     return response
 
 

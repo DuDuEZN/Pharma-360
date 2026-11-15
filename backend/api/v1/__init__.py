@@ -6,6 +6,7 @@ Contains all v1 endpoints
 from .admin_analytics import router as admin_analytics_router
 from .analytics import router as analytics_router
 from .alerts import router as alerts_router
+from .audit_logs import router as audit_logs_router
 from .auth import router as auth_router
 from .barcode import router as barcode_router
 from .batches import router as batches_router
@@ -45,6 +46,7 @@ routers = [
     movements_router,
     barcode_router,
     alerts_router,
+    audit_logs_router,
     returns_router,
     invoices_router,
     settings_router,

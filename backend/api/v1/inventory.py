@@ -28,6 +28,7 @@ from ...schemas.inventory import (
     StockUpdate,
 )
 from ...services.inventory_service import InventoryService
+from ...services.audit_service import AuditService
 from ...core.security import RBACUtils, get_current_user
 
 # Create router
@@ -235,7 +236,8 @@ async def remove_expired_products(
     removed_count = 0
     removed_quantity = 0
     for batch in expired_batches:
-        removed_quantity += batch.quantity
+        qty = int(batch.quantity or 0)
+        removed_quantity += qty
         batch.quantity = 0
         batch.status = "expired"
 
@@ -243,14 +245,26 @@ async def remove_expired_products(
             type="out",
             product_id=batch.product_id,
             batch_id=batch.id,
-            old_quantity=batch.quantity,
+            old_quantity=qty,
             new_quantity=0,
-            quantity_change=-batch.quantity,
+            quantity_change=-qty,
             user_id=current_user.id,
             reason="Retrait produit périmé",
             notes=f"Lot {batch.batch_number} périmé le {batch.expiry_date}",
         )
         db.add(db_movement)
+
+        # Tracabilité dédiée des produits périmés retirés du stock.
+        await AuditService.log_expired_product(
+            db=db,
+            product_id=batch.product_id,
+            batch_id=batch.id,
+            batch_number=batch.batch_number,
+            quantity=qty,
+            expiry_date=batch.expiry_date,
+            user_id=current_user.id,
+            reason=f"Lot {batch.batch_number} périmé le {batch.expiry_date}",
+        )
         removed_count += 1
 
     await db.commit()
