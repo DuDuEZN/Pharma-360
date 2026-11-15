@@ -1,0 +1,77 @@
+{
+  "id": null,
+  "uid": "pharma360",
+  "title": "Pharma-360 - Rapports",
+  "tags": ["pharma360"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Produits",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "targets": [{ "expr": "pharma360_products_total", "legendFormat": "produits" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "value" }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Stock total",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "targets": [{ "expr": "pharma360_stock_total", "legendFormat": "unites" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "value" }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Ventes aujourd'hui",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "targets": [{ "expr": "pharma360_sales_today_total", "legendFormat": "ventes" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "value" }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "CA aujourd'hui",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "targets": [{ "expr": "pharma360_revenue_today", "legendFormat": "FCFA" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "value" }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Lots perimes",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "targets": [{ "expr": "pharma360_expired_batches", "legendFormat": "lots" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "value" }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Utilisateurs",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "targets": [{ "expr": "pharma360_users_total", "legendFormat": "users" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "value" }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Stock total dans le temps",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [{ "expr": "pharma360_stock_total", "legendFormat": "stock" }]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Ventes et CA aujourd'hui",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "pharma360_sales_today_total", "legendFormat": "ventes" },
+        { "expr": "pharma360_revenue_today", "legendFormat": "CA" }
+      ]
+    }
+  ]
+}

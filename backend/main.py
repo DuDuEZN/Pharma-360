@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.core.config import settings
@@ -110,15 +110,57 @@ async def health_check():
     )
 
 
-@app.get("/", tags=["root"])
-async def root():
-    return JSONResponse(
-        content={
-            "message": f"Welcome to {settings.app_name}",
-            "version": settings.app_version,
-            "docs": "/docs",
-        }
-    )
+@app.get("/metrics", tags=["metrics"])
+async def metrics():
+    """Endpoint Prometheus (format texte) pour la supervision et Grafana."""
+    from sqlalchemy import select, func
+    from backend.core.database import async_session_maker
+    from backend.models.product import Product
+    from backend.models.batch import Batch
+    from backend.models.sale import Sale
+    from backend.models.user import User
+    from datetime import date, datetime, time
+
+    lines = []
+    lines.append("# HELP pharma360_up Service Pharma-360 disponible")
+    lines.append("# TYPE pharma360_up gauge")
+    lines.append("pharma360_up 1")
+    try:
+        async with async_session_maker() as session:
+            products_total = (await session.execute(select(func.count(Product.id)))).scalar() or 0
+            stock_total = (await session.execute(select(func.coalesce(func.sum(Batch.quantity), 0)))).scalar() or 0
+            expired = (await session.execute(
+                select(func.count(Batch.id)).where(Batch.expiry_date < date.today(), Batch.status == "active")
+            )).scalar() or 0
+            users_total = (await session.execute(select(func.count(User.id)))).scalar() or 0
+            today_start = datetime.combine(date.today(), time.min)
+            sales_today = (await session.execute(
+                select(func.count(Sale.id)).where(Sale.created_at >= today_start)
+            )).scalar() or 0
+            revenue_today = (await session.execute(
+                select(func.coalesce(func.sum(Sale.total), 0)).where(Sale.created_at >= today_start)
+            )).scalar() or 0
+        lines.append("# HELP pharma360_products_total Nombre de produits")
+        lines.append("# TYPE pharma360_products_total gauge")
+        lines.append(f"pharma360_products_total {products_total}")
+        lines.append("# HELP pharma360_stock_total Quantite totale en stock")
+        lines.append("# TYPE pharma360_stock_total gauge")
+        lines.append(f"pharma360_stock_total {stock_total}")
+        lines.append("# HELP pharma360_expired_batches Nombre de lots perimes actifs")
+        lines.append("# TYPE pharma360_expired_batches gauge")
+        lines.append(f"pharma360_expired_batches {expired}")
+        lines.append("# HELP pharma360_users_total Nombre d'utilisateurs")
+        lines.append("# TYPE pharma360_users_total gauge")
+        lines.append(f"pharma360_users_total {users_total}")
+        lines.append("# HELP pharma360_sales_today_total Ventes aujourd'hui")
+        lines.append("# TYPE pharma360_sales_today_total gauge")
+        lines.append(f"pharma360_sales_today_total {sales_today}")
+        lines.append("# HELP pharma360_revenue_today Chiffre d'affaires aujourd'hui")
+        lines.append("# TYPE pharma360_revenue_today gauge")
+        lines.append(f"pharma360_revenue_today {revenue_today}")
+    except Exception as exc:
+        lines.append(f"# error: {exc}")
+    return Response(content="\n".join(lines) + "\n", media_type="text/plain; version=0.0.4")
 
 
 from backend.api.v1 import routers as v1_routers

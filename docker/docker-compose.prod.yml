@@ -197,6 +197,41 @@ services:
         soft: 65536
         hard: 65536
 
+  # Monitoring - Prometheus
+  pharma360-prometheus:
+    image: prom/prometheus:latest
+    container_name: pharma360-prometheus-prod
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    networks:
+      - pharma360-prod-network
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+
+  # Monitoring - Grafana
+  pharma360-grafana:
+    image: grafana/grafana:latest
+    container_name: pharma360-grafana-prod
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    networks:
+      - pharma360-prod-network
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=Admin@2025
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+
 # Volumes pour la persistance des données
 volumes:
   pharma360-db-prod-data:

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { FileText, Download, Calendar, BarChart3, PieChart, TrendingUp, TrendingDown, Filter, Search, RefreshCw, Printer, Eye, File, Trash2 } from 'lucide-react'
+import { FileText, Download, Calendar, BarChart3, PieChart, TrendingUp, TrendingDown, Filter, Search, RefreshCw, Printer, Eye, File, Trash2, ExternalLink } from 'lucide-react'
 import { useDisclosure } from '@/hooks/useDisclosure'
 import api from '@/lib/api'
 import { useToast } from '@/components/common/Toast'
@@ -673,6 +673,43 @@ function ReportsPage() {
           </Button>
         </ModalFooter>
       </Modal>
+
+      {/* Grafana / Prometheus */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5" />
+            Tableaux de bord Grafana
+          </CardTitle>
+          <CardDescription>
+            Visualisations en temps réel (Prometheus + Grafana). Ouvrez Grafana dans un nouvel onglet si l'intégration iframe n'est pas disponible.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3 mb-3">
+            <Button
+              variant="outline"
+              onClick={() => window.open('http://localhost:3001', '_blank')}
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Ouvrir Grafana
+            </Button>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Identifiants par défaut : admin / Admin@2025
+            </span>
+          </div>
+          <div className="w-full overflow-hidden rounded-xl border border-black/[0.06] dark:border-white/10">
+            <iframe
+              title="Grafana"
+              src="http://localhost:3001/d-solo/pharma360?orgId=1&refresh=30s&panelId=1"
+              width="100%"
+              height="420"
+              frameBorder="0"
+              className="bg-white dark:bg-gray-900"
+            />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
