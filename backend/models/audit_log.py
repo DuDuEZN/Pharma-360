@@ -2,10 +2,10 @@
 Audit Log Model for Pharmacie 360 Backend
 Generic audit trail for ALL activities in the software (login, CRUD, stock movements, etc.).
 """
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -44,7 +44,7 @@ class ExpiredProductLog(Base):
     )
     batch_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    expiry_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    expiry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     user_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

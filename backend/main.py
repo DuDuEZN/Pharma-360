@@ -62,7 +62,7 @@ async def startup_event():
                     batch_id INTEGER REFERENCES batches(id) ON DELETE SET NULL,
                     batch_number VARCHAR(50),
                     quantity INTEGER NOT NULL DEFAULT 0,
-                    expiry_date TIMESTAMP,
+                    expiry_date DATE,
                     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                     reason TEXT,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -71,6 +71,11 @@ async def startup_event():
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_action ON audit_logs(action)"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_created_at ON audit_logs(created_at)"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_expired_products_log_created_at ON expired_products_log(created_at)"))
+            # Migration douce : colonne expiry_date en DATE (anciennes bases).
+            try:
+                await conn.execute(text("ALTER TABLE expired_products_log ALTER COLUMN expiry_date TYPE DATE USING expiry_date::date"))
+            except Exception:
+                pass
     except Exception as exc:
         logger.warning("Audit tables init failed: %s", exc)
 

@@ -244,7 +244,7 @@ class SaleService:
 
                     db.add(
                         Movement(
-                            type="reconditioning",
+                            type="adjustment",
                             reference_id=new_sale.id,
                             reference_type="sale",
                             product_id=product.id,

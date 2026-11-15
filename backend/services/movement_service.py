@@ -101,12 +101,21 @@ class MovementService:
         if movement_data.movement_type == "out":
             quantity_change = -movement_data.quantity
 
+        # Map the schema movement types to the DB-allowed values
+        # (purchase, sale, return, adjustment, expiry).
+        db_type = movement_data.movement_type
+        if db_type == "in":
+            db_type = "purchase"
+        elif db_type == "out":
+            db_type = "adjustment"
+        ref_type = "batch" if batch_id else "batch"
+
         new_movement = Movement(
             product_id=movement_data.product_id,
             batch_id=batch_id,
-            type=movement_data.movement_type,
-            reference_id=0,  # Default reference ID
-            reference_type="manual",  # Default reference type
+            type=db_type,
+            reference_id=batch_id or 0,
+            reference_type=ref_type,
             old_quantity=old_quantity,
             new_quantity=old_quantity,  # Will be updated after batch update
             quantity_change=quantity_change,

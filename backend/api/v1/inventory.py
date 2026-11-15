@@ -204,8 +204,9 @@ async def adjust_stock(
         new_quantity=new_quantity,
         quantity_change=new_quantity - old_quantity,
         user_id=current_user.id,
-        reason=movement.reason,
-        notes=movement.notes,
+        notes=f"{movement.reason or ''} {movement.notes or ''}".strip() or None,
+        reference_id=batch.id,
+        reference_type="batch",
     )
     db.add(db_movement)
     await db.commit()
@@ -242,15 +243,16 @@ async def remove_expired_products(
         batch.status = "expired"
 
         db_movement = Movement(
-            type="out",
+            type="expiry",
             product_id=batch.product_id,
             batch_id=batch.id,
             old_quantity=qty,
             new_quantity=0,
             quantity_change=-qty,
             user_id=current_user.id,
-            reason="Retrait produit périmé",
-            notes=f"Lot {batch.batch_number} périmé le {batch.expiry_date}",
+            notes=f"Retrait produit périmé - Lot {batch.batch_number} périmé le {batch.expiry_date}",
+            reference_id=batch.id,
+            reference_type="batch",
         )
         db.add(db_movement)
 
@@ -345,15 +347,16 @@ async def import_stock_csv(
             db.add(batch)
 
             db_movement = Movement(
-                type="in",
+                type="purchase",
                 product_id=product_id,
                 batch_id=batch.id,
                 old_quantity=0,
                 new_quantity=quantity,
                 quantity_change=quantity,
                 user_id=current_user.id,
-                reason="Import fichier stock",
-                notes=f"Importé depuis {file.filename}",
+                notes=f"Import fichier stock - Importé depuis {file.filename}",
+                reference_id=batch.id,
+                reference_type="batch",
             )
             db.add(db_movement)
             imported += 1

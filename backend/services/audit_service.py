@@ -2,7 +2,7 @@
 Audit Service for Pharmacie 360 Backend
 Centralized recording of user activities (HTTP mutations + business events).
 """
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,7 +54,7 @@ class AuditService:
         batch_id: Optional[int],
         batch_number: Optional[str],
         quantity: int,
-        expiry_date: Optional[datetime],
+        expiry_date: Optional[date],
         user_id: Optional[int],
         reason: Optional[str] = None,
     ) -> None:
