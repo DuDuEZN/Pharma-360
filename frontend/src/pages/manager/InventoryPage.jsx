@@ -37,7 +37,8 @@ function InventoryPage() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterCategory, setFilterCategory] = useState('all')
   const [filterLocation, setFilterLocation] = useState('all')
-  const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10))
+  const [filterDateStart, setFilterDateStart] = useState('')
+  const [filterDateEnd, setFilterDateEnd] = useState(new Date().toISOString().slice(0, 10))
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [formData, setFormData] = useState({
     product_id: '',
@@ -77,17 +78,6 @@ function InventoryPage() {
     { value: 'expiring', label: 'Péremption Proche' },
     { value: 'expired', label: 'Périmé' },
   ]
-
-  const {
-    paginatedData: paginatedBatches,
-    handleSearch,
-    handlePageChange,
-    totalPages,
-    currentPage
-  } = useTable(batches, { 
-    searchKeys: ['product_name', 'batch_number', 'location', 'supplier_name'],
-    initialPageSize: 10
-  })
 
   // Fetch products, batches and suppliers
   const fetchInventory = useCallback(async () => {
@@ -143,10 +133,6 @@ function InventoryPage() {
     fetchInventory()
   }, [fetchInventory])
 
-  useEffect(() => {
-    handleSearch()
-  }, [searchTerm, filterStatus])
-
   // Filter batches based on search and status
   const filteredBatches = useMemo(() => {
     return batches.filter(batch => {
@@ -167,11 +153,30 @@ function InventoryPage() {
       const matchesLocation = filterLocation === 'all' || (batch.location || '') === filterLocation
 
       const batchDate = batch.received_date || batch.created_at
-      const matchesDate = !filterDate || !batchDate || new Date(batchDate) <= new Date(filterDate + 'T23:59:59')
+      const matchesDate = (!filterDateStart && !filterDateEnd) || !batchDate || (
+        (!filterDateStart || new Date(batchDate) >= new Date(filterDateStart)) &&
+        (!filterDateEnd || new Date(batchDate) <= new Date(filterDateEnd + 'T23:59:59'))
+      )
 
       return matchesSearch && matchesStatus && matchesCategory && matchesLocation && matchesDate
     })
-  }, [batches, products, searchTerm, filterStatus, filterCategory, filterLocation, filterDate])
+  }, [batches, products, searchTerm, filterStatus, filterCategory, filterLocation, filterDateStart, filterDateEnd])
+
+  // Pagination sur la liste filtrée (pour que les filtres s'appliquent réellement).
+  const {
+    paginatedData: paginatedBatches,
+    handleSearch,
+    handlePageChange,
+    totalPages,
+    currentPage
+  } = useTable(filteredBatches, {
+    searchKeys: ['product_name', 'batch_number', 'location', 'supplier_name'],
+    initialPageSize: 10
+  })
+
+  useEffect(() => {
+    handleSearch()
+  }, [searchTerm, filterStatus, filterCategory, filterLocation, filterDateStart, filterDateEnd])
 
   // Options de filtre dérivées
   const categoryOptions = useMemo(() => {
@@ -544,10 +549,17 @@ th{background:#f2f2f2}
             />
             <Input
               type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="w-44"
-              title="Stock disponible à cette date"
+              value={filterDateStart}
+              onChange={(e) => setFilterDateStart(e.target.value)}
+              className="w-40"
+              title="Date de début"
+            />
+            <Input
+              type="date"
+              value={filterDateEnd}
+              onChange={(e) => setFilterDateEnd(e.target.value)}
+              className="w-40"
+              title="Date de fin"
             />
             {isStockManager && (
               <div className="flex items-center gap-2">
