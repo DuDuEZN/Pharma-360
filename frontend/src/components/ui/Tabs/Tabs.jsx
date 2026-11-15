@@ -36,7 +36,7 @@ const TabsList = ({ className, children, ...props }) => {
     <div
       role="tablist"
       className={cn(
-        'inline-flex items-center justify-start rounded-lg bg-gray-100 dark:bg-gray-800 p-1',
+        'inline-flex items-center justify-start rounded-xl border border-black/[0.06] bg-black/[0.04] p-1 dark:border-white/10 dark:bg-white/[0.06]',
         className
       )}
       {...props}
@@ -66,9 +66,9 @@ const TabsTrigger = ({
       disabled={disabled}
       onClick={() => !disabled && onValueChange?.(value)}
       className={cn(
-        'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
-        { 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm': isActive },
-        { 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700': !isActive },
+        'inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium tracking-tight transition-all duration-200 ease-apple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 disabled:pointer-events-none disabled:opacity-50',
+        { 'bg-white text-secondary-900 shadow-apple-sm dark:bg-white/15 dark:text-white': isActive },
+        { 'text-secondary-500 hover:text-secondary-800 dark:text-secondary-400 dark:hover:text-white': !isActive },
         className
       )}
       {...props}

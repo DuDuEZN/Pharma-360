@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Settings, Save, Plus, Trash2, Edit, Image, Upload, Palette, Globe, Clock, Mail, Bell, Shield, Database, User, Store } from 'lucide-react'
+import { Settings, Save, Plus, Trash2, Edit, Image, Upload, Palette, Globe, Clock, Mail, Bell, Shield, Database, User, Store, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import api from '@/lib/api'
+import { emitPharmacyUpdated } from '@/lib/pharmacy'
 import { useToast } from '@/components/common/Toast'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
@@ -104,6 +105,26 @@ function SettingsPage() {
     setIsSaving(true)
     try {
       await api.put('/settings', settings)
+      const pharmacySnapshot = {
+        pharmacy_name: settings.pharmacy_name,
+        pharmacy_address: settings.pharmacy_address,
+        pharmacy_phone: settings.pharmacy_phone,
+        pharmacy_email: settings.pharmacy_email,
+        pharmacy_license: settings.pharmacy_license,
+        pharmacy_tax_id: settings.pharmacy_tax_id,
+      }
+      try {
+        const cached = JSON.parse(
+          localStorage.getItem('pharma360_manager_settings') || '{}'
+        )
+        localStorage.setItem(
+          'pharma360_manager_settings',
+          JSON.stringify({ ...cached, ...pharmacySnapshot })
+        )
+      } catch {
+        // cache local indisponible : le serveur reste la source de vérité
+      }
+      emitPharmacyUpdated(pharmacySnapshot)
       addToast({
         type: 'success',
         title: 'Paramètres sauvegardés',

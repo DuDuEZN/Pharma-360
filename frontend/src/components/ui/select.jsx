@@ -11,7 +11,7 @@ const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) 
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      'flex h-10 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50',
+      'flex h-10 w-full items-center justify-between rounded-xl border border-black/10 bg-white/80 px-3.5 py-2 text-sm text-secondary-900 shadow-apple-sm transition-all duration-200 ease-apple placeholder:text-secondary-400 hover:border-black/20 focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-white',
       className
     )}
     {...props}
@@ -31,7 +31,7 @@ const SelectContent = React.forwardRef(
         ref={ref}
         position={position}
         className={cn(
-          'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-gray-200 bg-white text-gray-900 shadow-md',
+          'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-xl border border-black/[0.06] bg-white/95 text-secondary-900 shadow-apple-lg backdrop-blur-2xl animate-scale-in dark:border-white/10 dark:bg-[#1c1c1e]/95 dark:text-white',
           position === 'popper' && 'translate-y-1',
           className
         )}
@@ -60,7 +60,7 @@ const SelectItem = React.forwardRef(({ className, children, ...props }, ref) => 
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-gray-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      'relative flex w-full cursor-pointer select-none items-center rounded-lg py-2 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-black/[0.05] data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:bg-white/10',
       className
     )}
     {...props}

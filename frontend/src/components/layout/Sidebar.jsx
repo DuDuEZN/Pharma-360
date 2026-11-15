@@ -2,6 +2,7 @@ import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../providers/ThemeProvider'
+import { usePharmacy } from '../../providers/PharmacyProvider'
 import {
   LayoutDashboard,
   Package,
@@ -16,84 +17,29 @@ import {
   Truck,
   Moon,
   Sun,
-  Monitor
+  Monitor,
+  X,
 } from 'lucide-react'
-import { cn, truncate } from '@/lib/utils'
-import { Badge } from '../ui/Badge'
+import { cn } from '@/lib/utils'
 
-
-function Sidebar() {
+function Sidebar({ mobileOpen = false, onClose }) {
   const { user } = useAuth()
   const { theme, setTheme } = useTheme()
+  const { pharmacy } = usePharmacy()
   const location = useLocation()
 
   const navigation = [
-    { 
-      name: 'Tableau de bord', 
-      href: '/', 
-      icon: LayoutDashboard,
-      roles: ['admin', 'manager']
-    },
-    { 
-      name: 'Produits', 
-      href: '/products', 
-      icon: Package,
-      roles: ['admin', 'manager', 'seller']
-    },
-    { 
-      name: 'Ventes', 
-      href: '/sales', 
-      icon: ShoppingCart,
-      roles: ['admin', 'manager', 'seller']
-    },
-    { 
-      name: 'Caisse', 
-      href: '/cashier', 
-      icon: CreditCard,
-      roles: ['admin', 'cashier']
-    },
-    {
-      name: 'Commandes',
-      href: '/manager/orders',
-      icon: ClipboardList,
-      roles: ['seller']
-    },
-    { 
-      name: 'Administrateur', 
-      href: '/admin', 
-      icon: Users,
-      roles: ['admin']
-    },
-    { 
-      name: 'Gestionnaire', 
-      href: '/manager', 
-      icon: BarChart3,
-      roles: ['admin', 'manager']
-    },
-    {
-      name: 'Livraisons',
-      href: '/manager/deliveries',
-      icon: Truck,
-      roles: ['seller']
-    },
-    { 
-      name: 'Rapports', 
-      href: '/reports', 
-      icon: FileText,
-      roles: ['admin', 'manager']
-    },
-    { 
-      name: 'Paramètres', 
-      href: '/settings', 
-      icon: Settings,
-      roles: ['admin', 'manager']
-    },
-    { 
-      name: 'Aide', 
-      href: '/help', 
-      icon: HelpCircle,
-      roles: ['admin', 'manager', 'seller', 'cashier']
-    },
+    { name: 'Tableau de bord', href: '/', icon: LayoutDashboard, roles: ['admin', 'manager'] },
+    { name: 'Produits', href: '/products', icon: Package, roles: ['admin', 'manager', 'seller'] },
+    { name: 'Ventes', href: '/sales', icon: ShoppingCart, roles: ['admin', 'manager', 'seller'] },
+    { name: 'Caisse', href: '/cashier', icon: CreditCard, roles: ['admin', 'cashier'] },
+    { name: 'Commandes', href: '/manager/orders', icon: ClipboardList, roles: ['seller'] },
+    { name: 'Administrateur', href: '/admin', icon: Users, roles: ['admin'] },
+    { name: 'Gestionnaire', href: '/manager', icon: BarChart3, roles: ['admin', 'manager'] },
+    { name: 'Livraisons', href: '/manager/deliveries', icon: Truck, roles: ['seller'] },
+    { name: 'Rapports', href: '/reports', icon: FileText, roles: ['admin', 'manager'] },
+    { name: 'Paramètres', href: user?.role === 'manager' ? '/manager/settings' : '/settings', icon: Settings, roles: ['admin', 'manager'] },
+    { name: 'Aide', href: '/help', icon: HelpCircle, roles: ['admin', 'manager', 'seller', 'cashier'] },
   ]
 
   const filteredNavigation = navigation.filter(
@@ -101,76 +47,117 @@ function Sidebar() {
   )
 
   const themeItems = [
-    { icon: Sun, label: 'Light', value: 'light' },
-    { icon: Moon, label: 'Dark', value: 'dark' },
-    { icon: Monitor, label: 'System', value: 'system' },
+    { icon: Sun, label: 'Clair', value: 'light' },
+    { icon: Moon, label: 'Sombre', value: 'dark' },
+    { icon: Monitor, label: 'Système', value: 'system' },
   ]
 
   return (
-    <div className="fixed left-0 top-0 z-40 h-screen w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 lg:translate-x-0 -translate-x-full transition-transform duration-300 ease-in-out">
-      {/* Logo */}
-      <div className="h-16 flex items-center justify-center border-b border-gray-200 dark:border-gray-700 px-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-            <Package className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-bold text-lg text-gray-900 dark:text-white">Pharma 360</span>
-        </div>
-      </div>
-      
-      {/* Navigation */}
-      <nav className="flex flex-col gap-1 p-4">
-        {filteredNavigation.map((item) => {
-          const isActive = location.pathname === item.href || 
-                           location.pathname.startsWith(item.href + '/')
-          
-          return (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              className={({ isActive: linkActive }) => cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-                isActive || linkActive
-                  ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
-              )}
-            >
-              <item.icon className={cn(
-                'w-5 h-5 transition-colors',
-                isActive 
-                  ? 'text-primary-600 dark:text-primary-400' 
-                  : 'text-gray-400 dark:text-gray-500'
-              )} />
-              <span>{truncate(item.name, 20)}</span>
-              {item.name === 'Caisse' && user?.role === 'cashier' && (
-                <Badge variant="success" size="xs">Nouveau</Badge>
-              )}
-            </NavLink>
-          )
-        })}
-      </nav>
+    <>
+      {/* Voile mobile */}
+      <div
+        className={cn(
+          'fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity duration-300 ease-apple lg:hidden',
+          mobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        )}
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-      {/* Theme Toggle */}
-      <div className="absolute bottom-4 left-4 right-4">
-        <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          {themeItems.map((themeItem) => (
-            <button
-              key={themeItem.value}
-              onClick={() => setTheme(themeItem.value)}
-              title={themeItem.label}
-              className={cn(
-                'p-1.5 rounded-lg transition-colors hover:bg-gray-200 dark:hover:bg-gray-700',
-                theme === themeItem.value 
-                  ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400' 
-                  : 'text-gray-400 dark:text-gray-500'
-              )}
-            >
-              <themeItem.icon className="w-4 h-4" />
-            </button>
-          ))}
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-50 flex h-screen w-[264px] flex-col border-r border-black/[0.06] bg-white/75 backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-[320ms] ease-spring dark:border-white/10 dark:bg-[#161617]/80 lg:translate-x-0',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
+        {/* Logo / nom de la pharmacie */}
+        <div className="flex h-[68px] items-center gap-3 px-5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-primary-500 to-primary-700 shadow-apple-sm">
+            <Package className="h-[18px] w-[18px] text-white" strokeWidth={2.2} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-semibold leading-tight tracking-tight text-secondary-900 dark:text-white">
+              {pharmacy.name}
+            </p>
+            <p className="text-[11px] font-medium text-secondary-500 dark:text-secondary-400">
+              Gestion de pharmacie
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1.5 text-secondary-500 transition-colors hover:bg-black/[0.05] dark:hover:bg-white/10 lg:hidden"
+            aria-label="Fermer le menu"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
-      </div>
-    </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
+          {filteredNavigation.map((item) => {
+            const isActive =
+              location.pathname === item.href ||
+              (item.href !== '/' && location.pathname.startsWith(item.href + '/'))
+
+            return (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                onClick={onClose}
+                className={({ isActive: linkActive }) =>
+                  cn(
+                    'group flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] font-medium tracking-tight transition-all duration-200 ease-apple',
+                    isActive || linkActive
+                      ? 'bg-primary-600 text-white shadow-apple-sm'
+                      : 'text-secondary-600 hover:bg-black/[0.045] hover:text-secondary-900 dark:text-secondary-300 dark:hover:bg-white/[0.07] dark:hover:text-white'
+                  )
+                }
+              >
+                {({ isActive: linkActive }) => {
+                  const active = isActive || linkActive
+                  return (
+                    <>
+                      <item.icon
+                        className={cn(
+                          'h-[18px] w-[18px] shrink-0 transition-colors duration-200',
+                          active
+                            ? 'text-white'
+                            : 'text-secondary-400 group-hover:text-secondary-600 dark:text-secondary-500 dark:group-hover:text-secondary-300'
+                        )}
+                        strokeWidth={2}
+                      />
+                      <span className="truncate">{item.name}</span>
+                    </>
+                  )
+                }}
+              </NavLink>
+            )
+          })}
+        </nav>
+
+        {/* Sélecteur de thème */}
+        <div className="px-3 pb-4">
+          <div className="flex items-center gap-1 rounded-xl border border-black/[0.06] bg-white/60 p-1 dark:border-white/10 dark:bg-white/[0.06]">
+            {themeItems.map((themeItem) => (
+              <button
+                key={themeItem.value}
+                onClick={() => setTheme(themeItem.value)}
+                title={themeItem.label}
+                className={cn(
+                  'flex h-8 flex-1 items-center justify-center rounded-lg transition-all duration-200 ease-apple',
+                  theme === themeItem.value
+                    ? 'bg-white text-secondary-900 shadow-apple-sm dark:bg-white/15 dark:text-white'
+                    : 'text-secondary-400 hover:text-secondary-600 dark:text-secondary-500 dark:hover:text-secondary-300'
+                )}
+              >
+                <themeItem.icon className="h-4 w-4" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </aside>
+    </>
   )
 }
 

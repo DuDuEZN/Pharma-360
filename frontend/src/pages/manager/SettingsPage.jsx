@@ -10,6 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { useToast } from '@/components/common/Toast'
 import api from '@/lib/api'
+import { emitPharmacyUpdated } from '@/lib/pharmacy'
 import { cn } from '@/lib/utils'
 
 function ManagerSettingsPage() {
@@ -108,12 +109,32 @@ function ManagerSettingsPage() {
     fetchCategories()
   }, [])
 
-  const fetchSettings = () => {
+  const fetchSettings = async () => {
     try {
       setIsLoading(true)
       const stored = localStorage.getItem('pharma360_manager_settings')
+      let localSettings = {}
       if (stored) {
-        setSettings(prev => ({ ...prev, ...JSON.parse(stored) }))
+        localSettings = JSON.parse(stored)
+        setSettings(prev => ({ ...prev, ...localSettings }))
+      }
+
+      // Le nom et les coordonnées de la pharmacie sont partagés avec les
+      // tickets, factures et étiquettes : ils sont stockés côté serveur.
+      try {
+        const response = await api.get('/settings/pharmacy')
+        const remote = Object.fromEntries(
+          Object.entries(response.data || {}).filter(
+            ([, value]) => value !== '' && value !== null && value !== undefined
+          )
+        )
+        setSettings(prev => ({ ...prev, ...remote }))
+        localStorage.setItem(
+          'pharma360_manager_settings',
+          JSON.stringify({ ...localSettings, ...remote })
+        )
+      } catch (error) {
+        console.error('Failed to load pharmacy settings:', error)
       }
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -154,6 +175,18 @@ function ManagerSettingsPage() {
     
     try {
       localStorage.setItem('pharma360_manager_settings', JSON.stringify(settings))
+
+      const pharmacyPayload = {
+        pharmacy_name: settings.pharmacy_name || '',
+        pharmacy_address: settings.pharmacy_address || '',
+        pharmacy_phone: settings.pharmacy_phone || '',
+        pharmacy_email: settings.pharmacy_email || '',
+        currency: settings.currency || '',
+        currency_symbol: settings.currency_symbol || '',
+      }
+      await api.put('/settings/pharmacy', pharmacyPayload)
+      emitPharmacyUpdated(pharmacyPayload)
+
       addToast({
         type: 'success',
         title: 'Succès',
@@ -163,7 +196,7 @@ function ManagerSettingsPage() {
       addToast({
         type: 'error',
         title: 'Erreur',
-        message: 'Une erreur est survenue'
+        message: error.response?.data?.detail || 'Une erreur est survenue'
       })
     } finally {
       setIsSubmitting(false)

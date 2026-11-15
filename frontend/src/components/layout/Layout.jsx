@@ -1,19 +1,18 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
-import { Card } from '../ui/Card'
 
 function Layout() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Sidebar />
-      <div className="lg:pl-64">
-        <Header />
-        <main className="p-4 lg:p-6">
-          <Card className="min-h-[calc(100vh-4rem)]">
-            <Outlet />
-          </Card>
+    <div className="min-h-screen bg-[#f5f5f7] text-secondary-900 dark:bg-black dark:text-white">
+      <Sidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      <div className="lg:pl-[264px]">
+        <Header onMenuClick={() => setMobileMenuOpen(true)} />
+        <main className="mx-auto w-full max-w-[1440px] animate-fade-in px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+          <Outlet />
         </main>
       </div>
     </div>

@@ -56,33 +56,33 @@ function ToastItem({ toast, onRemove }) {
   return (
     <div
       className={clsx(
-        'flex items-start gap-3 p-4 rounded-lg shadow-lg animate-in slide-in-from-top-2 duration-300',
+        'flex items-start gap-3 rounded-2xl border p-4 shadow-apple-lg backdrop-blur-xl animate-slide-up',
         {
-          'bg-success-50 border border-success-200': toast.type === 'success',
-          'bg-danger-50 border border-danger-200': toast.type === 'error',
-          'bg-warning-50 border border-warning-200': toast.type === 'warning',
-          'bg-primary-50 border border-primary-200': toast.type === 'info',
+          'bg-success-50/95 border-success-200/70 dark:bg-success-900/40 dark:border-success-500/30': toast.type === 'success',
+          'bg-danger-50/95 border-danger-200/70 dark:bg-danger-900/40 dark:border-danger-500/30': toast.type === 'error',
+          'bg-warning-50/95 border-warning-200/70 dark:bg-warning-900/40 dark:border-warning-500/30': toast.type === 'warning',
+          'bg-primary-50/95 border-primary-200/70 dark:bg-primary-900/40 dark:border-primary-500/30': toast.type === 'info',
         }
       )}
     >
       <Icon
         className={clsx({
-          'text-success-600': toast.type === 'success',
-          'text-danger-600': toast.type === 'error',
-          'text-warning-600': toast.type === 'warning',
-          'text-primary-600': toast.type === 'info',
+          'text-success-600 dark:text-success-400': toast.type === 'success',
+          'text-danger-600 dark:text-danger-400': toast.type === 'error',
+          'text-warning-600 dark:text-warning-400': toast.type === 'warning',
+          'text-primary-600 dark:text-primary-400': toast.type === 'info',
         })}
         size={20}
       />
       <div className="flex-1">
-        <p className="text-sm font-medium text-gray-900">{toast.title}</p>
+        <p className="text-sm font-medium text-secondary-900 dark:text-white">{toast.title}</p>
         {toast.message && (
-          <p className="text-sm text-gray-600 mt-0.5">{toast.message}</p>
+          <p className="mt-0.5 text-sm text-secondary-600 dark:text-secondary-300">{toast.message}</p>
         )}
       </div>
       <button
         onClick={onRemove}
-        className="text-gray-400 hover:text-gray-600 transition-colors p-1 -mr-1 -mt-1"
+        className="-mr-1 -mt-1 rounded-full p-1 text-secondary-400 transition-colors hover:bg-black/5 hover:text-secondary-600 dark:hover:bg-white/10 dark:hover:text-white"
         aria-label="Fermer"
       >
         <X size={16} />

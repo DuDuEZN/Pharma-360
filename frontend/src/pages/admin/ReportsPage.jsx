@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { FileText, Download, Calendar, BarChart3, PieChart, TrendingUp, TrendingDown, Filter, Search, RefreshCw, Printer, Eye, File } from 'lucide-react'
+import { FileText, Download, Calendar, BarChart3, PieChart, TrendingUp, TrendingDown, Filter, Search, RefreshCw, Printer, Eye, File, Trash2 } from 'lucide-react'
 import { useDisclosure } from '@/hooks/useDisclosure'
 import api from '@/lib/api'
 import { useToast } from '@/components/common/Toast'
@@ -134,15 +134,24 @@ function ReportsPage() {
         params,
         responseType: 'blob'
       })
+
+      const contentType = response.headers?.['content-type'] || 'application/octet-stream'
+      const disposition = response.headers?.['content-disposition'] || ''
+      const match = /filename="?([^";]+)"?/.exec(disposition)
+      const fallbackExt = format === 'xlsx' ? 'csv' : format
+      const filename = match
+        ? match[1]
+        : `rapport_${reportType}_${formatDate(new Date(), 'yyyy-MM-dd')}.${fallbackExt}`
       
       // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: contentType }))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `rapport_${reportType}_${format}_${formatDate(new Date(), 'yyyy-MM-dd')}.${format}`)
+      link.setAttribute('download', filename)
       document.body.appendChild(link)
       link.click()
       link.remove()
+      window.URL.revokeObjectURL(url)
       
       addToast({
         type: 'success',
@@ -178,7 +187,8 @@ function ReportsPage() {
       })
       
       // Open in new tab for printing
-      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const contentType = response.headers?.['content-type'] || 'text/html'
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: contentType }))
       const printWindow = window.open(url, '_blank')
       
       if (printWindow) {

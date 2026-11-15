@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import JsBarcode from 'jsbarcode'
-import { APP_NAME } from '@/lib/constants'
+import { usePharmacy } from '@/providers/PharmacyProvider'
 import { formatCurrency } from '@/lib/utils'
 
 const MAX_LABELS = 200
@@ -65,6 +65,7 @@ const expandLabels = (labels) => {
 }
 
 function BulkLabelSheet({ labels, onDone }) {
+  const { pharmacy } = usePharmacy()
   const printedRef = useRef(null)
   const onDoneRef = useRef(onDone)
   const items = expandLabels(labels)
@@ -109,7 +110,7 @@ function BulkLabelSheet({ labels, onDone }) {
     <div id="bulk-labels-print" className="delivery-labels-print bulk-labels-print">
       {items.map((item) => (
         <div key={item.key} className="delivery-label bulk-label">
-          <p className="delivery-label-pharmacy">{APP_NAME}</p>
+          <p className="delivery-label-pharmacy">{pharmacy.name}</p>
           <p className="delivery-label-product">
             {item.product_name || 'Produit'}
             <span className="delivery-label-bulk-tag"> · VRAC</span>

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.jsx';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
-import { Select } from '@/components/ui/Select'
+import { Select } from '@/components/ui/Select/Select'
 import { Upload, FileText, Eye, Edit, Trash2, Plus, Search, Download, Camera, X, AlertTriangle, Check, RefreshCw, Users } from 'lucide-react';
 import apiClient from '@/lib/api';
 import { useToast } from '@/components/common/Toast';

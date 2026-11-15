@@ -2,7 +2,7 @@ import * as React from 'react'
 import { cn } from '@/lib/utils.js'
 
 const baseClassName =
-  'flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50'
+  'flex h-10 w-full rounded-xl border border-black/10 bg-white/80 px-3.5 py-2 text-sm text-secondary-900 shadow-apple-sm transition-all duration-200 ease-apple placeholder:text-secondary-400 hover:border-black/20 focus-visible:outline-none focus-visible:border-primary-500 focus-visible:ring-4 focus-visible:ring-primary-500/15 disabled:cursor-not-allowed disabled:bg-secondary-50 disabled:text-secondary-500 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-secondary-500 dark:hover:border-white/20'
 
 // Accepte aussi bien un élément (<Icon />) qu'une référence de composant (Icon),
 // ce qui évite l'erreur React « Objects are not valid as a React child ».
@@ -64,7 +64,7 @@ const Input = React.forwardRef(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={inputId} className="block text-[13px] font-medium text-secondary-600 mb-1.5 dark:text-secondary-300">
             {label}
             {props.required && <span className="text-danger-500 ml-1">*</span>}
           </label>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import JsBarcode from 'jsbarcode'
-import { APP_NAME } from '@/lib/constants'
+import { usePharmacy } from '@/providers/PharmacyProvider'
 import { formatCurrency } from '@/lib/utils'
 
 const formatLabelDate = (value) => {
@@ -59,6 +59,7 @@ function LabelBarcode({ value }) {
 }
 
 function DeliveryLabelSheet({ delivery, onDone }) {
+  const { pharmacy } = usePharmacy()
   const printedRef = useRef(null)
   const onDoneRef = useRef(onDone)
 
@@ -117,7 +118,7 @@ function DeliveryLabelSheet({ delivery, onDone }) {
             key={`${item.id || item.product_id || index}-${index}`}
             className="delivery-label"
           >
-            <p className="delivery-label-pharmacy">{APP_NAME}</p>
+            <p className="delivery-label-pharmacy">{pharmacy.name}</p>
             <p className="delivery-label-product">{item.product_name || 'Produit'}</p>
             <p className="delivery-label-price">{formatCurrency(price)}</p>
 

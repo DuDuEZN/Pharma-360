@@ -33,10 +33,10 @@ const Skeleton = forwardRef(({
     <div
       ref={ref}
       className={cn(
-        'bg-gray-200 dark:bg-gray-700',
+        'bg-black/[0.06] dark:bg-white/[0.09]',
         { 'animate-pulse': animated },
         { 'rounded-full': circle },
-        { 'rounded-md': !circle },
+        { 'rounded-xl': !circle },
         variants[variant],
         className
       )}

@@ -117,11 +117,7 @@ function AdminPage() {
       </Card>
 
       {/* Content */}
-      <Card>
-        <CardContent className="p-0">
-          <Outlet />
-        </CardContent>
-      </Card>
+      <Outlet />
     </div>
   )
 }

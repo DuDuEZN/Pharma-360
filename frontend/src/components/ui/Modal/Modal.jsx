@@ -54,22 +54,22 @@ const Modal = forwardRef(({
       onClick={handleOverlayClick}
     >
       {/* Overlay */}
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" />
+      <div className="fixed inset-0 bg-black/25 backdrop-blur-md animate-fade-in" />
       
       {/* Modal */}
       <div
         ref={ref}
         className={cn(
-          'relative w-full bg-white rounded-xl shadow-xl animate-slide-up',
+          'relative w-full max-h-[92vh] overflow-y-auto rounded-3xl border border-black/[0.06] bg-white/95 shadow-apple-lg backdrop-blur-2xl animate-slide-up dark:border-white/10 dark:bg-[#1c1c1e]/95',
           sizes[size],
           className
         )}
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between border-b border-black/[0.06] p-6 dark:border-white/10">
             {title && (
-              <h2 className="text-xl font-semibold text-gray-900">
+              <h2 className="font-display text-xl font-semibold tracking-tight text-secondary-900 dark:text-white">
                 {title}
               </h2>
             )}

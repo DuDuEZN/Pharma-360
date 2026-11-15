@@ -7,6 +7,7 @@
 
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { getCachedPharmacy } from '@/lib/pharmacy';
 
 /**
  * Format currency in XOF (West African CFA Franc)
@@ -50,7 +51,7 @@ export const generateInvoicePDF = (invoice, items = []) => {
   
   doc.setFontSize(14);
   doc.setFont('helvetica', 'normal');
-  doc.text('Pharmacie 360', 105, 30, { align: 'center' });
+  doc.text(invoice.pharmacy_name || getCachedPharmacy().name, 105, 30, { align: 'center' });
   doc.text(`N°: ${invoice.invoice_number || 'N/A'}`, 105, 37, { align: 'center' });
   doc.text(`Date: ${formatDate(invoice.date || invoice.created_at)}`, 105, 44, { align: 'center' });
 
@@ -130,10 +131,11 @@ export const generateInvoicePDF = (invoice, items = []) => {
     doc.text(`Net à payer: ${formatCurrency(invoice.net_amount || invoice.total_amount || 0)}`, 20, finalY + 43);
   }
 
+  const pharmacyName = getCachedPharmacy().name;
   // Footer
   doc.setFontSize(8);
   doc.setFont('helvetica', 'italic');
-  doc.text('Généré par Pharmacie 360 - Tous droits réservés', 105, 280, { align: 'center' });
+  doc.text(`Généré par ${pharmacyName} - Tous droits réservés`, 105, 280, { align: 'center' });
   doc.text(`Date d'impression: ${formatDate(new Date())}`, 105, 285, { align: 'center' });
 
   return doc;
@@ -152,7 +154,7 @@ export const generateReceiptPDF = (sale, items = [], payment) => {
   // Header
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('PHARMACIE 360', 40, 10, { align: 'center' });
+  doc.text(getCachedPharmacy().name.toUpperCase(), 40, 10, { align: 'center' });
   doc.text('Ticket de Caisse', 40, 17, { align: 'center' });
   
   doc.setFontSize(10);
@@ -210,7 +212,7 @@ export const generateReceiptPDF = (sale, items = [], payment) => {
   // Footer
   doc.setFontSize(8);
   doc.text('Merci de votre visite!', 40, yPos + 10, { align: 'center' });
-  doc.text('Pharmacie 360', 40, yPos + 15, { align: 'center' });
+  doc.text(getCachedPharmacy().name, 40, yPos + 15, { align: 'center' });
 
   return doc;
 };
@@ -310,7 +312,7 @@ export const generateStockReportPDF = (products = [], title = 'Rapport de Stock'
   doc.setFontSize(8);
   doc.setFont('helvetica', 'italic');
   const finalY = doc.lastAutoTable.finalY || 150;
-  doc.text('Généré par Pharmacie 360 - Tous droits réservés', 140, finalY + 10, { align: 'center' });
+  doc.text(`Généré par ${getCachedPharmacy().name} - Tous droits réservés`, 140, finalY + 10, { align: 'center' });
 
   return doc;
 };
@@ -396,7 +398,7 @@ export const generateSalesReportPDF = (sales = [], title = 'Rapport de Ventes') 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'italic');
   const finalY = doc.lastAutoTable.finalY || 150;
-  doc.text('Généré par Pharmacie 360 - Tous droits réservés', 105, finalY + 10, { align: 'center' });
+  doc.text(`Généré par ${getCachedPharmacy().name} - Tous droits réservés`, 105, finalY + 10, { align: 'center' });
 
   return doc;
 };

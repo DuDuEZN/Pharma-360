@@ -4,22 +4,27 @@ import { cva } from 'class-variance-authority'
 import { cn } from '@/lib/utils.js'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium tracking-tight transition-all duration-200 ease-apple focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-500/20 disabled:pointer-events-none disabled:opacity-45 active:scale-[0.98]',
   {
     variants: {
       variant: {
-        default: 'bg-blue-600 text-white hover:bg-blue-700',
-        destructive: 'bg-red-600 text-white hover:bg-red-700',
-        outline: 'border border-gray-300 bg-white hover:bg-gray-100',
-        secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200',
-        ghost: 'hover:bg-gray-100',
-        link: 'text-blue-600 underline-offset-4 hover:underline',
+        default:
+          'bg-primary-600 text-white shadow-apple-sm hover:bg-primary-500 active:bg-primary-700',
+        destructive:
+          'bg-danger-500 text-white shadow-apple-sm hover:brightness-105 active:brightness-95',
+        outline:
+          'border border-black/10 bg-white/70 text-secondary-900 shadow-apple-sm backdrop-blur hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10',
+        secondary:
+          'bg-secondary-100 text-secondary-900 hover:bg-secondary-200 dark:bg-white/10 dark:text-white dark:hover:bg-white/15',
+        ghost:
+          'text-secondary-700 hover:bg-black/[0.05] dark:text-secondary-200 dark:hover:bg-white/10',
+        link: 'text-primary-600 underline-offset-4 hover:underline dark:text-primary-400',
       },
       size: {
         default: 'h-10 px-4 py-2',
         sm: 'h-9 px-3',
-        lg: 'h-11 px-8',
-        icon: 'h-10 w-10',
+        lg: 'h-12 px-7 text-[15px]',
+        icon: 'h-10 w-10 rounded-full',
       },
     },
     defaultVariants: { variant: 'default', size: 'default' },

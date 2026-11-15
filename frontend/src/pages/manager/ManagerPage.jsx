@@ -102,42 +102,37 @@ function ManagerPage() {
                   key={item.path}
                   to={item.path}
                   className={cn(
-                    'group flex flex-col gap-4 p-4 rounded-lg border transition-all duration-200 hover:shadow-md',
+                    'group flex flex-col gap-3 rounded-2xl border p-4 transition-all duration-200 ease-apple hover:-translate-y-0.5 hover:shadow-apple',
                     isActive
-                      ? 'border-primary-200 bg-primary-50 dark:bg-primary-900/20' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-primary-200'
+                      ? 'border-primary-500/30 bg-primary-500/[0.08]'
+                      : 'border-black/[0.06] bg-white/40 hover:border-primary-500/25 dark:border-white/10 dark:bg-white/[0.03]'
                   )}
                 >
                   <div className={cn(
-                    'flex items-center justify-center w-12 h-12 rounded-full transition-colors',
+                    'flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
                     isActive
-                      ? 'bg-primary-100 dark:bg-primary-900/30' 
-                      : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/30'
+                      ? 'bg-primary-600 text-white shadow-apple-sm'
+                      : 'bg-black/[0.045] text-secondary-600 group-hover:bg-primary-600 group-hover:text-white dark:bg-white/10 dark:text-secondary-300'
                   )}>
-                    <item.icon className={cn(
-                      'w-6 h-6 transition-colors',
-                      isActive
-                        ? 'text-primary-600 dark:text-primary-400' 
-                        : 'text-gray-600 dark:text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-400'
-                    )} />
+                    <item.icon className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <p className={cn(
-                        'font-medium transition-colors',
+                        'font-medium tracking-tight transition-colors',
                         isActive
-                          ? 'text-primary-900 dark:text-primary-100' 
-                          : 'text-gray-900 dark:text-white group-hover:text-primary-900 dark:group-hover:text-primary-100'
+                          ? 'text-primary-800 dark:text-primary-200'
+                          : 'text-secondary-900 group-hover:text-primary-700 dark:text-white dark:group-hover:text-primary-300'
                       )}>
                         {item.name}
                       </p>
                       {item.badge && (
-                        <span className="text-xs bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded">
+                        <span className="rounded-full bg-primary-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-700 dark:bg-primary-500/20 dark:text-primary-300">
                           {item.badge}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="mt-1 text-xs text-secondary-500 dark:text-secondary-400">
                       {item.description}
                     </p>
                   </div>
@@ -149,11 +144,7 @@ function ManagerPage() {
       </Card>
 
       {/* Content */}
-      <Card>
-        <CardContent className="p-0">
-          <Outlet />
-        </CardContent>
-      </Card>
+      <Outlet />
     </div>
   )
 }

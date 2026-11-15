@@ -35,6 +35,29 @@ from ..schemas.report import (
     StockReportRequest,
 )
 
+# Fichiers de paramètres possibles (volume d'uploads en production).
+_SETTINGS_FILES = [
+    os.environ.get("SETTINGS_FILE"),
+    "/app/uploads/settings.json",
+    os.path.join(os.path.dirname(__file__), "..", "data", "settings.json"),
+]
+
+
+def get_pharmacy_name() -> str:
+    """Nom de la pharmacie configuré dans les paramètres, avec repli."""
+    for settings_file in _SETTINGS_FILES:
+        if not settings_file:
+            continue
+        try:
+            with open(settings_file, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+            name = (data.get("pharmacy_name") or "").strip()
+            if name:
+                return name
+        except (OSError, json.JSONDecodeError, AttributeError):
+            continue
+    return "Pharmacie 360"
+
 
 class ReportService:
     """Service for generating and managing reports"""
@@ -98,6 +121,11 @@ class ReportService:
         if base_type == "sales":
             periodicity = (filters.get("periodicity") or "none").lower()
             group_by = (filters.get("group_by") or "product").lower()
+
+            # Requête de base (utilisée quand aucun regroupement périodique
+            # n'est demandé). Sans cette initialisation, le chemin « none »
+            # plantait avec UnboundLocalError.
+            query = select(Sale).options(selectinload(Sale.user))
 
             if periodicity in ("daily", "weekly", "monthly"):
                 # Regroupement par période et par produit : extraction pour
@@ -330,10 +358,11 @@ class ReportService:
             topMargin=12 * mm,
             bottomMargin=12 * mm,
             title=title,
-            author="Pharma 360",
+            author=get_pharmacy_name(),
         )
         styles = getSampleStyleSheet()
         elements = [
+            Paragraph(get_pharmacy_name(), styles["Heading2"]),
             Paragraph(title, styles["Title"]),
             Paragraph(subtitle, styles["Normal"]),
             Spacer(1, 6 * mm),
@@ -363,7 +392,7 @@ class ReportService:
         )
         elements.append(
             Paragraph(
-                f"<i>Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')} par Pharma 360</i>",
+                f"<i>Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')} par {get_pharmacy_name()}</i>",
                 styles["Normal"],
             )
         )

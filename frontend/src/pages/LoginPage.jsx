@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import { usePharmacy } from '@/providers/PharmacyProvider'
 import { Package, User, Lock, ArrowRight } from 'lucide-react'
 import { Input } from '@/components/ui/input.jsx'
 import { Button } from '@/components/ui/button.jsx'
@@ -16,6 +17,7 @@ function LoginPage() {
   const [error, setError] = useState(null)
   
   const { login } = useAuth()
+  const { pharmacy } = usePharmacy()
   const navigate = useNavigate()
   const location = useLocation()
   const { addToast } = useToast()
@@ -71,73 +73,68 @@ function LoginPage() {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 p-4">
-      <div className="w-full max-w-md">
-        <Card className="shadow-2xl animate-in fade-in slide-in-from-bottom-10 duration-500">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f5f5f7] p-4 dark:bg-black">
+      {/* Halos façon Apple */}
+      <div className="pointer-events-none absolute -left-32 -top-32 h-[420px] w-[420px] rounded-full bg-primary-400/25 blur-[120px] dark:bg-primary-600/20" />
+      <div className="pointer-events-none absolute -bottom-40 -right-24 h-[460px] w-[460px] rounded-full bg-[#af52de]/20 blur-[130px] dark:bg-[#af52de]/15" />
+
+      <div className="relative w-full max-w-[400px] animate-slide-up">
+        <div className="rounded-3xl border border-white/60 bg-white/70 p-8 shadow-apple-lg backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-white/[0.06]">
           {/* Logo */}
-          <CardHeader className="text-center pb-2">
-            <div className="mx-auto w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-2xl flex items-center justify-center mb-4">
-              <Package className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+          <div className="mb-7 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] bg-gradient-to-b from-primary-500 to-primary-700 shadow-apple">
+              <Package className="h-8 w-8 text-white" strokeWidth={2.2} />
             </div>
-            <CardTitle className="text-2xl">Pharmacie 360</CardTitle>
-            <CardDescription className="text-center">
+            <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-secondary-900 dark:text-white">
+              {pharmacy.name}
+            </h1>
+            <p className="mt-1 text-[13px] text-secondary-500 dark:text-secondary-400">
               Plateforme de gestion de pharmacie
-            </CardDescription>
-          </CardHeader>
+            </p>
+          </div>
 
-          <CardContent>
-            {/* Error Alert */}
-            {error && (
-              <Alert variant="danger" className="mb-6">
-                <span>{error}</span>
-              </Alert>
-            )}
+          {/* Error Alert */}
+          {error && (
+            <Alert variant="danger" className="mb-5">
+              <span>{error}</span>
+            </Alert>
+          )}
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <Input
-                  type="text"
-                  label="Nom d'utilisateur"
-                  placeholder="Nom d'utilisateur"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  leftIcon={User}
-                  required
-                  autoComplete="username"
-                  autoFocus
-                />
-              </div>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              type="text"
+              label="Nom d'utilisateur"
+              placeholder="Nom d'utilisateur"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              leftIcon={User}
+              required
+              autoComplete="username"
+              autoFocus
+            />
 
-              <div className="space-y-2">
-                <Input
-                  type="password"
-                  label="Mot de passe"
-                  placeholder="Mot de passe"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  leftIcon={Lock}
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
+            <Input
+              type="password"
+              label="Mot de passe"
+              placeholder="Mot de passe"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              leftIcon={Lock}
+              required
+              autoComplete="current-password"
+            />
 
-              <Button
-                type="submit"
-                className="w-full"
-                isLoading={isLoading}
-                size="lg"
-              >
-                Se connecter
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </form>
-          </CardContent>
+            <Button type="submit" className="mt-2 w-full" size="lg" disabled={isLoading}>
+              {isLoading ? 'Connexion…' : 'Se connecter'}
+              {!isLoading && <ArrowRight className="ml-2 h-[18px] w-[18px]" />}
+            </Button>
+          </form>
+        </div>
 
-          <CardFooter className="text-center text-xs text-gray-500 dark:text-gray-400">
-            © 2025 Pharma 360. Tous droits réservés.
-          </CardFooter>
-        </Card>
+        <p className="mt-6 text-center text-[11px] text-secondary-400 dark:text-secondary-500">
+          © {new Date().getFullYear()} {pharmacy.name}. Tous droits réservés.
+        </p>
       </div>
     </div>
   )

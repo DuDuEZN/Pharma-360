@@ -10,6 +10,7 @@ import { AlertsProvider } from '@/hooks/useAlerts'
 // Design System Providers
 import { ThemeProvider } from '@/providers/ThemeProvider'
 import { AlertProvider } from '@/providers/AlertProvider'
+import { PharmacyProvider } from '@/providers/PharmacyProvider'
 
 // Layout
 import Layout from '@/components/layout/Layout'
@@ -77,6 +78,7 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <PharmacyProvider>
         <BarcodeScannerProvider>
           <CartProvider>
             <WebSocketProvider>
@@ -173,6 +175,7 @@ function App() {
             </WebSocketProvider>
           </CartProvider>
         </BarcodeScannerProvider>
+        </PharmacyProvider>
       </AuthProvider>
     </ThemeProvider>
   )

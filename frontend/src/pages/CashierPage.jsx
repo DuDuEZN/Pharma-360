@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { CreditCard, Clock, Check, Printer, Wifi, WifiOff, DollarSign, CreditCard as CreditCardIcon, Banknote, Receipt, ArrowLeft, Barcode, ScanLine, CheckCircle2, Circle, MapPin, Lock, Unlock, Wallet, AlertTriangle, TrendingUp } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { usePharmacy } from '@/providers/PharmacyProvider'
 import { useDisclosure } from '@/hooks/useDisclosure'
 import api from '@/lib/api'
 import { useToast } from '@/components/common/Toast'
@@ -12,7 +13,7 @@ import { Input } from '@/components/ui/input.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table.jsx'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
-import { Select } from '@/components/ui/Select'
+import { Select } from '@/components/ui/Select/Select'
 import { Separator } from '@/components/ui/Separator'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
@@ -26,6 +27,7 @@ import { cn, formatCurrency, formatDate } from '@/lib/utils'
  */
 function CashierPage() {
   const { user } = useAuth()
+  const { pharmacy } = usePharmacy()
   const { addToast } = useToast()
   const {
     isConnected,
@@ -1251,8 +1253,10 @@ function CashierPage() {
       {cashReport && createPortal(
         <div id="cash-report-print" className="cash-report-print">
           <div className="report-header">
-            <h1>PHARMACIE 360</h1>
+            <h1>{pharmacy.name}</h1>
             <h2>Rapport de clôture de caisse</h2>
+            {pharmacy.address && <p>{pharmacy.address}</p>}
+            {pharmacy.phone && <p>Tél. {pharmacy.phone}</p>}
             <p>
               Session #{cashReport.id} · {cashReport.user_name}
             </p>
@@ -1326,7 +1330,13 @@ function CashierPage() {
             <div className="space-y-4">
               {/* Receipt Header */}
               <div className="text-center">
-                <h3 className="font-bold text-lg">PHARMACIE 360</h3>
+                <h3 className="font-bold text-lg">{pharmacy.name}</h3>
+                {pharmacy.address && (
+                  <p className="text-xs text-gray-500">{pharmacy.address}</p>
+                )}
+                {pharmacy.phone && (
+                  <p className="text-xs text-gray-500">Tél. {pharmacy.phone}</p>
+                )}
                 <p className="text-sm text-gray-500">
                   Ticket de caisse
                 </p>

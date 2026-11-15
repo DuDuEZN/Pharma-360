@@ -93,9 +93,9 @@ const Select = forwardRef(({
   const displayValue = selectedOption?.label || placeholder
 
   return (
-    <div className="w-full">
+    <div className={cn('w-full', className)}>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="mb-1.5 block text-[13px] font-medium text-secondary-600 dark:text-secondary-300">
           {label}
         </label>
       )}
@@ -104,46 +104,45 @@ const Select = forwardRef(({
           ref={ref}
           type="button"
           className={cn(
-            'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm',
-            'rounded-lg border bg-white transition-colors duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500',
-            'disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500',
-            error ? 'border-danger-500 focus:ring-danger-500 focus:border-danger-500' : 'border-gray-300',
-            className
+            'flex h-10 w-full items-center justify-between gap-2 px-3.5 py-2 text-sm',
+            'rounded-xl border border-black/10 bg-white/80 shadow-apple-sm transition-all duration-200 ease-apple dark:border-white/10 dark:bg-white/5 dark:text-white',
+            'focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/15',
+            'disabled:cursor-not-allowed disabled:bg-secondary-50 disabled:text-secondary-500 dark:disabled:bg-white/5',
+            error && 'border-danger-500 focus:border-danger-500 focus:ring-danger-500/15'
           )}
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
           {...props}
         >
-          <span className={cn('truncate', !displayValue && 'text-gray-400')}>
+          <span className={cn('truncate', !displayValue && 'text-secondary-400 dark:text-secondary-500')}>
             {displayValue}
           </span>
           <div className="flex items-center gap-1">
             {clearable && selectedOption && (
               <button
                 type="button"
-                className="p-1 hover:bg-gray-100 rounded"
+                className="rounded-full p-1 hover:bg-black/5 dark:hover:bg-white/10"
                 onClick={handleClear}
               >
-                <X className="h-4 w-4 text-gray-400" />
+                <X className="h-4 w-4 text-secondary-400" />
               </button>
             )}
             {isOpen ? (
-              <ChevronUp className="h-4 w-4 text-gray-400" />
+              <ChevronUp className="h-4 w-4 text-secondary-400" />
             ) : (
-              <ChevronDown className="h-4 w-4 text-gray-400" />
+              <ChevronDown className="h-4 w-4 text-secondary-400" />
             )}
           </div>
         </button>
         
         {/* Dropdown */}
         {isOpen && !disabled && (
-          <div className="absolute z-10 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden animate-fade-in">
+          <div className="absolute z-20 mt-1.5 w-full overflow-hidden rounded-xl border border-black/[0.06] bg-white/95 shadow-apple-lg backdrop-blur-2xl animate-scale-in dark:border-white/10 dark:bg-[#1c1c1e]/95">
             {searchable && options.length > 5 && (
-              <div className="p-2 border-b border-gray-100">
+              <div className="border-b border-black/[0.06] p-2 dark:border-white/10">
                 <input
                   type="text"
-                  className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="w-full rounded-lg border border-black/10 bg-white/80 px-2.5 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500/15 dark:border-white/10 dark:bg-white/5 dark:text-white"
                   placeholder="Rechercher..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -151,16 +150,15 @@ const Select = forwardRef(({
                 />
               </div>
             )}
-            <div className="max-h-60 overflow-y-auto">
+            <div className="max-h-60 overflow-y-auto p-1">
               {filteredOptions.length > 0 ? (
                 filteredOptions.map((option) => (
                   <button
                     key={option.value}
                     type="button"
                     className={cn(
-                      'w-full px-3 py-2 text-sm text-left hover:bg-gray-50 transition-colors',
-                      'flex items-center gap-2',
-                      selectedOption?.value === option.value && 'bg-primary-50 text-primary-700'
+                      'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors duration-150 ease-apple hover:bg-black/[0.04] dark:hover:bg-white/10',
+                      selectedOption?.value === option.value && 'bg-primary-500/10 text-primary-700 dark:text-primary-300'
                     )}
                     onClick={() => handleSelect(option)}
                   >

@@ -13,7 +13,7 @@ const ModalHeader = ({
   return (
     <div
       className={cn(
-        'flex items-center justify-between p-6 border-b border-gray-200',
+        'flex items-center justify-between border-b border-black/[0.06] p-6 dark:border-white/10',
         className
       )}
       {...props}
