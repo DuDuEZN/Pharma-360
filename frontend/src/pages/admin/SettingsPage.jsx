@@ -293,9 +293,13 @@ function SettingsPage() {
                         id="app_name"
                         name="app_name"
                         value={settings.app_name || 'Pharma 360'}
-                        onChange={handleChange}
+                        readOnly
+                        disabled
                         placeholder="Nom de l'application"
                       />
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Le nom du logiciel est fixe et ne peut pas être modifié.
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="version">Version</Label>
@@ -554,6 +558,22 @@ function SettingsPage() {
                         onChange={handleChange}
                         placeholder="Identifiant fiscal"
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="tax_rate">Taux de TVA (%)</Label>
+                      <Input
+                        id="tax_rate"
+                        name="tax_rate"
+                        type="number"
+                        min={0}
+                        step="0.1"
+                        value={settings.tax_rate ?? 0}
+                        onChange={handleChange}
+                        placeholder="Ex. 18"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Appliqué automatiquement aux facturations.
+                      </p>
                     </div>
                   </div>
 

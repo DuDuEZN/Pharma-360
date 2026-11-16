@@ -136,6 +136,7 @@ class CustomerService:
         result = await db.execute(
             select(Sale)
             .where(Sale.customer_id == customer_id)
+            .options(selectinload(Sale.items))
             .order_by(desc(Sale.created_at))
         )
         orders = result.scalars().all()
@@ -176,6 +177,7 @@ class CustomerService:
         result = await db.execute(
             select(Sale)
             .where(Sale.customer_id == customer_id)
+            .options(selectinload(Sale.items))
             .order_by(desc(Sale.created_at))
             .limit(50)
         )
@@ -183,9 +185,15 @@ class CustomerService:
         return [
             {
                 "id": purchase.id,
+                "sale_number": purchase.sale_number,
                 "date": purchase.created_at,
+                "subtotal": float(purchase.subtotal or 0),
+                "tax_amount": float(purchase.tax_amount or 0),
+                "discount": float(purchase.discount or 0),
                 "total": purchase.total,
+                "status": purchase.status,
                 "payment_method": purchase.payment_method,
+                "is_credit": CustomerService._is_credit(purchase),
                 "items": [
                     {
                         "product_id": item.product_id,
@@ -199,6 +207,47 @@ class CustomerService:
             }
             for purchase in purchases
         ]
+
+    @staticmethod
+    def _is_credit(sale: Sale) -> bool:
+        """Un achat est considéré à crédit tant qu'il n'est pas réglé."""
+        return sale.status in ("pending", "partial") or sale.payment_method == "credit"
+
+    @staticmethod
+    async def get_customer_credit(customer_id: int, db: AsyncSession) -> dict:
+        """Solde de crédit et liste des achats à crédit d'un client."""
+        result = await db.execute(
+            select(Sale)
+            .where(Sale.customer_id == customer_id)
+            .options(selectinload(Sale.items))
+            .order_by(desc(Sale.created_at))
+        )
+        sales = result.scalars().all()
+
+        credit_sales = [sale for sale in sales if CustomerService._is_credit(sale)]
+        credit_balance = sum(float(sale.total or 0) for sale in credit_sales)
+        paid_sales = [sale for sale in sales if sale.status == "paid"]
+
+        return {
+            "customer_id": customer_id,
+            "credit_balance": round(credit_balance, 2),
+            "credit_purchases_count": len(credit_sales),
+            "paid_purchases_count": len(paid_sales),
+            "total_paid": round(sum(float(s.total or 0) for s in paid_sales), 2),
+            "credit_purchases": [
+                {
+                    "id": sale.id,
+                    "sale_number": sale.sale_number,
+                    "date": sale.created_at,
+                    "total": float(sale.total or 0),
+                    "status": sale.status,
+                    "payment_method": sale.payment_method,
+                    "items_count": len(sale.items) if sale.items else 0,
+                }
+                for sale in credit_sales
+            ],
+        }
+
 
     @staticmethod
     async def get_customer_stats(
@@ -235,6 +284,34 @@ class CustomerService:
             total_purchases / purchase_count if purchase_count > 0 else 0.0
         )
 
+        # Crédit : ventes non réglées
+        result = await db.execute(
+            select(
+                func.coalesce(func.sum(Sale.total), 0),
+                func.count(Sale.id),
+            ).where(
+                Sale.customer_id == customer_id,
+                Sale.status.in_(["pending", "partial"]),
+            )
+        )
+        credit_row = result.one()
+        credit_balance = float(credit_row[0] or 0)
+        credit_purchases_count = int(credit_row[1] or 0)
+
+        # Ventes réglées
+        result = await db.execute(
+            select(
+                func.coalesce(func.sum(Sale.total), 0),
+                func.count(Sale.id),
+            ).where(
+                Sale.customer_id == customer_id,
+                Sale.status == "paid",
+            )
+        )
+        paid_row = result.one()
+        total_paid = float(paid_row[0] or 0)
+        paid_purchases_count = int(paid_row[1] or 0)
+
         return CustomerStatsResponse(
             customer_id=customer_id,
             total_purchases=total_purchases,
@@ -243,6 +320,10 @@ class CustomerService:
             first_purchase_date=first_purchase_date,
             last_purchase_date=last_purchase_date,
             most_purchased_category=None,  # Would need additional query
+            credit_balance=round(credit_balance, 2),
+            credit_purchases_count=credit_purchases_count,
+            paid_purchases_count=paid_purchases_count,
+            total_paid=round(total_paid, 2),
         )
 
 

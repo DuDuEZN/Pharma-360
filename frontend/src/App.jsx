@@ -20,6 +20,7 @@ import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/DashboardPage'
 import ProductsPage from '@/pages/ProductsPage'
 import SalesPage from '@/pages/SalesPage'
+import CustomersPage from '@/pages/CustomersPage'
 import CashierPage from '@/pages/CashierPage'
 import HelpPage from '@/pages/HelpPage'
 import ProductFormPage from '@/pages/ProductFormPage'
@@ -42,7 +43,6 @@ import {
   ManagerDashboardPage,
   InventoryPage,
   SuppliersPage,
-  CustomersPage,
   OrdersPage,
   DeliveriesPage,
   ManagerReportsPage,
@@ -114,6 +114,16 @@ function App() {
                       {/* Sales */}
                       <Route path="/sales" element={<SalesPage />} />
                       <Route path="/sales/new" element={<SaleFormPage />} />
+
+                      {/* Clients (tous sauf caissier) */}
+                      <Route
+                        path="/customers"
+                        element={
+                          <RoleRoute roles={['admin', 'manager', 'seller']}>
+                            <CustomersPage />
+                          </RoleRoute>
+                        }
+                      />
                       
                       {/* Cashier (admin / cashier uniquement) */}
                       <Route
@@ -151,7 +161,6 @@ function App() {
                         <Route path="dashboard" element={<ManagerDashboardPage />} />
                         <Route path="inventory" element={<InventoryPage />} />
                         <Route path="suppliers" element={<SuppliersPage />} />
-                        <Route path="customers" element={<CustomersPage />} />
                         <Route path="orders" element={<OrdersPage />} />
                         <Route path="orders/new" element={<OrderFormPage />} />
                         <Route path="orders/:id/edit" element={<OrderFormPage />} />

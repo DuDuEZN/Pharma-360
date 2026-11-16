@@ -88,7 +88,13 @@ function AdminAnalyticsPage() {
             category: categoryFilter !== 'all' ? categoryFilter : undefined 
           } 
         }),
-        api.get('/admin/analytics/top-products', { params: { range: timeRange, limit: 10 } }),
+        api.get('/admin/analytics/top-products', {
+          params: {
+            range: timeRange,
+            limit: 10,
+            category: categoryFilter !== 'all' ? categoryFilter : undefined,
+          },
+        }),
         api.get('/admin/analytics/users', { params: { range: timeRange } }),
         api.get('/admin/analytics/system')
       ])

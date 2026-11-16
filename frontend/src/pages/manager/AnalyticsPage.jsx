@@ -48,8 +48,22 @@ function AnalyticsPage() {
     try {
       const response = await api.get('/products/categories')
       setCategories(response.data.categories || [])
-      const prodRes = await api.get('/products', { params: { page: 1, page_size: 200, is_active: true } })
-      setProducts(prodRes.data.products || [])
+
+      // Récupère tous les produits actifs (page_size maximum = 100 côté API).
+      const collected = []
+      let page = 1
+      let totalPages = 1
+      do {
+        const prodRes = await api.get('/products', {
+          params: { page, page_size: 100, is_active: true },
+        })
+        const payload = prodRes.data || {}
+        collected.push(...(payload.products || []))
+        totalPages = Number(payload.total_pages || 1)
+        page += 1
+      } while (page <= totalPages)
+
+      setProducts(collected)
     } catch (error) {
       console.error('Failed to fetch categories:', error)
     }
@@ -63,8 +77,21 @@ function AnalyticsPage() {
       const [statsRes, salesRes, stockRes, productsRes, marginRes, productStatsRes] = await Promise.all([
         api.get('/analytics/stats', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
         api.get('/analytics/sales', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
-        api.get('/analytics/stock', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
-        api.get('/analytics/top-products', { params: { range: timeRange, limit: 10 } }),
+        api.get('/analytics/stock', {
+          params: {
+            range: timeRange,
+            category: categoryFilter !== 'all' ? categoryFilter : undefined,
+            product_id: productFilter !== 'all' ? productFilter : undefined,
+          },
+        }),
+        api.get('/analytics/top-products', {
+          params: {
+            range: timeRange,
+            limit: 10,
+            category: categoryFilter !== 'all' ? categoryFilter : undefined,
+            product_id: productFilter !== 'all' ? productFilter : undefined,
+          },
+        }),
         api.get('/analytics/product-margin-trend', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined, product_id: productFilter !== 'all' ? productFilter : undefined } }),
         api.get('/analytics/product-stats', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined, product_id: productFilter !== 'all' ? productFilter : undefined } })
       ])
@@ -863,7 +890,7 @@ function AnalyticsPage() {
                     </div>
                   )}
                 </CardContent>
-              </Card>}
+              </Card>
               <Card>
                 <CardHeader>
                   <CardTitle>Statistiques par produit</CardTitle>

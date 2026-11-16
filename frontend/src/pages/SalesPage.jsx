@@ -84,6 +84,9 @@ function SalesPage() {
   const [discountType, setDiscountType] = useState('percentage')
   const [discountValue, setDiscountValue] = useState('')
 
+  // TVA (taux configurable dans les paramètres)
+  const [taxRate, setTaxRate] = useState(0)
+
   const {
     isOpen: isProductModalOpen,
     onOpen: openProductModal,
@@ -133,6 +136,25 @@ function SalesPage() {
     const timer = setTimeout(() => fetchProducts(searchQuery), 300)
     return () => clearTimeout(timer)
   }, [searchQuery, fetchProducts])
+
+  // Taux de TVA configuré dans les paramètres de la pharmacie.
+  useEffect(() => {
+    let cancelled = false
+    const loadTaxRate = async () => {
+      try {
+        const response = await api.get('/settings/pharmacy')
+        if (cancelled) return
+        const rate = Number(response.data?.tax_rate ?? 0)
+        setTaxRate(Number.isFinite(rate) ? rate : 0)
+      } catch {
+        if (!cancelled) setTaxRate(0)
+      }
+    }
+    loadTaxRate()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // --- Recherche clients --------------------------------------------------
   useEffect(() => {
@@ -413,6 +435,14 @@ function SalesPage() {
 
   const netTotal = Math.max(0, cartTotal - discountAmount)
 
+  // TVA calculée sur le net après remise.
+  const taxAmount = useMemo(() => {
+    if (taxRate <= 0) return 0
+    return Math.round(netTotal * taxRate) / 100
+  }, [netTotal, taxRate])
+
+  const grandTotal = Math.max(0, netTotal + taxAmount)
+
   const handleSendToCashier = async () => {
     if (cartItems.length === 0) {
       addToast({
@@ -446,9 +476,9 @@ function SalesPage() {
       customer_id: selectedCustomer?.id ?? null,
       status: 'pending',
       subtotal: cartTotal,
-      tax_amount: 0,
+      tax_amount: taxAmount,
       discount: discountAmount,
-      total: netTotal,
+      total: grandTotal,
       notes: selectedCustomer
         ? `Client : ${selectedCustomer.name}${selectedCustomer.phone ? ` (${selectedCustomer.phone})` : ''}`
         : 'Client anonyme',
@@ -854,10 +884,16 @@ function SalesPage() {
                       <span>-{formatCurrency(discountAmount)}</span>
                     </div>
                   )}
+                  {taxAmount > 0 && (
+                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
+                      <span>TVA ({taxRate}%)</span>
+                      <span>+{formatCurrency(taxAmount)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between border-t pt-2 text-lg font-bold dark:border-white/10">
                     <span>Total</span>
                     <span className="text-primary-600 dark:text-primary-400">
-                      {formatCurrency(netTotal)}
+                      {formatCurrency(grandTotal)}
                     </span>
                   </div>
                 </div>
@@ -1171,9 +1207,15 @@ function SalesPage() {
                 <span className="font-medium">Remise :</span> -{formatCurrency(discountAmount)}
               </p>
             )}
+            {taxAmount > 0 && (
+              <p className="mt-1 text-gray-700 dark:text-gray-200">
+                <span className="font-medium">TVA ({taxRate}%) :</span>{' '}
+                +{formatCurrency(taxAmount)}
+              </p>
+            )}
             <p className="mt-1 font-semibold text-primary-600 dark:text-primary-400">
               <span className="font-medium text-gray-700 dark:text-gray-200">Total :</span>{' '}
-              {formatCurrency(netTotal)}
+              {formatCurrency(grandTotal)}
             </p>
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">

@@ -102,3 +102,13 @@ class CustomerStatsResponse(BaseModel):
     most_purchased_category: Optional[str] = Field(
         None, description="Most purchased category"
     )
+    credit_balance: float = Field(
+        default=0.0, description="Montant restant dû (achats à crédit)"
+    )
+    credit_purchases_count: int = Field(
+        default=0, description="Nombre d'achats à crédit (non payés)"
+    )
+    paid_purchases_count: int = Field(
+        default=0, description="Nombre d'achats réglés"
+    )
+    total_paid: float = Field(default=0.0, description="Montant total réglé")

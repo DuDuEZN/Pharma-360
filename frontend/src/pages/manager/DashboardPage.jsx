@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement } from 'chart.js';
 import { Bar, Pie, Line } from 'react-chartjs-2';
-import { Calendar, DollarSign, Package, AlertTriangle, TrendingUp, TrendingDown, Users, FileText, RefreshCw, Clock, ShoppingCart } from 'lucide-react';
+import { Calendar, DollarSign, Package, AlertTriangle, TrendingUp, TrendingDown, Users, FileText, RefreshCw, Clock, ShoppingCart, Boxes, PackageX, CalendarClock, Archive, Wallet, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -66,6 +66,7 @@ const DashboardPage = () => {
   });
   
   const [loading, setLoading] = useState(true);
+  const [overviewData, setOverviewData] = useState(null);
   const [timeRange, setTimeRange] = useState('month');
   const [dateRange, setDateRange] = useState({
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
@@ -102,6 +103,16 @@ const DashboardPage = () => {
           activeUsers: statsResponse.data.active_users || 0,
           pendingInvoices: statsResponse.data.pending_invoices || 0
         });
+      }
+
+      // Rubriques du tableau de bord (vue générale, activités, valorisation,
+      // mouvements de stock).
+      try {
+        const overviewResponse = await apiClient.get('/dashboard/overview');
+        setOverviewData(overviewResponse.data || null);
+      } catch (overviewError) {
+        console.error('Error fetching dashboard overview:', overviewError);
+        setOverviewData(null);
       }
       
       // Fetch sales data
@@ -375,6 +386,207 @@ const DashboardPage = () => {
         </CardContent>
       </Card>
 
+      {/* Rubriques du tableau de bord */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        {/* Vue Générale */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Boxes className="h-5 w-5 text-primary-600" />
+              Vue Générale
+            </CardTitle>
+            <CardDescription>État instantané du stock de la pharmacie</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading && !overviewData ? (
+              <Skeleton className="h-32 w-full" />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-emerald-500/[0.10] p-3">
+                  <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
+                    <Package className="h-3.5 w-3.5" /> Produits en stock
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                    {overviewData?.overview?.in_stock ?? 0}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-red-500/[0.10] p-3">
+                  <p className="flex items-center gap-1.5 text-xs text-red-700 dark:text-red-300">
+                    <PackageX className="h-3.5 w-3.5" /> En rupture
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-red-700 dark:text-red-300">
+                    {overviewData?.overview?.out_of_stock ?? 0}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-orange-500/[0.10] p-3">
+                  <p className="flex items-center gap-1.5 text-xs text-orange-700 dark:text-orange-300">
+                    <AlertTriangle className="h-3.5 w-3.5" /> Périmés
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-orange-700 dark:text-orange-300">
+                    {overviewData?.overview?.expired ?? 0}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-amber-500/[0.10] p-3">
+                  <p className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+                    <CalendarClock className="h-3.5 w-3.5" /> Péremption proche
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-300">
+                    {overviewData?.overview?.expiring_soon ?? 0}
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Activités */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Archive className="h-5 w-5 text-primary-600" />
+              Activités
+            </CardTitle>
+            <CardDescription>Dynamique des produits en stock</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading && !overviewData ? (
+              <Skeleton className="h-32 w-full" />
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-xl bg-emerald-500/[0.08] px-4 py-3">
+                  <span className="text-sm text-gray-600 dark:text-gray-300">Produits en stock</span>
+                  <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                    {overviewData?.activity?.in_stock ?? 0}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-gray-500/[0.08] px-4 py-3">
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                    Produits dormants (90 jours sans vente)
+                  </span>
+                  <span className="text-lg font-bold">
+                    {overviewData?.activity?.dormant ?? 0}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-blue-500/[0.08] px-4 py-3">
+                  <span className="text-sm text-gray-600 dark:text-gray-300">Produits en surstock</span>
+                  <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                    {overviewData?.activity?.overstocked ?? 0}
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Valorisation */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary-600" />
+              Valorisation
+            </CardTitle>
+            <CardDescription>Synthèse financière du stock</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading && !overviewData ? (
+              <Skeleton className="h-32 w-full" />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-black/[0.03] p-3 dark:bg-white/[0.05]">
+                  <p className="text-xs text-gray-500">Valorisation à l'achat</p>
+                  <p className="mt-1 text-lg font-bold">
+                    {formatCurrency(overviewData?.valuation?.purchase_value ?? 0)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-black/[0.03] p-3 dark:bg-white/[0.05]">
+                  <p className="text-xs text-gray-500">Valorisation à la vente</p>
+                  <p className="mt-1 text-lg font-bold">
+                    {formatCurrency(overviewData?.valuation?.sale_value ?? 0)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-emerald-500/[0.10] p-3">
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">Marge potentielle</p>
+                  <p className="mt-1 text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                    {formatCurrency(overviewData?.valuation?.margin ?? 0)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-red-500/[0.10] p-3">
+                  <p className="text-xs text-red-700 dark:text-red-300">Stock périmé</p>
+                  <p className="mt-1 text-lg font-bold text-red-700 dark:text-red-300">
+                    {formatCurrency(overviewData?.valuation?.expired_value ?? 0)}
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Mouvements de stock */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary-600" />
+              Mouvements de stock
+            </CardTitle>
+            <CardDescription>Entrées et sorties des deux dernières semaines</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading && !overviewData ? (
+              <Skeleton className="h-32 w-full" />
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
+                    <ArrowUpRight className="h-3.5 w-3.5" /> Entrées :{' '}
+                    {overviewData?.movements?.totals?.inbound ?? 0}
+                  </span>
+                  <span className="flex items-center gap-1 text-red-700 dark:text-red-300">
+                    <ArrowDownRight className="h-3.5 w-3.5" /> Sorties :{' '}
+                    {overviewData?.movements?.totals?.outbound ?? 0}
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {(overviewData?.movements?.daily || []).map((day) => {
+                    const daily = overviewData?.movements?.daily || [];
+                    const maxValue = Math.max(
+                      1,
+                      ...daily.map((d) => Math.max(d.inbound, d.outbound))
+                    );
+                    return (
+                      <div key={day.date} className="flex items-center gap-2 text-[11px]">
+                        <span className="w-16 shrink-0 text-gray-500">
+                          {new Date(day.date).toLocaleDateString('fr-FR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                          })}
+                        </span>
+                        <div className="flex flex-1 items-center gap-1">
+                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-black/[0.04] dark:bg-white/[0.08]">
+                            <div
+                              className="h-full rounded-full bg-emerald-500"
+                              style={{ width: `${(day.inbound / maxValue) * 100}%` }}
+                            />
+                          </div>
+                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-black/[0.04] dark:bg-white/[0.08]">
+                            <div
+                              className="h-full rounded-full bg-red-500"
+                              style={{ width: `${(day.outbound / maxValue) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                        <span className="w-16 shrink-0 text-right text-gray-500">
+                          +{day.inbound} / -{day.outbound}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
@@ -437,10 +649,10 @@ const DashboardPage = () => {
                       Produits en Stock
                     </p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {stats.totalProducts.toLocaleString('fr-FR')}
+                      {overviewData?.overview?.in_stock ?? stats.totalProducts.toLocaleString('fr-FR')}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {stats.lowStock} en rupture ou stock faible
+                      {overviewData?.overview?.out_of_stock ?? stats.lowStock} en rupture de stock
                     </p>
                   </div>
                   <div className="p-3 bg-warning-100 dark:bg-warning-900/30 rounded-lg">
@@ -458,10 +670,10 @@ const DashboardPage = () => {
                       Alertes
                     </p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {stats.expiringSoon + stats.lowStock}
+                      {(overviewData?.overview?.expiring_soon ?? 0) + (overviewData?.overview?.expired ?? 0)}
                     </p>
                     <p className="text-xs text-danger-600 dark:text-danger-400 mt-1">
-                      {stats.expiringSoon} péremptions proches, {stats.lowStock} stocks faibles
+                      {overviewData?.overview?.expiring_soon ?? 0} péremptions proches, {overviewData?.overview?.expired ?? 0} périmés
                     </p>
                   </div>
                   <div className="p-3 bg-danger-100 dark:bg-danger-900/30 rounded-lg">

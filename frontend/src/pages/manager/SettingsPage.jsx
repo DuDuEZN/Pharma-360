@@ -181,6 +181,7 @@ function ManagerSettingsPage() {
         pharmacy_email: settings.pharmacy_email || '',
         currency: settings.currency || '',
         currency_symbol: settings.currency_symbol || '',
+        tax_rate: Number(settings.tax_rate) || 0,
       }
       await api.put('/settings/pharmacy', pharmacyPayload)
       emitPharmacyUpdated(pharmacyPayload)

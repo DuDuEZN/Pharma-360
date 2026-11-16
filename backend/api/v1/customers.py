@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import get_db
 from ...core.logging import get_logger
+from ...core.security import RBACUtils, get_current_user
 from ...models.customer import Customer
+from ...models.user import User
 from ...schemas.customer import (
     CustomerCreate,
     CustomerResponse,
@@ -24,6 +26,25 @@ router = APIRouter(prefix="/customers", tags=["customers"])
 logger = get_logger(__name__)
 
 
+def _require_read(user: User) -> None:
+    """Lecture et création réservées aux rôles seller et supérieurs (pas caissier)."""
+    if not RBACUtils.has_permission(user.role, "seller"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux vendeurs, gestionnaires et administrateurs",
+        )
+
+
+def _require_manage(user: User) -> None:
+    """Modification et suppression réservées aux gestionnaires et administrateurs."""
+    if not RBACUtils.has_permission(user.role, "manager"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Gestionnaire ou administrateur requis",
+        )
+
+
+
 @router.get(
     "/",
     summary="List all customers",
@@ -35,8 +56,10 @@ async def list_customers(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List customers endpoint"""
+    _require_read(current_user)
     customers = await CustomerService.list_customers(
         db=db, name=name, phone=phone, skip=skip, limit=limit
     )
@@ -52,8 +75,10 @@ async def list_customers(
 async def get_customer(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get customer endpoint"""
+    _require_read(current_user)
     customer = await CustomerService.get_customer_by_id(customer_id, db)
     if not customer:
         raise HTTPException(
@@ -72,8 +97,10 @@ async def get_customer(
 async def create_customer(
     customer_data: CustomerCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create customer endpoint"""
+    _require_read(current_user)
     customer = await CustomerService.create_customer(customer_data, db)
     return customer
 
@@ -88,8 +115,10 @@ async def update_customer(
     customer_id: int,
     customer_data: CustomerUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update customer endpoint"""
+    _require_manage(current_user)
     customer = await CustomerService.update_customer(customer_id, customer_data, db)
     if not customer:
         raise HTTPException(
@@ -107,8 +136,10 @@ async def update_customer(
 async def delete_customer(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete customer endpoint"""
+    _require_manage(current_user)
     success = await CustomerService.delete_customer(customer_id, db)
     if not success:
         raise HTTPException(
@@ -125,8 +156,10 @@ async def delete_customer(
 async def get_customer_orders(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get customer orders endpoint"""
+    _require_read(current_user)
     orders = await CustomerService.get_customer_orders(customer_id, db)
     return orders
 
@@ -139,8 +172,10 @@ async def get_customer_orders(
 async def get_customer_invoices(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get customer invoices endpoint"""
+    _require_read(current_user)
     invoices = await CustomerService.get_customer_invoices(customer_id, db)
     return invoices
 
@@ -153,8 +188,10 @@ async def get_customer_invoices(
 async def get_customer_purchases(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get customer purchases endpoint"""
+    _require_read(current_user)
     purchases = await CustomerService.get_customer_purchases(customer_id, db)
     return purchases
 
@@ -167,7 +204,24 @@ async def get_customer_purchases(
 async def get_customer_stats(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get customer stats endpoint"""
+    _require_read(current_user)
     stats = await CustomerService.get_customer_stats(customer_id, db)
     return stats
+
+
+@router.get(
+    "/{customer_id}/credit",
+    summary="Get customer credit",
+    description="Credit balance and credit (unpaid) purchases for a customer",
+)
+async def get_customer_credit(
+    customer_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get customer credit endpoint"""
+    _require_read(current_user)
+    return await CustomerService.get_customer_credit(customer_id, db)

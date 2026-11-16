@@ -256,6 +256,7 @@ async def get_analytics_sales(
 async def get_analytics_stock(
     range: Annotated[Optional[str], Query()] = "month",
     category: Annotated[Optional[int], Query()] = None,
+    product_id: Annotated[Optional[int], Query()] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -265,6 +266,8 @@ async def get_analytics_stock(
     query = select(Product)
     if category:
         query = query.where(Product.category_id == category)
+    if product_id:
+        query = query.where(Product.id == product_id)
     result = await db.execute(query)
     products = result.scalars().all()
 
@@ -335,6 +338,8 @@ async def get_analytics_stock(
                 select(Product.id).where(Product.category_id == category)
             )
         )
+    if product_id:
+        rotation_query = rotation_query.where(SaleItem.product_id == product_id)
     rotation_query = rotation_query.group_by(SaleItem.product_id)
     rotation_rows = (await db.execute(rotation_query)).all()
     sold_by_product = {pid: int(qty or 0) for pid, qty in rotation_rows}
@@ -368,6 +373,8 @@ async def get_analytics_stock(
 async def get_analytics_top_products(
     range: Annotated[Optional[str], Query()] = "month",
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    category: Annotated[Optional[int], Query()] = None,
+    product_id: Annotated[Optional[int], Query()] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -386,6 +393,10 @@ async def get_analytics_top_products(
     )
     if start_date and end_date:
         query = query.where(and_(func.date(Sale.created_at) >= start_date, func.date(Sale.created_at) <= end_date))
+    if category:
+        query = query.where(Product.category_id == category)
+    if product_id:
+        query = query.where(SaleItem.product_id == product_id)
 
     result = await db.execute(query)
     items = result.scalars().all()

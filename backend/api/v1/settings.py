@@ -80,6 +80,8 @@ async def update_settings(
             detail="Admin required",
         )
     current = _load_settings()
+    # Le nom du logiciel est figé : il ne peut pas être modifié via l'API.
+    settings.pop("app_name", None)
     current.update(settings)
     current["updated_at"] = datetime.utcnow().isoformat()
     current["updated_by"] = current_user.username
@@ -96,8 +98,11 @@ PHARMACY_FIELDS = (
     "pharmacy_tax_id",
     "currency",
     "currency_symbol",
-    "app_name",
+    "tax_rate",
 )
+
+# Champs en lecture seule exposés au frontend (nom du logiciel inclus).
+PHARMACY_READ_FIELDS = PHARMACY_FIELDS + ("app_name",)
 
 
 @router.get("/pharmacy")
@@ -111,7 +116,7 @@ async def get_pharmacy_settings(
     sensibles et doivent être disponibles pour l'impression côté caisse.
     """
     data = _load_settings()
-    return {field: data.get(field, "") for field in PHARMACY_FIELDS}
+    return {field: data.get(field, "") for field in PHARMACY_READ_FIELDS}
 
 
 @router.put("/pharmacy")
@@ -134,7 +139,7 @@ async def update_pharmacy_settings(
     return {
         "status": "success",
         "message": "Informations de la pharmacie sauvegardées",
-        "pharmacy": {field: current.get(field, "") for field in PHARMACY_FIELDS},
+        "pharmacy": {field: current.get(field, "") for field in PHARMACY_READ_FIELDS},
     }
 
 
