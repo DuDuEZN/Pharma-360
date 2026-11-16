@@ -17,6 +17,7 @@ from fastapi import APIRouter
 
 from .catalog import router as catalog_router
 from .customers import router as customers_router
+from .inventory import router as inventory_router
 from .sales import router as sales_router
 
 
@@ -64,6 +65,14 @@ MODULES: tuple[ModuleSpec, ...] = (
         depends_on=("sales",),
         license_feature="customers",
         description="Clients, historique d'achats, crédit et statistiques.",
+    ),
+    ModuleSpec(
+        name="inventory",
+        router=inventory_router,
+        enabled=_module_flag("inventory"),
+        depends_on=("catalog",),
+        license_feature="inventory",
+        description="Stock, lots, seuils, péremptions et mouvements de stock.",
     ),
 )
 

@@ -42,6 +42,12 @@ backend/
       service.py           # cas d'usage métier
       schemas.py           # contrats Pydantic du domaine
       models.py            # modèle exposé (réexporté en phase 1)
+    inventory/             # module Stock
+      __init__.py          # API publique du module
+      router.py            # endpoints du domaine
+      service.py           # cas d'usage métier
+      schemas.py           # contrats Pydantic du domaine
+      models.py            # modèles exposés (lots et mouvements)
     sales/                 # module Ventes
       __init__.py          # API publique du module
       router.py            # endpoints du domaine
@@ -51,14 +57,17 @@ backend/
       catalog.py           # port vers le domaine Catalogue
   api/v1/
     customers.py           # shim -> backend.modules.customers.router
+    inventory.py           # shim -> backend.modules.inventory.router
     products.py            # shim -> backend.modules.catalog.router
     sales.py               # shim -> backend.modules.sales.router
   services/
     customer_service.py    # shim -> backend.modules.customers.service
+    inventory_service.py   # shim -> backend.modules.inventory.service
     product_service.py     # shim -> backend.modules.catalog.service
     sale_service.py        # shim -> backend.modules.sales.service
   schemas/
     customer.py            # shim -> backend.modules.customers.schemas
+    inventory.py           # shim -> backend.modules.inventory.schemas
     product.py             # shim -> backend.modules.catalog.schemas
     sale.py                # shim -> backend.modules.sales.schemas
 ```
@@ -80,8 +89,9 @@ L'activation se fait par variable d'environnement :
 
 ```text
 MODULE_CATALOG_ENABLED=true|false
-MODULE_SALES_ENABLED=true|false
 MODULE_CUSTOMERS_ENABLED=true|false
+MODULE_INVENTORY_ENABLED=true|false
+MODULE_SALES_ENABLED=true|false
 ```
 
 `enabled_modules()` renvoie les modules actifs **dont toutes les dépendances
@@ -89,11 +99,12 @@ sont actives**. Les dépendances déclarées sont :
 
 ```text
 catalog     -> (aucune)
+inventory   -> catalog
 sales       -> catalog
 customers   -> sales
 ```
 
-Désactiver le Catalogue désactive donc Ventes, puis Clients en cascade.
+Désactiver le Catalogue désactive donc Ventes, Clients et Stock en cascade.
 
 `backend/main.py` inclut automatiquement leur routeur sous le préfixe
 `/api/v1`.
@@ -121,6 +132,10 @@ frontend/src/
       index.js             # manifeste public du module
       api.js               # couche d'accès au domaine
       pages/               # écrans du domaine
+    inventory/
+      index.js             # manifeste public du module
+      api.js               # couche d'accès au domaine
+      pages/               # écrans du domaine
     sales/
       index.js             # manifeste public du module
       api.js               # couche d'accès au domaine
@@ -130,6 +145,7 @@ frontend/src/
     ProductsPage.jsx       # shim -> features/catalog
     ProductFormPage.jsx    # shim -> features/catalog
     CustomersPage.jsx      # shim -> features/customers
+    InventoryPage.jsx      # shim -> features/inventory (pages/manager/)
     SalesPage.jsx          # shim -> features/sales
     SaleFormPage.jsx       # shim -> features/sales
 ```
@@ -152,7 +168,7 @@ navigation. `App.jsx` et `Sidebar.jsx` consomment le module via
 | Catalogue | `modules/catalog/` | `features/catalog/` | ✅ Migré |
 | Ventes | `modules/sales/` | `features/sales/` | ✅ Pilote |
 | Clients | `modules/customers/` | `features/customers/` | ✅ Migré |
-| Stock | `services/inventory_service.py` | `pages/manager/InventoryPage.jsx` | ⏳ À migrer |
+| Stock | `modules/inventory/` | `features/inventory/` | ✅ Migré |
 | Caisse | `services/cash_service.py` | `pages/CashierPage.jsx` | ⏳ À migrer |
 | Achats / commandes | `services/order_service.py` | `pages/manager/OrdersPage.jsx` | ⏳ À migrer |
 | Rapports | `services/report_service.py` | `pages/manager/*Page.jsx` | ⏳ À migrer |
@@ -171,6 +187,9 @@ complète :
 - `backend.api.v1.customers` → `backend.modules.customers.router`
 - `backend.services.customer_service` → `backend.modules.customers.service`
 - `backend.schemas.customer` → `backend.modules.customers.schemas`
+- `backend.api.v1.inventory` → `backend.modules.inventory.router`
+- `backend.services.inventory_service` → `backend.modules.inventory.service`
+- `backend.schemas.inventory` → `backend.modules.inventory.schemas`
 - `frontend/src/pages/ProductsPage.jsx` → `features/catalog`
 - `frontend/src/pages/ProductFormPage.jsx` → `features/catalog`
 - `frontend/src/pages/CustomersPage.jsx` → `features/customers`

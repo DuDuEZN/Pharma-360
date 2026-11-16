@@ -24,6 +24,7 @@ import HelpPage from '@/pages/HelpPage'
 // Modules métier (monolithe modulaire)
 import { ProductsPage, ProductFormPage } from '@/features/catalog'
 import { CustomersPage } from '@/features/customers'
+import { InventoryPage } from '@/features/inventory'
 import { SalesPage, SaleFormPage } from '@/features/sales'
 
 // Admin Pages
@@ -41,7 +42,6 @@ import {
 import {
   ManagerPage,
   ManagerDashboardPage,
-  InventoryPage,
   SuppliersPage,
   OrdersPage,
   DeliveriesPage,
