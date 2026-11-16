@@ -79,15 +79,15 @@ function AdminPage() {
                   className={cn(
                     'group flex flex-col gap-4 p-4 rounded-lg border transition-all duration-200 hover:shadow-md',
                     isActive
-                      ? 'border-primary-200 bg-primary-50 dark:bg-primary-900/20' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-primary-200'
+                      ? 'border-primary-200 bg-primary-50/80 dark:bg-primary-900/30' 
+                      : 'border-gray-200/70 bg-white/70 hover:border-primary-200 dark:border-gray-700 dark:bg-white/[0.08] hover:bg-white/80'
                   )}
                 >
                   <div className={cn(
                     'flex items-center justify-center w-12 h-12 rounded-full transition-colors',
                     isActive
-                      ? 'bg-primary-100 dark:bg-primary-900/30' 
-                      : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/30'
+                      ? 'bg-primary-100/80 dark:bg-primary-900/40' 
+                      : 'bg-gray-100/80 dark:bg-gray-800/60 group-hover:bg-primary-100/80 dark:group-hover:bg-primary-900/40'
                   )}>
                     <item.icon className={cn(
                       'w-6 h-6 transition-colors',

@@ -110,8 +110,8 @@ function ManagerPage() {
                   className={cn(
                     'group flex flex-col gap-3 rounded-2xl border p-4 transition-all duration-200 ease-apple hover:-translate-y-0.5 hover:shadow-apple',
                     isActive
-                      ? 'border-primary-500/30 bg-primary-500/[0.08]'
-                      : 'border-black/[0.06] bg-white/40 hover:border-primary-500/25 dark:border-white/10 dark:bg-white/[0.03]'
+                      ? 'border-primary-500/30 bg-primary-500/[0.12]'
+                      : 'border-black/[0.08] bg-white/60 hover:border-primary-500/25 dark:border-white/10 dark:bg-white/[0.06]'
                   )}
                 >
                   <div className={cn(
