@@ -1,27 +1,27 @@
-# Architecture — monolithe modulaire par domaine
+﻿# Architecture â€” monolithe modulaire par domaine
 
-Pharma-360 évolue d'un monolithe organisé **par couche technique**
+Pharma-360 Ã©volue d'un monolithe organisÃ© **par couche technique**
 (`api/`, `services/`, `models/`, `schemas/`) vers un **monolithe modulaire
-par domaine métier**. L'objectif est de rendre chaque domaine remplaçable et
+par domaine mÃ©tier**. L'objectif est de rendre chaque domaine remplaÃ§able et
 activables par licence, sans introduire de microservices ni de refonte
 big-bang.
 
 ## Principes
 
-1. **Un déploiement, une base.** Les modules partagent le même processus
-   FastAPI, le même frontend et la même base PostgreSQL.
-2. **Un module = un dossier métier.** Chaque module possède son routeur, son
-   service, ses schémas et son point d'entrée public.
+1. **Un dÃ©ploiement, une base.** Les modules partagent le mÃªme processus
+   FastAPI, le mÃªme frontend et la mÃªme base PostgreSQL.
+2. **Un module = un dossier mÃ©tier.** Chaque module possÃ¨de son routeur, son
+   service, ses schÃ©mas et son point d'entrÃ©e public.
 3. **API publique explicite.** Les autres domaines n'importent que
    `backend.modules.<domaine>` (son `__init__.py`), jamais ses fichiers
    internes.
-4. **Ports pour les dépendances croisées.** Un module ne dépend pas de
-   l'implémentation interne d'un autre module : il passe par un port
+4. **Ports pour les dÃ©pendances croisÃ©es.** Un module ne dÃ©pend pas de
+   l'implÃ©mentation interne d'un autre module : il passe par un port
    (interface/adaptateur), par exemple `modules/sales/catalog.py`.
-5. **Compatibilité ascendante.** Les anciens chemins d'import restent valides
+5. **CompatibilitÃ© ascendante.** Les anciens chemins d'import restent valides
    via des shims pendant toute la migration.
-6. **Activation par registre.** Chaque module est déclaré dans
-   `backend/modules/registry.py`, avec un flag d'activation et une clé de
+6. **Activation par registre.** Chaque module est dÃ©clarÃ© dans
+   `backend/modules/registry.py`, avec un flag d'activation et une clÃ© de
    licence.
 
 ## Structure backend
@@ -33,39 +33,53 @@ backend/
     cash/                  # module Caisse
       __init__.py          # API publique du module
       router.py            # endpoints du domaine
-      service.py           # cas d'usage métier
+      service.py           # cas d'usage mÃ©tier
       schemas.py           # contrats Pydantic du domaine
-      models.py            # modèle exposé (réexporté en phase 1)
+      models.py            # modÃ¨le exposÃ© (rÃ©exportÃ© en phase 1)
     cash/                  # module Caisse
       __init__.py          # API publique du module
       router.py            # endpoints du domaine
-      service.py           # cas d'usage métier
+      service.py           # cas d'usage mÃ©tier
       schemas.py           # contrats Pydantic du domaine
-      models.py            # modèle exposé (réexporté en phase 1)
+      models.py            # modÃ¨le exposÃ© (rÃ©exportÃ© en phase 1)
     catalog/               # module Catalogue
       __init__.py          # API publique du module
       router.py            # endpoints du domaine
-      service.py           # cas d'usage métier
+      service.py           # cas d'usage mÃ©tier
       schemas.py           # contrats Pydantic du domaine
-      models.py            # modèles exposés (réexportés en phase 1)
+      models.py            # modÃ¨les exposÃ©s (rÃ©exportÃ©s en phase 1)
     customers/             # module Clients
       __init__.py          # API publique du module
       router.py            # endpoints du domaine
-      service.py           # cas d'usage métier
+      service.py           # cas d'usage mÃ©tier
       schemas.py           # contrats Pydantic du domaine
-      models.py            # modèle exposé (réexporté en phase 1)
+      models.py            # modÃ¨le exposÃ© (rÃ©exportÃ© en phase 1)
     inventory/             # module Stock
       __init__.py          # API publique du module
       router.py            # endpoints du domaine
-      service.py           # cas d'usage métier
+      service.py           # cas d'usage mÃ©tier
       schemas.py           # contrats Pydantic du domaine
-      models.py            # modèles exposés (lots et mouvements)
+      models.py            # modÃ¨les exposÃ©s (lots et mouvements)
+    orders/                # module Commandes / Achats
+      __init__.py          # API publique du module
+      router.py            # endpoints du domaine
+      service.py           # cas d'usage mÃ©tier
+      schemas.py           # contrats Pydantic du domaine
+      models.py            # modÃ¨les exposÃ©s (rÃ©exportÃ©s en phase 1)
+    reports/               # module Rapports
+      __init__.py          # API publique du module
+      router.py            # routeur composite (/reports + /manager/reports)
+      reports_router.py    # endpoints rapports standards
+      manager_router.py    # endpoints rapports gestionnaire
+      service.py           # cas d'usage mÃ©tier
+      schemas.py           # contrats Pydantic du domaine
+      models.py            # modÃ¨le exposÃ© (rÃ©exportÃ© en phase 1)
     sales/                 # module Ventes
       __init__.py          # API publique du module
       router.py            # endpoints du domaine
-      service.py           # cas d'usage métier
+      service.py           # cas d'usage mÃ©tier
       schemas.py           # contrats Pydantic du domaine
-      models.py            # modèles exposés (réexportés en phase 1)
+      models.py            # modÃ¨les exposÃ©s (rÃ©exportÃ©s en phase 1)
       catalog.py           # port vers le domaine Catalogue
   api/v1/
     cash.py                # shim -> backend.modules.cash.router
@@ -92,15 +106,15 @@ backend/
 
 ### Registre de modules
 
-`ModuleSpec` décrit un bloc :
+`ModuleSpec` dÃ©crit un bloc :
 
-| Champ | Rôle |
+| Champ | RÃ´le |
 |---|---|
 | `name` | identifiant du module (`sales`) |
 | `router` | routeur FastAPI inclus dans l'application |
 | `enabled` | activation effective |
-| `depends_on` | dépendances déclaratives entre modules |
-| `license_feature` | clé de licence/abonnement |
+| `depends_on` | dÃ©pendances dÃ©claratives entre modules |
+| `license_feature` | clÃ© de licence/abonnement |
 | `description` | description lisible |
 
 L'activation se fait par variable d'environnement :
@@ -114,8 +128,8 @@ MODULE_ORDERS_ENABLED=true|false
 MODULE_SALES_ENABLED=true|false
 ```
 
-`enabled_modules()` renvoie les modules actifs **dont toutes les dépendances
-sont actives**. Les dépendances déclarées sont :
+`enabled_modules()` renvoie les modules actifs **dont toutes les dÃ©pendances
+sont actives**. Les dÃ©pendances dÃ©clarÃ©es sont :
 
 ```text
 catalog     -> (aucune)
@@ -126,19 +140,19 @@ cash        -> sales
 customers   -> sales
 ```
 
-Désactiver le Catalogue désactive donc Ventes, Clients, Caisse, Commandes et Stock en cascade.
+DÃ©sactiver le Catalogue dÃ©sactive donc Ventes, Clients, Caisse, Commandes et Stock en cascade.
 
-`backend/main.py` inclut automatiquement leur routeur sous le préfixe
+`backend/main.py` inclut automatiquement leur routeur sous le prÃ©fixe
 `/api/v1`.
 
 ### Ajouter un module
 
-1. Créer `backend/modules/<domaine>/` avec `router.py`, `service.py`,
+1. CrÃ©er `backend/modules/<domaine>/` avec `router.py`, `service.py`,
    `schemas.py`, `models.py` et `__init__.py`.
 2. Exposer uniquement l'API publique dans `__init__.py`.
-3. Isoler les dépendances croisées derrière un port.
+3. Isoler les dÃ©pendances croisÃ©es derriÃ¨re un port.
 4. Enregistrer un `ModuleSpec` dans `registry.py`.
-5. Créer les shims des anciens chemins si nécessaire.
+5. CrÃ©er les shims des anciens chemins si nÃ©cessaire.
 6. Ajouter un test de registre/module.
 
 ## Structure frontend
@@ -148,28 +162,32 @@ frontend/src/
   features/
     cash/
       index.js             # manifeste public du module
-      api.js               # couche d'accès au domaine
-      pages/               # écrans du domaine
+      api.js               # couche d'accÃ¨s au domaine
+      pages/               # Ã©crans du domaine
     catalog/
       index.js             # manifeste public du module
-      api.js               # couche d'accès au domaine
-      pages/               # écrans du domaine
+      api.js               # couche d'accÃ¨s au domaine
+      pages/               # Ã©crans du domaine
     customers/
       index.js             # manifeste public du module
-      api.js               # couche d'accès au domaine
-      pages/               # écrans du domaine
+      api.js               # couche d'accÃ¨s au domaine
+      pages/               # Ã©crans du domaine
     inventory/
       index.js             # manifeste public du module
-      api.js               # couche d'accès au domaine
-      pages/               # écrans du domaine
+      api.js               # couche d'accÃ¨s au domaine
+      pages/               # Ã©crans du domaine
     orders/
       index.js             # manifeste public du module
-      api.js               # couche d'accès au domaine
-      pages/               # écrans du domaine
+      api.js               # couche d'accÃ¨s au domaine
+      pages/               # Ã©crans du domaine
+    reports/
+      index.js             # manifeste public du module
+      api.js               # couche d'accÃ¨s au domaine
+      pages/               # Ã©crans du domaine
     sales/
       index.js             # manifeste public du module
-      api.js               # couche d'accès au domaine
-      pages/               # écrans du domaine
+      api.js               # couche d'accÃ¨s au domaine
+      pages/               # Ã©crans du domaine
       components/          # composants du domaine
   pages/
     CashierPage.jsx        # shim -> features/cash
@@ -184,40 +202,33 @@ frontend/src/
     OrderFormPage.jsx      # shim -> features/orders
 ```
 
-Le manifeste expose les pages, les composants, l'API et l'entrée de
+Le manifeste expose les pages, les composants, l'API et l'entrÃ©e de
 navigation. `App.jsx` et `Sidebar.jsx` consomment le module via
 `@/features/sales`, plus via les anciens chemins.
 
-### Règles frontend
+### RÃ¨gles frontend
 
 - Les appels au domaine passent par `features/<domaine>/api.js`.
-- Les appels à d'autres domaines (produits, clients…) restent explicites et
-  seront progressivement remplacés par les API des modules correspondants.
+- Les appels Ã  d'autres domaines (produits, clientsâ€¦) restent explicites et
+  seront progressivement remplacÃ©s par les API des modules correspondants.
 - Les pages ne doivent pas importer les fichiers internes d'un autre module.
 
-## État de la migration
+## Ã‰tat de la migration
 
 | Domaine | Backend | Frontend | Statut |
 |---|---|---|---|
-| Catalogue | `modules/catalog/` | `features/catalog/` | ✅ Migré |
-| Ventes | `modules/sales/` | `features/sales/` | ✅ Pilote |
-| Clients | `modules/customers/` | `features/customers/` | ✅ Migré |
-| Stock | `modules/inventory/` | `features/inventory/` | ✅ Migré |
-| Caisse | `modules/cash/` | `features/cash/` | ✅ Migré |
-| Achats / commandes | `modules/orders/` | `features/orders/` | ✅ Migré |
-| Rapports | `services/report_service.py` | `pages/manager/*Page.jsx` | ⏳ À migrer |
+| Catalogue | `modules/catalog/` | `features/catalog/` | âœ… MigrÃ© |
+| Ventes | `modules/sales/` | `features/sales/` | âœ… Pilote |
+| Clients | `modules/customers/` | `features/customers/` | âœ… MigrÃ© |
+| Stock | `modules/inventory/` | `features/inventory/` | âœ… MigrÃ© |
+| Caisse | `modules/cash/` | `features/cash/` | âœ… MigrÃ© |
+| Achats / commandes | `modules/orders/` | `features/orders/` | âœ… MigrÃ© |
+| Rapports | `services/report_service.py` | `pages/manager/*Page.jsx` | â³ Ã€ migrer |
 
-## Compatibilité
+## CompatibilitÃ©
 
-Les shims suivants restent valides et seront supprimés après migration
-complète :
+Les shims suivants restent valides et seront supprimés après migration complète :
 
-- `backend.api.v1.sales` → `backend.modules.sales.router`
-- `backend.services.sale_service` → `backend.modules.sales.service`
-- `backend.schemas.sale` → `backend.modules.sales.schemas`
-- `backend.api.v1.products` → `backend.modules.catalog.router`
-- `backend.services.product_service` → `backend.modules.catalog.service`
-- `backend.schemas.product` → `backend.modules.catalog.schemas`
 - `backend.api.v1.cash` → `backend.modules.cash.router`
 - `backend.services.cash_service` → `backend.modules.cash.service`
 - `backend.schemas.cash` → `backend.modules.cash.schemas`
@@ -227,12 +238,29 @@ complète :
 - `backend.api.v1.inventory` → `backend.modules.inventory.router`
 - `backend.services.inventory_service` → `backend.modules.inventory.service`
 - `backend.schemas.inventory` → `backend.modules.inventory.schemas`
-- `backend.api.v1.cash` → `backend.modules.cash.router`
-- `backend.services.cash_service` → `backend.modules.cash.service`
-- `backend.schemas.cash` → `backend.modules.cash.schemas`
+- `backend.api.v1.orders` → `backend.modules.orders.router`
+- `backend.services.order_service` → `backend.modules.orders.service`
+- `backend.schemas.order` → `backend.modules.orders.schemas`
+- `backend.api.v1.products` → `backend.modules.catalog.router`
+- `backend.services.product_service` → `backend.modules.catalog.service`
+- `backend.schemas.product` → `backend.modules.catalog.schemas`
+- `backend.api.v1.reports` → `backend.modules.reports.router`
+- `backend.api.v1.manager_reports` → `backend.modules.reports.router`
+- `backend.services.report_service` → `backend.modules.reports.service`
+- `backend.schemas.report` → `backend.modules.reports.schemas`
+- `backend.api.v1.sales` → `backend.modules.sales.router`
+- `backend.services.sale_service` → `backend.modules.sales.service`
+- `backend.schemas.sale` → `backend.modules.sales.schemas`
 - `frontend/src/pages/CashierPage.jsx` → `features/cash`
+- `frontend/src/pages/ProductsPage.jsx` → `features/catalog`
 - `frontend/src/pages/ProductFormPage.jsx` → `features/catalog`
 - `frontend/src/pages/CustomersPage.jsx` → `features/customers`
+- `frontend/src/pages/manager/InventoryPage.jsx` → `features/inventory`
+- `frontend/src/pages/manager/OrdersPage.jsx` → `features/orders`
+- `frontend/src/pages/manager/OrderFormPage.jsx` → `features/orders`
+- `frontend/src/pages/admin/ReportsPage.jsx` → `features/reports`
+- `frontend/src/pages/manager/ReportsPage.jsx` → `features/reports`
+- `frontend/src/pages/manager/ReportFormPage.jsx` → `features/reports`
 - `frontend/src/pages/SalesPage.jsx` → `features/sales`
 - `frontend/src/pages/SaleFormPage.jsx` → `features/sales`
 - `frontend/src/components/sales/BulkLabelSheet.jsx` → `features/sales`

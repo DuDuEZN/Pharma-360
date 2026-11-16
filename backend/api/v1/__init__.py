@@ -17,11 +17,9 @@ from .health import router as health_router
 from .invoices import router as invoices_router
 from .movements import router as movements_router
 from .ocr_integration import router as ocr_router
-from .reports import router as reports_router
 from .roles import router as roles_router
 from .returns import router as returns_router
 from .settings import router as settings_router
-from .manager_reports import router as manager_reports_router
 from .sale_history import router as sale_history_router
 from .suppliers import router as suppliers_router
 from .users import router as users_router
@@ -42,10 +40,8 @@ routers = [
     returns_router,
     invoices_router,
     settings_router,
-    manager_reports_router,
     suppliers_router,
     sale_history_router,
-    reports_router,
     roles_router,
     docs_router,
     ocr_router,

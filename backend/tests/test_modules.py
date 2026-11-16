@@ -8,12 +8,14 @@ from backend.modules import catalog as catalog_module
 from backend.modules import customers as customers_module
 from backend.modules import inventory as inventory_module
 from backend.modules import orders as orders_module
+from backend.modules import reports as reports_module
 from backend.modules import sales as sales_module
 from backend.modules.cash import router as cash_router
 from backend.modules.catalog import router as catalog_router
 from backend.modules.customers import router as customers_router
 from backend.modules.inventory import router as inventory_router
 from backend.modules.orders import router as orders_router
+from backend.modules.reports import router as reports_router
 from backend.modules.sales import router as sales_router
 
 
@@ -46,7 +48,7 @@ def test_customers_declares_sales_dependency():
     assert "sales" in get_module("customers").depends_on
 
 
-def test_enabled_modules_expose_catalog_sales_customers_inventory_cash_and_orders():
+def test_enabled_modules_expose_catalog_sales_customers_inventory_cash_orders_and_reports():
     names = [module.name for module in enabled_modules()]
     assert "catalog" in names
     assert "sales" in names
@@ -54,6 +56,7 @@ def test_enabled_modules_expose_catalog_sales_customers_inventory_cash_and_order
     assert "inventory" in names
     assert "cash" in names
     assert "orders" in names
+    assert "reports" in names
 
 
 def test_modules_are_registered_once():
@@ -64,6 +67,7 @@ def test_modules_are_registered_once():
     assert names.count("inventory") == 1
     assert names.count("cash") == 1
     assert names.count("orders") == 1
+    assert names.count("reports") == 1
 
 
 def test_catalog_router_exposes_domain_endpoints():
@@ -163,6 +167,34 @@ def test_orders_router_exposes_domain_endpoints():
     assert "/manager/orders/{order_id}" in paths
 
 
+def test_reports_module_is_registered():
+    spec = get_module("reports")
+    assert spec is not None
+    assert spec.license_feature == "reports"
+    assert spec.router is reports_router
+
+
+def test_reports_declares_catalog_and_sales_dependency():
+    assert "catalog" in get_module("reports").depends_on
+    assert "sales" in get_module("reports").depends_on
+
+
+def test_reports_router_exposes_domain_endpoints():
+    from backend.modules.reports.reports_router import router as rr
+    from backend.modules.reports.manager_router import router as mr
+
+    rpaths = {route.path for route in rr.routes}
+    mpaths = {route.path for route in mr.routes}
+    assert "/reports/" in rpaths
+    assert "/reports/sales" in rpaths
+    assert "/reports/stock" in rpaths
+    assert "/reports/cash" in rpaths
+    assert "/reports/stats" in rpaths
+    assert "/manager/reports" in mpaths
+    assert "/manager/reports/generate" in mpaths
+    assert "/manager/reports/{report_id}/download" in mpaths
+
+
 def test_legacy_sales_shims_resolve_to_module():
     from backend.api.v1 import sales as legacy_router
 
@@ -240,6 +272,25 @@ def test_legacy_inventory_shims_resolve_to_module():
     )
 
 
+def test_legacy_reports_shims_resolve_to_module():
+    from backend.api.v1 import manager_reports as legacy_mr
+    from backend.api.v1 import reports as legacy_r
+
+    legacy_schemas = importlib.import_module("backend.schemas.report")
+    legacy_service = importlib.import_module("backend.services.report_service")
+
+    assert legacy_r.router is reports_router
+    assert legacy_mr.router is reports_router
+    assert legacy_service.ReportService is reports_module.ReportService
+    assert (
+        legacy_schemas.ReportResponse is reports_module.schemas.ReportResponse
+    )
+    assert (
+        legacy_schemas.ReportStatsResponse
+        is reports_module.schemas.ReportStatsResponse
+    )
+
+
 def test_legacy_cash_shims_resolve_to_module():
     from backend.api.v1 import cash as legacy_router
 
@@ -294,6 +345,7 @@ def test_catalog_module_can_be_disabled_by_flag(monkeypatch):
     assert "inventory" not in names
     assert "cash" not in names
     assert "orders" not in names
+    assert "reports" not in names
 
     monkeypatch.delenv("MODULE_CATALOG_ENABLED", raising=False)
     importlib.reload(registry)
@@ -304,6 +356,7 @@ def test_catalog_module_can_be_disabled_by_flag(monkeypatch):
     assert "inventory" in names
     assert "cash" in names
     assert "orders" in names
+    assert "reports" in names
 
 
 def test_sales_module_can_be_disabled_by_flag(monkeypatch):
@@ -313,9 +366,10 @@ def test_sales_module_can_be_disabled_by_flag(monkeypatch):
     importlib.reload(registry)
     names = [module.name for module in registry.enabled_modules()]
     assert "sales" not in names
-    # Clients et Caisse dépendent de Ventes.
+    # Clients, Caisse et Rapports dépendent de Ventes.
     assert "customers" not in names
     assert "cash" not in names
+    assert "reports" not in names
 
     monkeypatch.delenv("MODULE_SALES_ENABLED", raising=False)
     importlib.reload(registry)
@@ -323,6 +377,7 @@ def test_sales_module_can_be_disabled_by_flag(monkeypatch):
     assert "sales" in names
     assert "customers" in names
     assert "cash" in names
+    assert "reports" in names
 
 
 
@@ -374,3 +429,16 @@ def test_orders_module_can_be_disabled_by_flag(monkeypatch):
     monkeypatch.delenv("MODULE_ORDERS_ENABLED", raising=False)
     importlib.reload(registry)
     assert "orders" in [module.name for module in registry.enabled_modules()]
+
+
+
+def test_reports_module_can_be_disabled_by_flag(monkeypatch):
+    import backend.modules.registry as registry
+
+    monkeypatch.setenv("MODULE_REPORTS_ENABLED", "false")
+    importlib.reload(registry)
+    assert "reports" not in [module.name for module in registry.enabled_modules()]
+
+    monkeypatch.delenv("MODULE_REPORTS_ENABLED", raising=False)
+    importlib.reload(registry)
+    assert "reports" in [module.name for module in registry.enabled_modules()]

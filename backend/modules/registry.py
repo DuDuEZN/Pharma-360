@@ -20,6 +20,7 @@ from .cash import router as cash_router
 from .customers import router as customers_router
 from .inventory import router as inventory_router
 from .orders import router as orders_router
+from .reports import router as reports_router
 from .sales import router as sales_router
 
 
@@ -91,6 +92,14 @@ MODULES: tuple[ModuleSpec, ...] = (
         depends_on=("catalog",),
         license_feature="orders",
         description="Commandes fournisseurs, validation et réception.",
+    ),
+    ModuleSpec(
+        name="reports",
+        router=reports_router,
+        enabled=_module_flag("reports"),
+        depends_on=("catalog", "sales"),
+        license_feature="reports",
+        description="Rapports de ventes, stock, caisse et génération de fichiers.",
     ),
 )
 

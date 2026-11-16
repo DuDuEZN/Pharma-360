@@ -26,6 +26,7 @@ import { CustomersPage } from '@/features/customers'
 import { CashierPage } from '@/features/cash'
 import { InventoryPage } from '@/features/inventory'
 import { OrdersPage, OrderFormPage } from '@/features/orders'
+import { AdminReportsPage, ManagerReportsPage, ReportFormPage } from '@/features/reports'
 import { SalesPage, SaleFormPage } from '@/features/sales'
 
 // Admin Pages
@@ -35,7 +36,6 @@ import {
   RolesPage,
   PermissionsPage,
   AdminSettingsPage,
-  AdminReportsPage,
   AdminAnalyticsPage
 } from '@/pages/admin'
 
@@ -45,11 +45,9 @@ import {
   ManagerDashboardPage,
   SuppliersPage,
   DeliveriesPage,
-  ManagerReportsPage,
   ManagerSettingsPage,
   ManagerAnalyticsPage,
   DeliveryFormPage,
-  ReportFormPage,
   BackupPage,
   RestorePage
 } from '@/pages/manager'
