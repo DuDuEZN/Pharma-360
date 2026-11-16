@@ -7,11 +7,13 @@ from backend.modules import cash as cash_module
 from backend.modules import catalog as catalog_module
 from backend.modules import customers as customers_module
 from backend.modules import inventory as inventory_module
+from backend.modules import orders as orders_module
 from backend.modules import sales as sales_module
 from backend.modules.cash import router as cash_router
 from backend.modules.catalog import router as catalog_router
 from backend.modules.customers import router as customers_router
 from backend.modules.inventory import router as inventory_router
+from backend.modules.orders import router as orders_router
 from backend.modules.sales import router as sales_router
 
 
@@ -44,13 +46,14 @@ def test_customers_declares_sales_dependency():
     assert "sales" in get_module("customers").depends_on
 
 
-def test_enabled_modules_expose_catalog_sales_customers_inventory_and_cash():
+def test_enabled_modules_expose_catalog_sales_customers_inventory_cash_and_orders():
     names = [module.name for module in enabled_modules()]
     assert "catalog" in names
     assert "sales" in names
     assert "customers" in names
     assert "inventory" in names
     assert "cash" in names
+    assert "orders" in names
 
 
 def test_modules_are_registered_once():
@@ -60,6 +63,7 @@ def test_modules_are_registered_once():
     assert names.count("customers") == 1
     assert names.count("inventory") == 1
     assert names.count("cash") == 1
+    assert names.count("orders") == 1
 
 
 def test_catalog_router_exposes_domain_endpoints():
@@ -140,6 +144,23 @@ def test_cash_router_exposes_domain_endpoints():
     assert "/cash/sessions" in paths
     assert "/cash/sessions/{session_id}" in paths
     assert "/cash/summary" in paths
+
+
+def test_orders_module_is_registered():
+    spec = get_module("orders")
+    assert spec is not None
+    assert spec.license_feature == "orders"
+    assert spec.router is orders_router
+
+
+def test_orders_declares_catalog_dependency():
+    assert "catalog" in get_module("orders").depends_on
+
+
+def test_orders_router_exposes_domain_endpoints():
+    paths = {route.path for route in orders_router.routes}
+    assert "/manager/orders/" in paths
+    assert "/manager/orders/{order_id}" in paths
 
 
 def test_legacy_sales_shims_resolve_to_module():
@@ -242,6 +263,23 @@ def test_legacy_cash_shims_resolve_to_module():
     )
 
 
+def test_legacy_orders_shims_resolve_to_module():
+    from backend.api.v1 import orders as legacy_router
+
+    legacy_schemas = importlib.import_module("backend.schemas.order")
+    legacy_service = importlib.import_module("backend.services.order_service")
+
+    assert legacy_router.router is orders_router
+    assert legacy_service.OrderService is orders_module.OrderService
+    assert legacy_service.DeliveryService is orders_module.DeliveryService
+    assert (
+        legacy_schemas.OrderCreate is orders_module.schemas.OrderCreate
+    )
+    assert (
+        legacy_schemas.OrderResponse is orders_module.schemas.OrderResponse
+    )
+
+
 def test_catalog_module_can_be_disabled_by_flag(monkeypatch):
     import backend.modules.registry as registry
 
@@ -255,6 +293,7 @@ def test_catalog_module_can_be_disabled_by_flag(monkeypatch):
     assert "customers" not in names
     assert "inventory" not in names
     assert "cash" not in names
+    assert "orders" not in names
 
     monkeypatch.delenv("MODULE_CATALOG_ENABLED", raising=False)
     importlib.reload(registry)
@@ -264,6 +303,7 @@ def test_catalog_module_can_be_disabled_by_flag(monkeypatch):
     assert "customers" in names
     assert "inventory" in names
     assert "cash" in names
+    assert "orders" in names
 
 
 def test_sales_module_can_be_disabled_by_flag(monkeypatch):
@@ -321,3 +361,16 @@ def test_cash_module_can_be_disabled_by_flag(monkeypatch):
     monkeypatch.delenv("MODULE_CASH_ENABLED", raising=False)
     importlib.reload(registry)
     assert "cash" in [module.name for module in registry.enabled_modules()]
+
+
+
+def test_orders_module_can_be_disabled_by_flag(monkeypatch):
+    import backend.modules.registry as registry
+
+    monkeypatch.setenv("MODULE_ORDERS_ENABLED", "false")
+    importlib.reload(registry)
+    assert "orders" not in [module.name for module in registry.enabled_modules()]
+
+    monkeypatch.delenv("MODULE_ORDERS_ENABLED", raising=False)
+    importlib.reload(registry)
+    assert "orders" in [module.name for module in registry.enabled_modules()]

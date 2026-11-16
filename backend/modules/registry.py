@@ -19,6 +19,7 @@ from .catalog import router as catalog_router
 from .cash import router as cash_router
 from .customers import router as customers_router
 from .inventory import router as inventory_router
+from .orders import router as orders_router
 from .sales import router as sales_router
 
 
@@ -82,6 +83,14 @@ MODULES: tuple[ModuleSpec, ...] = (
         depends_on=("catalog",),
         license_feature="inventory",
         description="Stock, lots, seuils, péremptions et mouvements de stock.",
+    ),
+    ModuleSpec(
+        name="orders",
+        router=orders_router,
+        enabled=_module_flag("orders"),
+        depends_on=("catalog",),
+        license_feature="orders",
+        description="Commandes fournisseurs, validation et réception.",
     ),
 )
 

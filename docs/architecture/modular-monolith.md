@@ -36,6 +36,12 @@ backend/
       service.py           # cas d'usage métier
       schemas.py           # contrats Pydantic du domaine
       models.py            # modèle exposé (réexporté en phase 1)
+    cash/                  # module Caisse
+      __init__.py          # API publique du module
+      router.py            # endpoints du domaine
+      service.py           # cas d'usage métier
+      schemas.py           # contrats Pydantic du domaine
+      models.py            # modèle exposé (réexporté en phase 1)
     catalog/               # module Catalogue
       __init__.py          # API publique du module
       router.py            # endpoints du domaine
@@ -65,18 +71,21 @@ backend/
     cash.py                # shim -> backend.modules.cash.router
     customers.py           # shim -> backend.modules.customers.router
     inventory.py           # shim -> backend.modules.inventory.router
+    orders.py              # shim -> backend.modules.orders.router
     products.py            # shim -> backend.modules.catalog.router
     sales.py               # shim -> backend.modules.sales.router
   services/
     cash_service.py        # shim -> backend.modules.cash.service
     customer_service.py    # shim -> backend.modules.customers.service
     inventory_service.py   # shim -> backend.modules.inventory.service
+    order_service.py       # shim -> backend.modules.orders.service
     product_service.py     # shim -> backend.modules.catalog.service
     sale_service.py        # shim -> backend.modules.sales.service
   schemas/
     cash.py                # shim -> backend.modules.cash.schemas
     customer.py            # shim -> backend.modules.customers.schemas
     inventory.py           # shim -> backend.modules.inventory.schemas
+    order.py               # shim -> backend.modules.orders.schemas
     product.py             # shim -> backend.modules.catalog.schemas
     sale.py                # shim -> backend.modules.sales.schemas
 ```
@@ -97,9 +106,11 @@ backend/
 L'activation se fait par variable d'environnement :
 
 ```text
+MODULE_CASH_ENABLED=true|false
 MODULE_CATALOG_ENABLED=true|false
 MODULE_CUSTOMERS_ENABLED=true|false
 MODULE_INVENTORY_ENABLED=true|false
+MODULE_ORDERS_ENABLED=true|false
 MODULE_SALES_ENABLED=true|false
 ```
 
@@ -109,11 +120,13 @@ sont actives**. Les dépendances déclarées sont :
 ```text
 catalog     -> (aucune)
 inventory   -> catalog
+orders      -> catalog
 sales       -> catalog
+cash        -> sales
 customers   -> sales
 ```
 
-Désactiver le Catalogue désactive donc Ventes, Clients et Stock en cascade.
+Désactiver le Catalogue désactive donc Ventes, Clients, Caisse, Commandes et Stock en cascade.
 
 `backend/main.py` inclut automatiquement leur routeur sous le préfixe
 `/api/v1`.
@@ -149,6 +162,10 @@ frontend/src/
       index.js             # manifeste public du module
       api.js               # couche d'accès au domaine
       pages/               # écrans du domaine
+    orders/
+      index.js             # manifeste public du module
+      api.js               # couche d'accès au domaine
+      pages/               # écrans du domaine
     sales/
       index.js             # manifeste public du module
       api.js               # couche d'accès au domaine
@@ -162,6 +179,9 @@ frontend/src/
     InventoryPage.jsx      # shim -> features/inventory (pages/manager/)
     SalesPage.jsx          # shim -> features/sales
     SaleFormPage.jsx       # shim -> features/sales
+  pages/manager/
+    OrdersPage.jsx         # shim -> features/orders
+    OrderFormPage.jsx      # shim -> features/orders
 ```
 
 Le manifeste expose les pages, les composants, l'API et l'entrée de
@@ -184,7 +204,7 @@ navigation. `App.jsx` et `Sidebar.jsx` consomment le module via
 | Clients | `modules/customers/` | `features/customers/` | ✅ Migré |
 | Stock | `modules/inventory/` | `features/inventory/` | ✅ Migré |
 | Caisse | `modules/cash/` | `features/cash/` | ✅ Migré |
-| Achats / commandes | `services/order_service.py` | `pages/manager/OrdersPage.jsx` | ⏳ À migrer |
+| Achats / commandes | `modules/orders/` | `features/orders/` | ✅ Migré |
 | Rapports | `services/report_service.py` | `pages/manager/*Page.jsx` | ⏳ À migrer |
 
 ## Compatibilité

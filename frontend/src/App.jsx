@@ -25,6 +25,7 @@ import { ProductsPage, ProductFormPage } from '@/features/catalog'
 import { CustomersPage } from '@/features/customers'
 import { CashierPage } from '@/features/cash'
 import { InventoryPage } from '@/features/inventory'
+import { OrdersPage, OrderFormPage } from '@/features/orders'
 import { SalesPage, SaleFormPage } from '@/features/sales'
 
 // Admin Pages
@@ -43,13 +44,11 @@ import {
   ManagerPage,
   ManagerDashboardPage,
   SuppliersPage,
-  OrdersPage,
   DeliveriesPage,
   ManagerReportsPage,
   ManagerSettingsPage,
   ManagerAnalyticsPage,
   DeliveryFormPage,
-  OrderFormPage,
   ReportFormPage,
   BackupPage,
   RestorePage
