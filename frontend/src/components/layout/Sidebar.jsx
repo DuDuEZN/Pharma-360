@@ -19,6 +19,7 @@ import {
   Sun,
   Monitor,
   X,
+  UserRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +33,7 @@ function Sidebar({ mobileOpen = false, onClose }) {
     { name: 'Tableau de bord', href: '/', icon: LayoutDashboard, roles: ['admin', 'manager'] },
     { name: 'Produits', href: '/products', icon: Package, roles: ['admin', 'manager', 'seller'] },
     { name: 'Ventes', href: '/sales', icon: ShoppingCart, roles: ['admin', 'manager', 'seller'] },
+    { name: 'Clients', href: '/manager/customers', icon: UserRound, roles: ['admin', 'manager', 'seller'] },
     { name: 'Caisse', href: '/cashier', icon: CreditCard, roles: ['admin', 'cashier'] },
     { name: 'Commandes', href: '/manager/orders', icon: ClipboardList, roles: ['seller'] },
     { name: 'Administrateur', href: '/admin', icon: Users, roles: ['admin'] },

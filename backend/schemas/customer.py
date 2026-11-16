@@ -22,6 +22,9 @@ class CustomerBase(BaseModel):
     tax_id: Optional[str] = Field(
         None, max_length=50, description="Tax identification number"
     )
+    loyalty_points: Optional[int] = Field(
+        None, ge=0, description="Initial loyalty points"
+    )
 
 
 class CustomerCreate(CustomerBase):
@@ -54,6 +57,7 @@ class CustomerUpdate(BaseModel):
     city: Optional[str] = Field(None, max_length=50)
     country: Optional[str] = Field(None)
     tax_id: Optional[str] = Field(None, max_length=50)
+    loyalty_points: Optional[int] = Field(None, ge=0)
 
 
 class CustomerResponse(CustomerBase):

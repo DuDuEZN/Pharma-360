@@ -1,6 +1,6 @@
 import React from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { Package, BarChart3, FileText, Settings, ShoppingCart, Users, Truck, ClipboardList } from 'lucide-react'
+import { Package, BarChart3, FileText, Settings, ShoppingCart, Users, Truck, ClipboardList, UserRound } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
@@ -22,6 +22,12 @@ function ManagerPage() {
       icon: Users,
       description: 'Gestion des fournisseurs et factures',
       badge: 'OCR'
+    },
+    { 
+      path: '/manager/customers', 
+      name: 'Clients', 
+      icon: UserRound,
+      description: 'Enregistrement et gestion des clients',
     },
     { 
       path: '/manager/inventory', 
@@ -69,7 +75,7 @@ function ManagerPage() {
   ]
 
   // Un vendeur accède aux commandes (création) et aux livraisons.
-  const sellerPaths = ['/manager/orders', '/manager/deliveries']
+  const sellerPaths = ['/manager/orders', '/manager/deliveries', '/manager/customers']
   const visibleNav = user?.role === 'seller'
     ? managerNav.filter((item) => sellerPaths.includes(item.path))
     : managerNav

@@ -364,11 +364,19 @@ class SaleService:
 
             db.add(movement)
 
-        # Update sale totals
-        new_sale.subtotal = total_subtotal
-        new_sale.tax_amount = 0.00  # Will be calculated later
-        new_sale.discount = 0.00
-        new_sale.total = total_subtotal
+        # Update sale totals (la remise saisie à la vente est appliquée ici :
+        # le serveur reste la source de vérité pour le total).
+        subtotal_amount = round(float(total_subtotal), 2)
+        discount_amount = round(float(sale_data.discount or 0), 2)
+        discount_amount = min(max(discount_amount, 0.0), subtotal_amount)
+        tax_amount = round(float(sale_data.tax_amount or 0), 2)
+        tax_amount = max(tax_amount, 0.0)
+        total_amount = round(subtotal_amount - discount_amount + tax_amount, 2)
+
+        new_sale.subtotal = subtotal_amount
+        new_sale.tax_amount = tax_amount
+        new_sale.discount = discount_amount
+        new_sale.total = max(total_amount, 0.0)
 
         await db.flush()
         await db.refresh(new_sale)

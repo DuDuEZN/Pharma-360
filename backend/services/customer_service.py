@@ -37,6 +37,7 @@ class CustomerService:
             city=customer_data.city,
             country=customer_data.country,
             tax_id=customer_data.tax_id,
+            loyalty_points=customer_data.loyalty_points or 0,
         )
 
         db.add(new_customer)
@@ -109,6 +110,8 @@ class CustomerService:
             customer.country = customer_data.country
         if customer_data.tax_id is not None:
             customer.tax_id = customer_data.tax_id
+        if customer_data.loyalty_points is not None:
+            customer.loyalty_points = customer_data.loyalty_points
 
         customer.updated_at = func.now()
         await db.flush()

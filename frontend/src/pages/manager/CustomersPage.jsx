@@ -1,366 +1,235 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card.jsx';
-import { Button } from '@/components/ui/button.jsx';
-import { Input } from '@/components/ui/input.jsx';
-import { Label } from '@/components/ui/label.jsx';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.jsx';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog.jsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
-import { Plus, Edit, Trash2, Search, User, Phone, Mail, MapPin } from 'lucide-react';
-import apiClient from '@/lib/api';
-import { toast } from 'sonner';
-import { AdvancedSearch } from '@/components/common/index.js';
+import React, { useCallback, useEffect, useState } from 'react'
+import { Plus, Pencil, Trash2, Search, Phone, Mail, MapPin, UserRound } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card.jsx'
+import { Button } from '@/components/ui/button.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { Label } from '@/components/ui/label.jsx'
+import { Badge } from '@/components/ui/badge.jsx'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.jsx'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog.jsx'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { useToast } from '@/components/common/Toast'
+import apiClient from '@/lib/api'
 
 /**
  * Customers Management Page for Pharma-360
- * CRUD operations for customers
- * 
- * FRNT-014: Gestion Clients/Fournisseurs
+ * CRUD operations for customers.
  */
 
-const CustomersPage = () => {
-  const [customers, setCustomers] = useState([]);
-  const [filteredCustomers, setFilteredCustomers] = useState([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [currentCustomer, setCurrentCustomer] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    loyalty_points: 0,
-    notes: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [searchParams, setSearchParams] = useState({});
+const EMPTY_FORM = {
+  name: '',
+  contact: '',
+  phone: '',
+  email: '',
+  address: '',
+  city: '',
+  country: 'Bénin',
+  tax_id: '',
+  loyalty_points: 0,
+}
 
-  // Fetch customers from API
-  const fetchCustomers = async () => {
+const CustomersPage = () => {
+  const { addToast } = useToast()
+  const [customers, setCustomers] = useState([])
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [currentCustomer, setCurrentCustomer] = useState(null)
+  const [formData, setFormData] = useState(EMPTY_FORM)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const fetchCustomers = useCallback(async (query = '') => {
     try {
-      setLoading(true);
-      const response = await apiClient.get('/customers', { params: searchParams });
-      setCustomers(response.data || []);
-      setFilteredCustomers(response.data || []);
+      setLoading(true)
+      const response = await apiClient.get('/customers/', {
+        params: {
+          name: query.trim() || undefined,
+          limit: 100,
+        },
+      })
+      const data = response.data
+      setCustomers(Array.isArray(data) ? data : data?.customers || [])
     } catch (error) {
-      console.error('Error fetching customers:', error);
-      toast.error('Erreur lors du chargement des clients');
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Impossible de charger les clients',
+      })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }, [addToast])
 
   useEffect(() => {
-    fetchCustomers();
-  }, [searchParams]);
+    const timer = setTimeout(() => fetchCustomers(searchQuery), 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery, fetchCustomers])
 
-  // Handle search
-  const handleSearch = (params) => {
-    setSearchParams(params);
-  };
-
-  // Handle form input change
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
-  // Open dialog for new customer
   const openNewDialog = () => {
-    setCurrentCustomer(null);
-    setFormData({
-      name: '',
-      phone: '',
-      email: '',
-      address: '',
-      loyalty_points: 0,
-      notes: ''
-    });
-    setIsDialogOpen(true);
-  };
+    setCurrentCustomer(null)
+    setFormData(EMPTY_FORM)
+    setIsDialogOpen(true)
+  }
 
-  // Open dialog for editing customer
   const openEditDialog = (customer) => {
-    setCurrentCustomer(customer);
+    setCurrentCustomer(customer)
     setFormData({
       name: customer.name || '',
+      contact: customer.contact || '',
       phone: customer.phone || '',
       email: customer.email || '',
       address: customer.address || '',
+      city: customer.city || '',
+      country: customer.country || 'Bénin',
+      tax_id: customer.tax_id || '',
       loyalty_points: customer.loyalty_points || 0,
-      notes: customer.notes || ''
-    });
-    setIsDialogOpen(true);
-  };
+    })
+    setIsDialogOpen(true)
+  }
 
-  // Open delete confirmation dialog
   const openDeleteDialog = (customer) => {
-    setCurrentCustomer(customer);
-    setIsDeleteDialogOpen(true);
-  };
+    setCurrentCustomer(customer)
+    setIsDeleteDialogOpen(true)
+  }
 
-  // Create or update customer
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
+    if (!formData.name.trim()) return
+
+    setSaving(true)
     try {
-      setLoading(true);
-      
-      if (currentCustomer) {
-        // Update existing customer
-        await apiClient.put(`/customers/${currentCustomer.id}`, formData);
-        toast.success('Client mis à jour avec succès');
-      } else {
-        // Create new customer
-        await apiClient.post('/customers', formData);
-        toast.success('Client créé avec succès');
+      const payload = {
+        name: formData.name.trim(),
+        contact: formData.contact.trim() || null,
+        phone: formData.phone.trim() || null,
+        email: formData.email.trim() || null,
+        address: formData.address.trim() || null,
+        city: formData.city.trim() || null,
+        country: formData.country.trim() || null,
+        tax_id: formData.tax_id.trim() || null,
+        loyalty_points: Number(formData.loyalty_points) || 0,
       }
-      
-      fetchCustomers();
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error('Error saving customer:', error);
-      toast.error('Erreur lors de l\'enregistrement du client');
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  // Delete customer
+      if (currentCustomer) {
+        await apiClient.put(`/customers/${currentCustomer.id}`, payload)
+        addToast({
+          type: 'success',
+          title: 'Client mis à jour',
+          message: `${payload.name} a été modifié`,
+        })
+      } else {
+        await apiClient.post('/customers/', payload)
+        addToast({
+          type: 'success',
+          title: 'Client enregistré',
+          message: `${payload.name} a été ajouté`,
+        })
+      }
+
+      setIsDialogOpen(false)
+      fetchCustomers(searchQuery)
+    } catch (error) {
+      const detail = error.response?.data?.detail
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: typeof detail === 'string' ? detail : 'Impossible d\'enregistrer le client',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleDelete = async () => {
-    if (!currentCustomer) return;
-    
+    if (!currentCustomer) return
+    setDeleting(true)
     try {
-      setLoading(true);
-      await apiClient.delete(`/customers/${currentCustomer.id}`);
-      toast.success('Client supprimé avec succès');
-      fetchCustomers();
-      setIsDeleteDialogOpen(false);
+      await apiClient.delete(`/customers/${currentCustomer.id}`)
+      addToast({
+        type: 'success',
+        title: 'Client supprimé',
+        message: `${currentCustomer.name} a été supprimé`,
+      })
+      setIsDeleteDialogOpen(false)
+      fetchCustomers(searchQuery)
     } catch (error) {
-      console.error('Error deleting customer:', error);
-      toast.error('Erreur lors de la suppression du client');
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Impossible de supprimer le client',
+      })
     } finally {
-      setLoading(false);
+      setDeleting(false)
     }
-  };
-
-  // Filter customers based on search
-  const filterCustomers = (customers, params) => {
-    return customers.filter(customer => {
-      const nameMatch = params.search 
-        ? customer.name?.toLowerCase().includes(params.search.toLowerCase())
-        : true;
-      const phoneMatch = params.phone 
-        ? customer.phone?.includes(params.phone)
-        : true;
-      const emailMatch = params.email 
-        ? customer.email?.toLowerCase().includes(params.email.toLowerCase())
-        : true;
-      const addressMatch = params.address 
-        ? customer.address?.toLowerCase().includes(params.address.toLowerCase())
-        : true;
-      
-      return nameMatch && phoneMatch && emailMatch && addressMatch;
-    });
-  };
-
-  // Search fields configuration
-  const searchFields = [
-    {
-      name: 'name',
-      label: 'Nom',
-      type: 'text',
-      placeholder: 'Rechercher par nom'
-    },
-    {
-      name: 'phone',
-      label: 'Téléphone',
-      type: 'text',
-      placeholder: 'Rechercher par téléphone'
-    },
-    {
-      name: 'email',
-      label: 'Email',
-      type: 'text',
-      placeholder: 'Rechercher par email'
-    },
-    {
-      name: 'address',
-      label: 'Adresse',
-      type: 'text',
-      placeholder: 'Rechercher par adresse'
-    }
-  ];
+  }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Gestion des Clients</h1>
-          <p className="text-sm text-gray-600">Gérez vos clients et leurs informations</p>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <UserRound className="h-5 w-5 text-primary-600" />
+                Clients
+              </CardTitle>
+              <CardDescription>
+                Enregistrez vos clients pour rattacher les ventes à un compte.
+              </CardDescription>
+            </div>
             <Button onClick={openNewDialog}>
               <Plus className="mr-2 h-4 w-4" />
-              Nouveau Client
+              Nouveau client
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>
-                {currentCustomer ? 'Modifier le Client' : 'Nouveau Client'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nom *</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="Nom complet du client"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="phone">Téléphone</Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="Numéro de téléphone"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="Adresse email"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="address">Adresse</Label>
-                <Input
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  placeholder="Adresse complète"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="loyalty_points">Points de fidélité</Label>
-                <Input
-                  id="loyalty_points"
-                  name="loyalty_points"
-                  type="number"
-                  value={formData.loyalty_points}
-                  onChange={handleInputChange}
-                  placeholder="0"
-                  min="0"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Input
-                  id="notes"
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  placeholder="Notes supplémentaires"
-                />
-              </div>
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Annuler
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Enregistrement...' : 'Enregistrer'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle>Supprimer le Client</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <p>Êtes-vous sûr de vouloir supprimer ce client ? Cette action est irréversible.</p>
-              {currentCustomer && (
-                <div className="mt-4 p-3 bg-gray-100 rounded">
-                  <p className="font-medium">{currentCustomer.name}</p>
-                  <p className="text-sm text-gray-600">{currentCustomer.phone}</p>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button type="button" variant="destructive" onClick={handleDelete} disabled={loading}>
-                {loading ? 'Suppression...' : 'Supprimer'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Advanced Search */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <AdvancedSearch
-            onSearch={handleSearch}
-            fields={searchFields}
-            placeholder="Rechercher des clients..."
-          />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              placeholder="Rechercher par nom..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </CardContent>
       </Card>
 
-      {/* Customers Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Liste des Clients ({customers.length})</CardTitle>
-          <CardDescription>
-            Tous vos clients enregistrés dans le système
-          </CardDescription>
+          <CardTitle>Liste des clients ({customers.length})</CardTitle>
+          <CardDescription>Tous vos clients enregistrés dans le système</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8">Chargement...</div>
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
           ) : customers.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              Aucun client trouvé. Commencez par en ajouter un.
+            <div className="py-10 text-center text-gray-500 dark:text-gray-400">
+              <UserRound className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+              <p>Aucun client trouvé.</p>
+              <p className="text-sm">Commencez par enregistrer un client.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Nom</TableHead>
+                    <TableHead>Client</TableHead>
                     <TableHead>Téléphone</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Adresse</TableHead>
+                    <TableHead>Ville</TableHead>
                     <TableHead>Points</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -368,20 +237,24 @@ const CustomersPage = () => {
                 <TableBody>
                   {customers.map((customer) => (
                     <TableRow key={customer.id}>
-                      <TableCell>#{customer.id}</TableCell>
-                      <TableCell className="font-medium">{customer.name}</TableCell>
-                      <TableCell>{customer.phone}</TableCell>
-                      <TableCell>{customer.email}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{customer.address}</TableCell>
-                      <TableCell>{customer.loyalty_points || 0}</TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{customer.name}</p>
+                          {customer.contact && (
+                            <p className="text-xs text-gray-500">Contact : {customer.contact}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{customer.phone || '—'}</TableCell>
+                      <TableCell>{customer.email || '—'}</TableCell>
+                      <TableCell>{customer.city || '—'}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{customer.loyalty_points || 0}</Badge>
+                      </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditDialog(customer)}
-                          >
-                            <Edit className="h-4 w-4" />
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEditDialog(customer)}>
+                            <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -402,44 +275,154 @@ const CustomersPage = () => {
         </CardContent>
       </Card>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
-            <User className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{customers.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clients avec Email</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {customers.filter(c => c.email).length}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clients avec Téléphone</CardTitle>
-            <Phone className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {customers.filter(c => c.phone).length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-};
+      {/* Create / edit dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>{currentCustomer ? 'Modifier le client' : 'Nouveau client'}</DialogTitle>
+          </DialogHeader>
 
-export default CustomersPage;
+          <form onSubmit={handleSubmit} className="space-y-4 py-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="name">Nom *</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Nom complet du client"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact">Personne de contact</Label>
+                <Input
+                  id="contact"
+                  name="contact"
+                  value={formData.contact}
+                  onChange={handleInputChange}
+                  placeholder="Contact"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Téléphone</Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  placeholder="Numéro de téléphone"
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="Adresse email"
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="address">Adresse</Label>
+                <Input
+                  id="address"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  placeholder="Adresse complète"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city">Ville</Label>
+                <Input
+                  id="city"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  placeholder="Ville"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="country">Pays</Label>
+                <Input
+                  id="country"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleInputChange}
+                  placeholder="Pays"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tax_id">Numéro fiscal</Label>
+                <Input
+                  id="tax_id"
+                  name="tax_id"
+                  value={formData.tax_id}
+                  onChange={handleInputChange}
+                  placeholder="NIF / IFU"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="loyalty_points">Points de fidélité</Label>
+                <Input
+                  id="loyalty_points"
+                  name="loyalty_points"
+                  type="number"
+                  min="0"
+                  value={formData.loyalty_points}
+                  onChange={handleInputChange}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={saving || !formData.name.trim()}>
+                {saving ? 'Enregistrement...' : 'Enregistrer'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Supprimer le client</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Êtes-vous sûr de vouloir supprimer ce client ? Cette action est irréversible.
+            </p>
+            {currentCustomer && (
+              <div className="mt-4 rounded-lg bg-black/[0.04] p-3 dark:bg-white/[0.06]">
+                <p className="font-medium">{currentCustomer.name}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {currentCustomer.phone || '—'}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Suppression...' : 'Supprimer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+export default CustomersPage
