@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from fastapi import APIRouter
 
 from .catalog import router as catalog_router
+from .customers import router as customers_router
 from .sales import router as sales_router
 
 
@@ -56,6 +57,14 @@ MODULES: tuple[ModuleSpec, ...] = (
         license_feature="sales",
         description="Ventes, encaissement, annulation et file d'attente caisse.",
     ),
+    ModuleSpec(
+        name="customers",
+        router=customers_router,
+        enabled=_module_flag("customers"),
+        depends_on=("sales",),
+        license_feature="customers",
+        description="Clients, historique d'achats, crédit et statistiques.",
+    ),
 )
 
 
@@ -64,13 +73,20 @@ def get_module(name: str) -> ModuleSpec | None:
 
 
 def enabled_modules() -> list[ModuleSpec]:
-    """Modules actifs dont toutes les dépendances sont elles-mêmes actives."""
-    active = {module.name for module in MODULES if module.enabled}
-    return [
-        module
-        for module in MODULES
-        if module.enabled and all(dep in active for dep in module.depends_on)
-    ]
+    """Modules actifs dont toutes les dépendances (transitives) sont actives."""
+    active = {module.name: module for module in MODULES if module.enabled}
+
+    # Résolution transitive : retirer les modules dont une dépendance manque,
+    # jusqu'à stabilisation (ex. catalog off => sales off => customers off).
+    changed = True
+    while changed:
+        changed = False
+        for name in list(active):
+            if any(dep not in active for dep in active[name].depends_on):
+                del active[name]
+                changed = True
+
+    return [module for module in MODULES if module.name in active]
 
 
 __all__ = [

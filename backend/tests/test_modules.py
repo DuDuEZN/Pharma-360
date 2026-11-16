@@ -4,8 +4,10 @@ import importlib
 
 from backend.modules import MODULES, enabled_modules, get_module
 from backend.modules import catalog as catalog_module
+from backend.modules import customers as customers_module
 from backend.modules import sales as sales_module
 from backend.modules.catalog import router as catalog_router
+from backend.modules.customers import router as customers_router
 from backend.modules.sales import router as sales_router
 
 
@@ -27,16 +29,29 @@ def test_sales_declares_catalog_dependency():
     assert "catalog" in get_module("sales").depends_on
 
 
-def test_enabled_modules_expose_catalog_and_sales():
+def test_customers_module_is_registered():
+    spec = get_module("customers")
+    assert spec is not None
+    assert spec.license_feature == "customers"
+    assert spec.router is customers_router
+
+
+def test_customers_declares_sales_dependency():
+    assert "sales" in get_module("customers").depends_on
+
+
+def test_enabled_modules_expose_catalog_sales_and_customers():
     names = [module.name for module in enabled_modules()]
     assert "catalog" in names
     assert "sales" in names
+    assert "customers" in names
 
 
 def test_modules_are_registered_once():
     names = [module.name for module in MODULES]
     assert names.count("catalog") == 1
     assert names.count("sales") == 1
+    assert names.count("customers") == 1
 
 
 def test_catalog_router_exposes_domain_endpoints():
@@ -60,6 +75,17 @@ def test_sales_router_exposes_domain_endpoints():
     assert "/sales/{sale_id}" in paths
     assert "/sales/{sale_id}/pay" in paths
     assert "/sales/{sale_id}/cancel" in paths
+
+
+def test_customers_router_exposes_domain_endpoints():
+    paths = {route.path for route in customers_router.routes}
+    assert "/customers/" in paths
+    assert "/customers/{customer_id}" in paths
+    assert "/customers/{customer_id}/orders" in paths
+    assert "/customers/{customer_id}/invoices" in paths
+    assert "/customers/{customer_id}/purchases" in paths
+    assert "/customers/{customer_id}/stats" in paths
+    assert "/customers/{customer_id}/credit" in paths
 
 
 def test_legacy_sales_shims_resolve_to_module():
@@ -94,6 +120,28 @@ def test_legacy_catalog_shims_resolve_to_module():
     )
 
 
+def test_legacy_customers_shims_resolve_to_module():
+    from backend.api.v1 import customers as legacy_router
+
+    legacy_schemas = importlib.import_module("backend.schemas.customer")
+    legacy_service = importlib.import_module("backend.services.customer_service")
+    legacy_service_pkg = importlib.import_module("backend.services")
+
+    assert legacy_router.router is customers_router
+    assert legacy_service.CustomerService is customers_module.CustomerService
+    assert legacy_service.customer_service is customers_module.customer_service
+    assert (
+        legacy_service_pkg.customer_service is customers_module.customer_service
+    )
+    assert (
+        legacy_schemas.CustomerCreate is customers_module.schemas.CustomerCreate
+    )
+    assert (
+        legacy_schemas.CustomerStatsResponse
+        is customers_module.schemas.CustomerStatsResponse
+    )
+
+
 def test_catalog_module_can_be_disabled_by_flag(monkeypatch):
     import backend.modules.registry as registry
 
@@ -101,14 +149,16 @@ def test_catalog_module_can_be_disabled_by_flag(monkeypatch):
     importlib.reload(registry)
     names = [module.name for module in registry.enabled_modules()]
     assert "catalog" not in names
-    # Ventes dépend du Catalogue : désactiver le Catalogue désactive Ventes.
+    # Ventes dépend du Catalogue, Clients dépend de Ventes : cascade.
     assert "sales" not in names
+    assert "customers" not in names
 
     monkeypatch.delenv("MODULE_CATALOG_ENABLED", raising=False)
     importlib.reload(registry)
     names = [module.name for module in registry.enabled_modules()]
     assert "catalog" in names
     assert "sales" in names
+    assert "customers" in names
 
 
 def test_sales_module_can_be_disabled_by_flag(monkeypatch):
@@ -116,8 +166,13 @@ def test_sales_module_can_be_disabled_by_flag(monkeypatch):
 
     monkeypatch.setenv("MODULE_SALES_ENABLED", "false")
     importlib.reload(registry)
-    assert "sales" not in [module.name for module in registry.enabled_modules()]
+    names = [module.name for module in registry.enabled_modules()]
+    assert "sales" not in names
+    # Clients dépend de Ventes.
+    assert "customers" not in names
 
     monkeypatch.delenv("MODULE_SALES_ENABLED", raising=False)
     importlib.reload(registry)
-    assert "sales" in [module.name for module in registry.enabled_modules()]
+    names = [module.name for module in registry.enabled_modules()]
+    assert "sales" in names
+    assert "customers" in names

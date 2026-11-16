@@ -11,7 +11,6 @@ from .auth import router as auth_router
 from .barcode import router as barcode_router
 from .batches import router as batches_router
 from .cash import router as cash_router
-from .customers import router as customers_router
 from .dashboard import router as dashboard_router
 from .deliveries import router as deliveries_router
 from .docs import router as docs_router
@@ -39,7 +38,6 @@ routers = [
     users_router,
     batches_router,
     cash_router,
-    customers_router,
     dashboard_router,
     inventory_router,
     movements_router,
