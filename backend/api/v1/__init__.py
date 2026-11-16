@@ -21,7 +21,6 @@ from .invoices import router as invoices_router
 from .movements import router as movements_router
 from .ocr_integration import router as ocr_router
 from .orders import router as orders_router
-from .products import router as products_router
 from .reports import router as reports_router
 from .roles import router as roles_router
 from .returns import router as returns_router
@@ -38,7 +37,6 @@ routers = [
     health_router,
     auth_router,
     users_router,
-    products_router,
     batches_router,
     cash_router,
     customers_router,

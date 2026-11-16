@@ -18,13 +18,12 @@ import Layout from '@/components/layout/Layout'
 // Pages
 import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/DashboardPage'
-import ProductsPage from '@/pages/ProductsPage'
 import CustomersPage from '@/pages/CustomersPage'
 import CashierPage from '@/pages/CashierPage'
 import HelpPage from '@/pages/HelpPage'
-import ProductFormPage from '@/pages/ProductFormPage'
 
-// Module Ventes (monolithe modulaire)
+// Modules métier (monolithe modulaire)
+import { ProductsPage, ProductFormPage } from '@/features/catalog'
 import { SalesPage, SaleFormPage } from '@/features/sales'
 
 // Admin Pages

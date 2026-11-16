@@ -30,6 +30,12 @@ big-bang.
 backend/
   modules/
     registry.py            # registre des modules + flags + licence
+    catalog/               # module Catalogue
+      __init__.py          # API publique du module
+      router.py            # endpoints du domaine
+      service.py           # cas d'usage métier
+      schemas.py           # contrats Pydantic du domaine
+      models.py            # modèles exposés (réexportés en phase 1)
     sales/                 # module Ventes
       __init__.py          # API publique du module
       router.py            # endpoints du domaine
@@ -38,10 +44,13 @@ backend/
       models.py            # modèles exposés (réexportés en phase 1)
       catalog.py           # port vers le domaine Catalogue
   api/v1/
+    products.py            # shim -> backend.modules.catalog.router
     sales.py               # shim -> backend.modules.sales.router
   services/
+    product_service.py     # shim -> backend.modules.catalog.service
     sale_service.py        # shim -> backend.modules.sales.service
   schemas/
+    product.py             # shim -> backend.modules.catalog.schemas
     sale.py                # shim -> backend.modules.sales.schemas
 ```
 
@@ -61,11 +70,16 @@ backend/
 L'activation se fait par variable d'environnement :
 
 ```text
+MODULE_CATALOG_ENABLED=true|false
 MODULE_SALES_ENABLED=true|false
 ```
 
-`enabled_modules()` renvoie les modules actifs. `backend/main.py` inclut
-automatiquement leur routeur sous le préfixe `/api/v1`.
+`enabled_modules()` renvoie les modules actifs **dont toutes les dépendances
+sont actives**. Par exemple, `sales` déclare `depends_on=("catalog",)` :
+désactiver le Catalogue désactive automatiquement Ventes.
+
+`backend/main.py` inclut automatiquement leur routeur sous le préfixe
+`/api/v1`.
 
 ### Ajouter un module
 
@@ -82,12 +96,18 @@ automatiquement leur routeur sous le préfixe `/api/v1`.
 ```text
 frontend/src/
   features/
+    catalog/
+      index.js             # manifeste public du module
+      api.js               # couche d'accès au domaine
+      pages/               # écrans du domaine
     sales/
       index.js             # manifeste public du module
       api.js               # couche d'accès au domaine
       pages/               # écrans du domaine
       components/          # composants du domaine
   pages/
+    ProductsPage.jsx       # shim -> features/catalog
+    ProductFormPage.jsx    # shim -> features/catalog
     SalesPage.jsx          # shim -> features/sales
     SaleFormPage.jsx       # shim -> features/sales
 ```
@@ -107,8 +127,8 @@ navigation. `App.jsx` et `Sidebar.jsx` consomment le module via
 
 | Domaine | Backend | Frontend | Statut |
 |---|---|---|---|
+| Catalogue | `modules/catalog/` | `features/catalog/` | ✅ Migré |
 | Ventes | `modules/sales/` | `features/sales/` | ✅ Pilote |
-| Catalogue | `services/product_service.py` | `pages/ProductsPage.jsx` | ⏳ À migrer |
 | Clients | `services/customer_service.py` | `pages/CustomersPage.jsx` | ⏳ À migrer |
 | Stock | `services/inventory_service.py` | `pages/manager/InventoryPage.jsx` | ⏳ À migrer |
 | Caisse | `services/cash_service.py` | `pages/CashierPage.jsx` | ⏳ À migrer |
@@ -123,6 +143,11 @@ complète :
 - `backend.api.v1.sales` → `backend.modules.sales.router`
 - `backend.services.sale_service` → `backend.modules.sales.service`
 - `backend.schemas.sale` → `backend.modules.sales.schemas`
+- `backend.api.v1.products` → `backend.modules.catalog.router`
+- `backend.services.product_service` → `backend.modules.catalog.service`
+- `backend.schemas.product` → `backend.modules.catalog.schemas`
+- `frontend/src/pages/ProductsPage.jsx` → `features/catalog`
+- `frontend/src/pages/ProductFormPage.jsx` → `features/catalog`
 - `frontend/src/pages/SalesPage.jsx` → `features/sales`
 - `frontend/src/pages/SaleFormPage.jsx` → `features/sales`
 - `frontend/src/components/sales/BulkLabelSheet.jsx` → `features/sales`

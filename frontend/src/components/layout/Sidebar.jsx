@@ -21,6 +21,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { catalogNavigation } from '@/features/catalog'
 import { salesNavigation } from '@/features/sales'
 
 function Sidebar({ mobileOpen = false, onClose }) {
@@ -31,7 +32,7 @@ function Sidebar({ mobileOpen = false, onClose }) {
 
   const navigation = [
     { name: 'Tableau de bord', href: '/', icon: LayoutDashboard, roles: ['admin', 'manager'] },
-    { name: 'Produits', href: '/products', icon: Package, roles: ['admin', 'manager', 'seller'] },
+    catalogNavigation,
     salesNavigation,
     { name: 'Clients', href: '/customers', icon: UserRound, roles: ['admin', 'manager', 'seller'] },
     { name: 'Caisse', href: '/cashier', icon: CreditCard, roles: ['admin', 'cashier'] },

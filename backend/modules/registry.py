@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 
 from fastapi import APIRouter
 
+from .catalog import router as catalog_router
 from .sales import router as sales_router
 
 
@@ -40,10 +41,18 @@ def _module_flag(name: str, default: bool = True) -> bool:
 
 MODULES: tuple[ModuleSpec, ...] = (
     ModuleSpec(
+        name="catalog",
+        router=catalog_router,
+        enabled=_module_flag("catalog"),
+        depends_on=(),
+        license_feature="catalog",
+        description="Catalogue produits, catégories et recherche par code-barres.",
+    ),
+    ModuleSpec(
         name="sales",
         router=sales_router,
         enabled=_module_flag("sales"),
-        depends_on=(),
+        depends_on=("catalog",),
         license_feature="sales",
         description="Ventes, encaissement, annulation et file d'attente caisse.",
     ),
@@ -55,7 +64,13 @@ def get_module(name: str) -> ModuleSpec | None:
 
 
 def enabled_modules() -> list[ModuleSpec]:
-    return [module for module in MODULES if module.enabled]
+    """Modules actifs dont toutes les dépendances sont elles-mêmes actives."""
+    active = {module.name for module in MODULES if module.enabled}
+    return [
+        module
+        for module in MODULES
+        if module.enabled and all(dep in active for dep in module.depends_on)
+    ]
 
 
 __all__ = [

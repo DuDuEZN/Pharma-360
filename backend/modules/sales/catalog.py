@@ -15,19 +15,19 @@ class CatalogPort:
 
     @staticmethod
     async def get_product_by_id(*args, **kwargs):
-        from ...services.product_service import ProductService
+        from ..catalog import ProductService
 
         return await ProductService.get_product_by_id(*args, **kwargs)
 
     @staticmethod
     async def get_fefo_batch(*args, **kwargs):
-        from ...services.product_service import ProductService
+        from ..catalog import ProductService
 
         return await ProductService.get_fefo_batch(*args, **kwargs)
 
     @staticmethod
     async def get_batch_for_bulk(*args, **kwargs):
-        from ...services.product_service import ProductService
+        from ..catalog import ProductService
 
         return await ProductService.get_batch_for_bulk(*args, **kwargs)
 
