@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from fastapi import APIRouter
 
 from .catalog import router as catalog_router
+from .cash import router as cash_router
 from .customers import router as customers_router
 from .inventory import router as inventory_router
 from .sales import router as sales_router
@@ -57,6 +58,14 @@ MODULES: tuple[ModuleSpec, ...] = (
         depends_on=("catalog",),
         license_feature="sales",
         description="Ventes, encaissement, annulation et file d'attente caisse.",
+    ),
+    ModuleSpec(
+        name="cash",
+        router=cash_router,
+        enabled=_module_flag("cash"),
+        depends_on=("sales",),
+        license_feature="cash",
+        description="Sessions de caisse, encaissement et rapports d'écarts.",
     ),
     ModuleSpec(
         name="customers",

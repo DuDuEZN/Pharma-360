@@ -10,7 +10,6 @@ from .audit_logs import router as audit_logs_router
 from .auth import router as auth_router
 from .barcode import router as barcode_router
 from .batches import router as batches_router
-from .cash import router as cash_router
 from .dashboard import router as dashboard_router
 from .deliveries import router as deliveries_router
 from .docs import router as docs_router
@@ -36,7 +35,6 @@ routers = [
     auth_router,
     users_router,
     batches_router,
-    cash_router,
     dashboard_router,
     movements_router,
     barcode_router,

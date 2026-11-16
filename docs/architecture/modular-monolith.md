@@ -30,6 +30,12 @@ big-bang.
 backend/
   modules/
     registry.py            # registre des modules + flags + licence
+    cash/                  # module Caisse
+      __init__.py          # API publique du module
+      router.py            # endpoints du domaine
+      service.py           # cas d'usage métier
+      schemas.py           # contrats Pydantic du domaine
+      models.py            # modèle exposé (réexporté en phase 1)
     catalog/               # module Catalogue
       __init__.py          # API publique du module
       router.py            # endpoints du domaine
@@ -56,16 +62,19 @@ backend/
       models.py            # modèles exposés (réexportés en phase 1)
       catalog.py           # port vers le domaine Catalogue
   api/v1/
+    cash.py                # shim -> backend.modules.cash.router
     customers.py           # shim -> backend.modules.customers.router
     inventory.py           # shim -> backend.modules.inventory.router
     products.py            # shim -> backend.modules.catalog.router
     sales.py               # shim -> backend.modules.sales.router
   services/
+    cash_service.py        # shim -> backend.modules.cash.service
     customer_service.py    # shim -> backend.modules.customers.service
     inventory_service.py   # shim -> backend.modules.inventory.service
     product_service.py     # shim -> backend.modules.catalog.service
     sale_service.py        # shim -> backend.modules.sales.service
   schemas/
+    cash.py                # shim -> backend.modules.cash.schemas
     customer.py            # shim -> backend.modules.customers.schemas
     inventory.py           # shim -> backend.modules.inventory.schemas
     product.py             # shim -> backend.modules.catalog.schemas
@@ -124,6 +133,10 @@ Désactiver le Catalogue désactive donc Ventes, Clients et Stock en cascade.
 ```text
 frontend/src/
   features/
+    cash/
+      index.js             # manifeste public du module
+      api.js               # couche d'accès au domaine
+      pages/               # écrans du domaine
     catalog/
       index.js             # manifeste public du module
       api.js               # couche d'accès au domaine
@@ -142,6 +155,7 @@ frontend/src/
       pages/               # écrans du domaine
       components/          # composants du domaine
   pages/
+    CashierPage.jsx        # shim -> features/cash
     ProductsPage.jsx       # shim -> features/catalog
     ProductFormPage.jsx    # shim -> features/catalog
     CustomersPage.jsx      # shim -> features/customers
@@ -169,7 +183,7 @@ navigation. `App.jsx` et `Sidebar.jsx` consomment le module via
 | Ventes | `modules/sales/` | `features/sales/` | ✅ Pilote |
 | Clients | `modules/customers/` | `features/customers/` | ✅ Migré |
 | Stock | `modules/inventory/` | `features/inventory/` | ✅ Migré |
-| Caisse | `services/cash_service.py` | `pages/CashierPage.jsx` | ⏳ À migrer |
+| Caisse | `modules/cash/` | `features/cash/` | ✅ Migré |
 | Achats / commandes | `services/order_service.py` | `pages/manager/OrdersPage.jsx` | ⏳ À migrer |
 | Rapports | `services/report_service.py` | `pages/manager/*Page.jsx` | ⏳ À migrer |
 
@@ -184,13 +198,19 @@ complète :
 - `backend.api.v1.products` → `backend.modules.catalog.router`
 - `backend.services.product_service` → `backend.modules.catalog.service`
 - `backend.schemas.product` → `backend.modules.catalog.schemas`
+- `backend.api.v1.cash` → `backend.modules.cash.router`
+- `backend.services.cash_service` → `backend.modules.cash.service`
+- `backend.schemas.cash` → `backend.modules.cash.schemas`
 - `backend.api.v1.customers` → `backend.modules.customers.router`
 - `backend.services.customer_service` → `backend.modules.customers.service`
 - `backend.schemas.customer` → `backend.modules.customers.schemas`
 - `backend.api.v1.inventory` → `backend.modules.inventory.router`
 - `backend.services.inventory_service` → `backend.modules.inventory.service`
 - `backend.schemas.inventory` → `backend.modules.inventory.schemas`
-- `frontend/src/pages/ProductsPage.jsx` → `features/catalog`
+- `backend.api.v1.cash` → `backend.modules.cash.router`
+- `backend.services.cash_service` → `backend.modules.cash.service`
+- `backend.schemas.cash` → `backend.modules.cash.schemas`
+- `frontend/src/pages/CashierPage.jsx` → `features/cash`
 - `frontend/src/pages/ProductFormPage.jsx` → `features/catalog`
 - `frontend/src/pages/CustomersPage.jsx` → `features/customers`
 - `frontend/src/pages/SalesPage.jsx` → `features/sales`

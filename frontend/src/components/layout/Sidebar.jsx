@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Package,
   ClipboardList,
-  CreditCard,
   Users,
   Settings,
   BarChart3,
@@ -20,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { cashNavigation } from '@/features/cash'
 import { catalogNavigation } from '@/features/catalog'
 import { customersNavigation } from '@/features/customers'
 import { salesNavigation } from '@/features/sales'
@@ -35,7 +35,7 @@ function Sidebar({ mobileOpen = false, onClose }) {
     catalogNavigation,
     salesNavigation,
     customersNavigation,
-    { name: 'Caisse', href: '/cashier', icon: CreditCard, roles: ['admin', 'cashier'] },
+    cashNavigation,
     { name: 'Commandes', href: '/manager/orders', icon: ClipboardList, roles: ['seller'] },
     { name: 'Administrateur', href: '/admin', icon: Users, roles: ['admin'] },
     { name: 'Gestionnaire', href: '/manager', icon: BarChart3, roles: ['admin', 'manager'] },
