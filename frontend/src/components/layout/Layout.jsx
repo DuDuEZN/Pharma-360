@@ -7,7 +7,7 @@ function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] text-secondary-900 dark:bg-black dark:text-white">
+    <div className="min-h-screen bg-transparent text-secondary-900 dark:bg-transparent dark:text-white">
       <Sidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
       <div className="lg:pl-[264px]">
         <Header onMenuClick={() => setMobileMenuOpen(true)} />

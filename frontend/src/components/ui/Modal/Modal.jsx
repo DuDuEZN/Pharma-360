@@ -60,7 +60,7 @@ const Modal = forwardRef(({
       <div
         ref={ref}
         className={cn(
-          'relative w-full max-h-[92vh] overflow-y-auto rounded-3xl border border-black/[0.06] bg-white/95 shadow-apple-lg backdrop-blur-2xl animate-slide-up dark:border-white/10 dark:bg-[#1c1c1e]/95',
+          'relative w-full max-h-[92vh] overflow-y-auto rounded-3xl border border-white/60 bg-white/70 shadow-apple-lg backdrop-blur-2xl animate-slide-up dark:border-white/10 dark:bg-white/[0.08]',
           sizes[size],
           className
         )}

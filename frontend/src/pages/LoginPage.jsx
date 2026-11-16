@@ -73,7 +73,7 @@ function LoginPage() {
 
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f5f5f7] p-4 dark:bg-black">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-transparent p-4 dark:bg-transparent">
       {/* Halos façon Apple */}
       <div className="pointer-events-none absolute -left-32 -top-32 h-[420px] w-[420px] rounded-full bg-primary-400/25 blur-[120px] dark:bg-primary-600/20" />
       <div className="pointer-events-none absolute -bottom-40 -right-24 h-[460px] w-[460px] rounded-full bg-[#af52de]/20 blur-[130px] dark:bg-[#af52de]/15" />

@@ -11,13 +11,31 @@
   }
 
   body {
-    @apply bg-[#f5f5f7] text-secondary-900 font-sans;
+    @apply text-secondary-900 font-sans;
     letter-spacing: -0.011em;
     font-feature-settings: 'cv11', 'ss01';
+    background-color: #f6f8fb;
+    background-image:
+      radial-gradient(1200px 700px at 8% 12%, rgba(187, 247, 208, 0.55) 0%, transparent 60%),
+      radial-gradient(1100px 700px at 92% 10%, rgba(191, 219, 254, 0.6) 0%, transparent 62%),
+      radial-gradient(1300px 800px at 50% 95%, rgba(251, 207, 232, 0.55) 0%, transparent 60%),
+      linear-gradient(135deg, #f0fdf4 0%, #eff6ff 45%, #fdf2f8 100%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    min-height: 100vh;
   }
 
   .dark body {
-    @apply bg-black text-white;
+    @apply text-white;
+    background-color: #0b1020;
+    background-image:
+      radial-gradient(1200px 700px at 8% 12%, rgba(22, 163, 74, 0.25) 0%, transparent 60%),
+      radial-gradient(1100px 700px at 92% 10%, rgba(37, 99, 235, 0.22) 0%, transparent 62%),
+      radial-gradient(1300px 800px at 50% 95%, rgba(219, 39, 119, 0.2) 0%, transparent 60%),
+      linear-gradient(135deg, #050a18 0%, #0a1024 45%, #140818 100%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    min-height: 100vh;
   }
 
   * {
@@ -92,11 +110,11 @@
   }
 
   .input {
-    @apply block w-full px-3.5 py-2.5 text-sm rounded-xl border border-black/10 bg-white/80 shadow-apple-sm placeholder:text-secondary-400 transition-all duration-200 ease-apple focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/15 disabled:bg-secondary-50 disabled:text-secondary-500 disabled:cursor-not-allowed dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-secondary-500;
+    @apply block w-full px-3.5 py-2.5 text-sm rounded-xl border border-white/40 bg-white/60 shadow-apple-sm placeholder:text-secondary-400 transition-all duration-200 ease-apple focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/15 disabled:bg-secondary-50 disabled:text-secondary-500 disabled:cursor-not-allowed dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-secondary-500;
   }
 
   .card {
-    @apply bg-white/80 backdrop-blur-xl rounded-2xl border border-black/[0.06] shadow-apple p-6 dark:bg-white/[0.07] dark:border-white/10;
+    @apply bg-white/55 backdrop-blur-2xl rounded-2xl border border-white/60 shadow-apple p-6 dark:bg-white/[0.06] dark:border-white/10;
   }
 
   .glass {
