@@ -28,7 +28,6 @@ from .returns import router as returns_router
 from .settings import router as settings_router
 from .manager_reports import router as manager_reports_router
 from .sale_history import router as sale_history_router
-from .sales import router as sales_router
 from .suppliers import router as suppliers_router
 from .users import router as users_router
 
@@ -41,7 +40,6 @@ routers = [
     users_router,
     products_router,
     batches_router,
-    sales_router,
     cash_router,
     customers_router,
     dashboard_router,

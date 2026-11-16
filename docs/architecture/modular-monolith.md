@@ -1,0 +1,128 @@
+# Architecture — monolithe modulaire par domaine
+
+Pharma-360 évolue d'un monolithe organisé **par couche technique**
+(`api/`, `services/`, `models/`, `schemas/`) vers un **monolithe modulaire
+par domaine métier**. L'objectif est de rendre chaque domaine remplaçable et
+activables par licence, sans introduire de microservices ni de refonte
+big-bang.
+
+## Principes
+
+1. **Un déploiement, une base.** Les modules partagent le même processus
+   FastAPI, le même frontend et la même base PostgreSQL.
+2. **Un module = un dossier métier.** Chaque module possède son routeur, son
+   service, ses schémas et son point d'entrée public.
+3. **API publique explicite.** Les autres domaines n'importent que
+   `backend.modules.<domaine>` (son `__init__.py`), jamais ses fichiers
+   internes.
+4. **Ports pour les dépendances croisées.** Un module ne dépend pas de
+   l'implémentation interne d'un autre module : il passe par un port
+   (interface/adaptateur), par exemple `modules/sales/catalog.py`.
+5. **Compatibilité ascendante.** Les anciens chemins d'import restent valides
+   via des shims pendant toute la migration.
+6. **Activation par registre.** Chaque module est déclaré dans
+   `backend/modules/registry.py`, avec un flag d'activation et une clé de
+   licence.
+
+## Structure backend
+
+```text
+backend/
+  modules/
+    registry.py            # registre des modules + flags + licence
+    sales/                 # module Ventes
+      __init__.py          # API publique du module
+      router.py            # endpoints du domaine
+      service.py           # cas d'usage métier
+      schemas.py           # contrats Pydantic du domaine
+      models.py            # modèles exposés (réexportés en phase 1)
+      catalog.py           # port vers le domaine Catalogue
+  api/v1/
+    sales.py               # shim -> backend.modules.sales.router
+  services/
+    sale_service.py        # shim -> backend.modules.sales.service
+  schemas/
+    sale.py                # shim -> backend.modules.sales.schemas
+```
+
+### Registre de modules
+
+`ModuleSpec` décrit un bloc :
+
+| Champ | Rôle |
+|---|---|
+| `name` | identifiant du module (`sales`) |
+| `router` | routeur FastAPI inclus dans l'application |
+| `enabled` | activation effective |
+| `depends_on` | dépendances déclaratives entre modules |
+| `license_feature` | clé de licence/abonnement |
+| `description` | description lisible |
+
+L'activation se fait par variable d'environnement :
+
+```text
+MODULE_SALES_ENABLED=true|false
+```
+
+`enabled_modules()` renvoie les modules actifs. `backend/main.py` inclut
+automatiquement leur routeur sous le préfixe `/api/v1`.
+
+### Ajouter un module
+
+1. Créer `backend/modules/<domaine>/` avec `router.py`, `service.py`,
+   `schemas.py`, `models.py` et `__init__.py`.
+2. Exposer uniquement l'API publique dans `__init__.py`.
+3. Isoler les dépendances croisées derrière un port.
+4. Enregistrer un `ModuleSpec` dans `registry.py`.
+5. Créer les shims des anciens chemins si nécessaire.
+6. Ajouter un test de registre/module.
+
+## Structure frontend
+
+```text
+frontend/src/
+  features/
+    sales/
+      index.js             # manifeste public du module
+      api.js               # couche d'accès au domaine
+      pages/               # écrans du domaine
+      components/          # composants du domaine
+  pages/
+    SalesPage.jsx          # shim -> features/sales
+    SaleFormPage.jsx       # shim -> features/sales
+```
+
+Le manifeste expose les pages, les composants, l'API et l'entrée de
+navigation. `App.jsx` et `Sidebar.jsx` consomment le module via
+`@/features/sales`, plus via les anciens chemins.
+
+### Règles frontend
+
+- Les appels au domaine passent par `features/<domaine>/api.js`.
+- Les appels à d'autres domaines (produits, clients…) restent explicites et
+  seront progressivement remplacés par les API des modules correspondants.
+- Les pages ne doivent pas importer les fichiers internes d'un autre module.
+
+## État de la migration
+
+| Domaine | Backend | Frontend | Statut |
+|---|---|---|---|
+| Ventes | `modules/sales/` | `features/sales/` | ✅ Pilote |
+| Catalogue | `services/product_service.py` | `pages/ProductsPage.jsx` | ⏳ À migrer |
+| Clients | `services/customer_service.py` | `pages/CustomersPage.jsx` | ⏳ À migrer |
+| Stock | `services/inventory_service.py` | `pages/manager/InventoryPage.jsx` | ⏳ À migrer |
+| Caisse | `services/cash_service.py` | `pages/CashierPage.jsx` | ⏳ À migrer |
+| Achats / commandes | `services/order_service.py` | `pages/manager/OrdersPage.jsx` | ⏳ À migrer |
+| Rapports | `services/report_service.py` | `pages/manager/*Page.jsx` | ⏳ À migrer |
+
+## Compatibilité
+
+Les shims suivants restent valides et seront supprimés après migration
+complète :
+
+- `backend.api.v1.sales` → `backend.modules.sales.router`
+- `backend.services.sale_service` → `backend.modules.sales.service`
+- `backend.schemas.sale` → `backend.modules.sales.schemas`
+- `frontend/src/pages/SalesPage.jsx` → `features/sales`
+- `frontend/src/pages/SaleFormPage.jsx` → `features/sales`
+- `frontend/src/components/sales/BulkLabelSheet.jsx` → `features/sales`
