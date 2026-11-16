@@ -47,7 +47,10 @@ const DashboardPage = () => {
     lowStock: 0,
     expiringSoon: 0,
     activeUsers: 0,
-    pendingInvoices: 0
+    pendingInvoices: 0,
+    itemsSold: 0,
+    averageBasket: 0,
+    customers: 0
   });
   
   const [salesData, setSalesData] = useState({
@@ -67,6 +70,7 @@ const DashboardPage = () => {
   
   const [loading, setLoading] = useState(true);
   const [overviewData, setOverviewData] = useState(null);
+  const [salesStats, setSalesStats] = useState(null);
   const [timeRange, setTimeRange] = useState('month');
   const [dateRange, setDateRange] = useState({
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
@@ -81,78 +85,74 @@ const DashboardPage = () => {
     { value: 'custom', label: 'Personnalisé' }
   ];
 
+  const toDateParam = (value) => {
+    const d = new Date(value);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch statistics
-      const statsResponse = await apiClient.get('/sale-history/stats', {
-        params: {
-          start_date: dateRange.from.toISOString(),
-          end_date: dateRange.to.toISOString()
-        }
-      });
-      
-      if (statsResponse?.data) {
-        setStats({
-          totalSales: statsResponse.data.total_sales || 0,
-          totalRevenue: statsResponse.data.total_revenue || 0,
-          totalProducts: statsResponse.data.total_products || 0,
-          lowStock: statsResponse.data.low_stock_count || 0,
-          expiringSoon: statsResponse.data.expiring_soon_count || 0,
-          activeUsers: statsResponse.data.active_users || 0,
-          pendingInvoices: statsResponse.data.pending_invoices || 0
-        });
-      }
 
-      // Rubriques du tableau de bord (vue générale, activités, valorisation,
-      // mouvements de stock).
-      try {
-        const overviewResponse = await apiClient.get('/dashboard/overview');
-        setOverviewData(overviewResponse.data || null);
-      } catch (overviewError) {
-        console.error('Error fetching dashboard overview:', overviewError);
-        setOverviewData(null);
-      }
-      
-      // Fetch sales data
-      const salesResponse = await apiClient.get('/sale-history/daily', {
-        params: {
-          start_date: dateRange.from.toISOString(),
-          end_date: dateRange.to.toISOString()
-        }
+      const params = {
+        start_date: toDateParam(dateRange.from),
+        end_date: toDateParam(dateRange.to),
+      };
+
+      // Statistiques de ventes (source réelle : sales / sale_items) et
+      // rubriques stock du tableau de bord.
+      const [overviewResponse, salesStatsResponse] = await Promise.all([
+        apiClient.get('/dashboard/overview'),
+        apiClient.get('/dashboard/sales-stats', { params: { ...params, limit: 5 } }),
+      ]);
+
+      const overview = overviewResponse.data || null;
+      setOverviewData(overview);
+
+      const statsData = salesStatsResponse.data || {};
+      const totals = statsData.totals || {};
+      setSalesStats(statsData);
+
+      setStats({
+        totalSales: totals.sales_count || 0,
+        totalRevenue: totals.revenue || 0,
+        totalProducts: overview?.overview?.total_products || 0,
+        lowStock: overview?.overview?.out_of_stock || 0,
+        expiringSoon: overview?.overview?.expiring_soon || 0,
+        activeUsers: 0,
+        pendingInvoices: 0,
+        itemsSold: totals.items_sold || 0,
+        averageBasket: totals.average_basket || 0,
+        customers: totals.customers || 0,
       });
-      
-      if (salesResponse.data) {
-        const labels = salesResponse.data.map(item => new Date(item.date).toLocaleDateString('fr-FR', { 
-          day: '2-digit', 
-          month: 'short' 
-        }));
-        const data = salesResponse.data.map(item => item.total_sales);
-        setSalesData({ labels, data });
-      }
-      
-      // Fetch top products
-      const productsResponse = await apiClient.get('/sale-history/top-products', {
-        params: { limit: 5 }
+
+      const daily = statsData.daily || [];
+      setSalesData({
+        labels: daily.map(item =>
+          new Date(`${item.date}T00:00:00`).toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: 'short',
+          })
+        ),
+        data: daily.map(item => item.revenue),
+        counts: daily.map(item => item.sales_count),
       });
-      
-      if (productsResponse.data) {
-        const labels = productsResponse.data.map(item => item.product_name || item.name);
-        const data = productsResponse.data.map(item => item.total_quantity);
-        setTopProducts({ labels, data });
-      }
-      
-      // Fetch category distribution
-      const categoryResponse = await apiClient.get('/products/categories/stats');
-      
-      //if (categoryResponse?.data) {
-      if (categoryResponse.data) {
-        const labels = categoryResponse.data.map(item => item.category);
-        const data = categoryResponse.data.map(item => item.count);
-        setCategoryDistribution({ labels, data });
-      }
-      
+
+      const top = statsData.top_products || [];
+      setTopProducts({
+        labels: top.map(item => item.name),
+        data: top.map(item => item.quantity),
+        revenue: top.map(item => item.revenue),
+      });
+
+      const categories = statsData.categories || [];
+      setCategoryDistribution({
+        labels: categories.map(item => item.category),
+        data: categories.map(item => item.revenue),
+      });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -197,12 +197,27 @@ const DashboardPage = () => {
     fetchDashboardData();
   };
 
+  const variationLabel = (value) => {
+    if (value === null || value === undefined) {
+      return 'Pas de référence sur la période précédente';
+    }
+    const sign = value > 0 ? '+' : '';
+    return `${sign}${value}% par rapport à la période précédente`;
+  };
+
+  const variationClass = (value) =>
+    value === null || value === undefined
+      ? 'text-gray-500 dark:text-gray-400'
+      : value >= 0
+        ? 'text-success-600 dark:text-success-400'
+        : 'text-danger-600 dark:text-danger-400';
+
   // Chart data configurations
   const salesChartData = {
     labels: salesData.labels,
     datasets: [
       {
-        label: 'Ventes par jour',
+        label: "Chiffre d'affaires",
         data: salesData.data,
         backgroundColor: chartColors.primary,
         borderColor: chartColors.primary,
@@ -279,7 +294,9 @@ const DashboardPage = () => {
               label += ': ';
             }
             if (context.parsed.y !== null) {
-              label += context.parsed.y;
+              label += context.dataset.label === "Chiffre d'affaires"
+                ? formatCurrency(context.parsed.y)
+                : context.parsed.y;
             }
             return label;
           }
@@ -338,8 +355,11 @@ const DashboardPage = () => {
             const label = context.label || '';
             const value = context.parsed || 0;
             const total = context.dataset.data.reduce((a, b) => a + b, 0);
-            const percentage = Math.round((value / total) * 100);
-            return `${label}: ${value} (${percentage}%)`;
+            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+            const formatted = context.dataset.label === 'Répartition par Catégorie'
+              ? formatCurrency(value)
+              : `${value.toLocaleString('fr-FR')} unité(s)`;
+            return `${label}: ${formatted} (${percentage}%)`;
           }
         }
       }
@@ -609,8 +629,8 @@ const DashboardPage = () => {
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                       {stats.totalSales.toLocaleString('fr-FR')}
                     </p>
-                    <p className="text-xs text-success-600 dark:text-success-400 mt-1">
-                      +12% par rapport à la période précédente
+                    <p className={cn('text-xs mt-1', variationClass(salesStats?.variation?.sales_count))}>
+                      {variationLabel(salesStats?.variation?.sales_count)}
                     </p>
                   </div>
                   <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
@@ -630,8 +650,8 @@ const DashboardPage = () => {
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                       {formatCurrency(stats.totalRevenue)}
                     </p>
-                    <p className="text-xs text-success-600 dark:text-success-400 mt-1">
-                      +8% par rapport à la période précédente
+                    <p className={cn('text-xs mt-1', variationClass(salesStats?.variation?.revenue))}>
+                      {variationLabel(salesStats?.variation?.revenue)}
                     </p>
                   </div>
                   <div className="p-3 bg-success-100 dark:bg-success-900/30 rounded-lg">
@@ -702,14 +722,14 @@ const DashboardPage = () => {
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-info-100 dark:bg-info-900/30 rounded-lg">
-                    <Users className="w-5 h-5 text-info-600 dark:text-info-400" />
+                    <ShoppingCart className="w-5 h-5 text-info-600 dark:text-info-400" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Utilisateurs Actifs
+                      Articles Vendus
                     </p>
                     <p className="font-bold text-gray-900 dark:text-white">
-                      {stats.activeUsers.toLocaleString('fr-FR')}
+                      {(stats.itemsSold || 0).toLocaleString('fr-FR')}
                     </p>
                   </div>
                 </div>
@@ -720,14 +740,14 @@ const DashboardPage = () => {
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-warning-100 dark:bg-warning-900/30 rounded-lg">
-                    <FileText className="w-5 h-5 text-warning-600 dark:text-warning-400" />
+                    <Wallet className="w-5 h-5 text-warning-600 dark:text-warning-400" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Factures en Attente
+                      Panier Moyen
                     </p>
                     <p className="font-bold text-gray-900 dark:text-white">
-                      {stats.pendingInvoices.toLocaleString('fr-FR')}
+                      {formatCurrency(stats.averageBasket || 0)}
                     </p>
                   </div>
                 </div>
@@ -782,7 +802,7 @@ const DashboardPage = () => {
           <CardHeader>
             <CardTitle>Ventes par Jour</CardTitle>
             <CardDescription>
-              Évolution des ventes sur la période sélectionnée
+              Chiffre d'affaires quotidien sur la période sélectionnée
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -821,7 +841,7 @@ const DashboardPage = () => {
         <CardHeader>
           <CardTitle>Répartition par Catégorie</CardTitle>
           <CardDescription>
-            Distribution des produits par catégorie
+            Chiffre d'affaires par catégorie sur la période
           </CardDescription>
         </CardHeader>
         <CardContent>

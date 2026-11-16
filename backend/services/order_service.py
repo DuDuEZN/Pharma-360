@@ -286,35 +286,63 @@ class DeliveryService:
         product_names = {}
         product_barcodes = {}
         product_prices = {}
+        product_bulk = {}
         if product_ids:
             pres = await db.execute(
-                select(Product.id, Product.name, Product.barcode, Product.price).where(Product.id.in_(product_ids))
+                select(
+                    Product.id,
+                    Product.name,
+                    Product.barcode,
+                    Product.price,
+                    Product.is_bulk,
+                    Product.units_per_box,
+                    Product.bulk_price,
+                ).where(Product.id.in_(product_ids))
             )
-            for pid, pname, pbarcode, pprice in pres.all():
+            for pid, pname, pbarcode, pprice, pis_bulk, punits, pbulk in pres.all():
                 product_names[pid] = pname
                 product_barcodes[pid] = pbarcode
                 product_prices[pid] = float(pprice or 0)
-        item_objs = [DeliveryItemResponse(
-            id=i.id, delivery_id=i.delivery_id, product_id=i.product_id,
-            product_name=product_names.get(i.product_id),
-            product_barcode=product_barcodes.get(i.product_id),
-            barcode=i.barcode or product_barcodes.get(i.product_id),
-            product_price=product_prices.get(i.product_id, 0) or 0,
-            quantity=i.quantity, unit_price=float(i.unit_price or 0),
-            selling_price=(
-                float(i.selling_price)
-                if getattr(i, "selling_price", None) not in (None, 0)
-                else (product_prices.get(i.product_id, 0) or 0)
-            ),
-            total_price=float(i.total_price or 0),
-            received_quantity=i.received_quantity or 0,
-            non_conforming_quantity=i.non_conforming_quantity or 0,
-            expiry_date=i.expiry_date,
-            location=i.location,
-            notes=i.notes,
-            batch_number=i.batch_number,
-            created_at=i.created_at,
-        ) for i in d.items]
+                product_bulk[pid] = {
+                    "is_bulk": bool(pis_bulk),
+                    "units_per_box": int(punits or 1),
+                    "bulk_price": float(pbulk or 0),
+                }
+        item_objs = []
+        for i in d.items:
+            bulk_info = product_bulk.get(i.product_id, {})
+            units_per_box = int(bulk_info.get("units_per_box") or 1)
+            item_bulk_price = (
+                float(i.bulk_price)
+                if getattr(i, "bulk_price", None) not in (None, 0)
+                else bulk_info.get("bulk_price", 0)
+            )
+            if not item_bulk_price and bulk_info.get("is_bulk"):
+                item_bulk_price = product_prices.get(i.product_id, 0) / max(units_per_box, 1)
+            item_objs.append(DeliveryItemResponse(
+                id=i.id, delivery_id=i.delivery_id, product_id=i.product_id,
+                product_name=product_names.get(i.product_id),
+                product_barcode=product_barcodes.get(i.product_id),
+                barcode=i.barcode or product_barcodes.get(i.product_id),
+                product_price=product_prices.get(i.product_id, 0) or 0,
+                quantity=i.quantity, unit_price=float(i.unit_price or 0),
+                selling_price=(
+                    float(i.selling_price)
+                    if getattr(i, "selling_price", None) not in (None, 0)
+                    else (product_prices.get(i.product_id, 0) or 0)
+                ),
+                bulk_price=item_bulk_price or None,
+                is_bulk=bool(bulk_info.get("is_bulk")),
+                units_per_box=units_per_box,
+                total_price=float(i.total_price or 0),
+                received_quantity=i.received_quantity or 0,
+                non_conforming_quantity=i.non_conforming_quantity or 0,
+                expiry_date=i.expiry_date,
+                location=i.location,
+                notes=i.notes,
+                batch_number=i.batch_number,
+                created_at=i.created_at,
+            ))
         supplier_name = d.supplier.name if d.supplier else None
         order_reference = d.order.reference if d.order else None
         return DeliveryResponse(
@@ -404,13 +432,40 @@ class DeliveryService:
         }
         product_barcodes = {}
         product_prices = {}
+        product_bulk_prices = {}
+        product_bulk_info = {}
         if product_ids:
             pres = await db.execute(
-                select(Product.id, Product.barcode, Product.price).where(Product.id.in_(product_ids))
+                select(
+                    Product.id,
+                    Product.barcode,
+                    Product.price,
+                    Product.is_bulk,
+                    Product.units_per_box,
+                    Product.bulk_price,
+                ).where(Product.id.in_(product_ids))
             )
-            for pid, pbarcode, pprice in pres.all():
+            for pid, pbarcode, pprice, pis_bulk, punits, pbulk in pres.all():
                 product_barcodes[pid] = pbarcode
                 product_prices[pid] = float(pprice or 0)
+                product_bulk_prices[pid] = float(pbulk or 0)
+                product_bulk_info[pid] = {
+                    "is_bulk": bool(pis_bulk),
+                    "units_per_box": int(punits or 1),
+                }
+
+        def _resolve_bulk_price(pid, value):
+            """Prix du vrac : saisi à la livraison, sinon prix produit existant."""
+            info = product_bulk_info.get(pid) or {}
+            if not info.get("is_bulk"):
+                return None
+            if value is not None and float(value or 0) > 0:
+                return Decimal(str(value))
+            existing = product_bulk_prices.get(pid, 0)
+            if existing > 0:
+                return Decimal(str(existing))
+            units = max(int(info.get("units_per_box") or 1), 1)
+            return Decimal(str(product_prices.get(pid, 0) / units))
 
         for it in items_source:
             qty = getattr(it, "quantity", None) or 1
@@ -431,6 +486,7 @@ class DeliveryService:
                 quantity=qty,
                 unit_price=up,
                 selling_price=Decimal(str(selling or 0)),
+                bulk_price=_resolve_bulk_price(pid, getattr(it, "bulk_price", None)),
                 total_price=qty * up,
                 received_quantity=ri,
                 non_conforming_quantity=nci,
@@ -466,13 +522,40 @@ class DeliveryService:
         product_ids = {it.product_id for it in (data.items or []) if it.product_id}
         product_barcodes = {}
         product_prices = {}
+        product_bulk_prices = {}
+        product_bulk_info = {}
         if product_ids:
             pres = await db.execute(
-                select(Product.id, Product.barcode, Product.price).where(Product.id.in_(product_ids))
+                select(
+                    Product.id,
+                    Product.barcode,
+                    Product.price,
+                    Product.is_bulk,
+                    Product.units_per_box,
+                    Product.bulk_price,
+                ).where(Product.id.in_(product_ids))
             )
-            for pid, pbarcode, pprice in pres.all():
+            for pid, pbarcode, pprice, pis_bulk, punits, pbulk in pres.all():
                 product_barcodes[pid] = pbarcode
                 product_prices[pid] = float(pprice or 0)
+                product_bulk_prices[pid] = float(pbulk or 0)
+                product_bulk_info[pid] = {
+                    "is_bulk": bool(pis_bulk),
+                    "units_per_box": int(punits or 1),
+                }
+
+        def _resolve_bulk_price(pid, value):
+            """Prix du vrac : saisi à la livraison, sinon prix produit existant."""
+            info = product_bulk_info.get(pid) or {}
+            if not info.get("is_bulk"):
+                return None
+            if value is not None and float(value or 0) > 0:
+                return Decimal(str(value))
+            existing = product_bulk_prices.get(pid, 0)
+            if existing > 0:
+                return Decimal(str(existing))
+            units = max(int(info.get("units_per_box") or 1), 1)
+            return Decimal(str(product_prices.get(pid, 0) / units))
         for it in (data.items or []):
             qty = it.quantity or 1
             up = float(it.unit_price or 0)
@@ -485,6 +568,7 @@ class DeliveryService:
                 quantity=qty,
                 unit_price=up,
                 selling_price=Decimal(str(selling or 0)),
+                bulk_price=_resolve_bulk_price(it.product_id, getattr(it, "bulk_price", None)),
                 total_price=qty * up,
                 received_quantity=it.received_quantity or 0,
                 non_conforming_quantity=it.non_conforming_quantity or 0,
@@ -510,6 +594,15 @@ class DeliveryService:
                 if conforming <= 0 or not item.product_id:
                     continue
                 product = await db.get(Product, item.product_id)
+                # Prix du vrac précisé à la livraison : il devient le prix
+                # de référence du produit pour les ventes à l'unité.
+                if (
+                    product is not None
+                    and product.is_bulk
+                    and getattr(item, "bulk_price", None)
+                    and float(item.bulk_price) > 0
+                ):
+                    product.bulk_price = Decimal(str(item.bulk_price))
                 # Utiliser le numéro de lot saisi à la livraison
                 batch_number = item.batch_number or f"REC-{d.id}-{item.id}-{uuid.uuid4().hex[:6]}"
                 expiry = item.expiry_date or (date.today() + timedelta(days=365))
@@ -559,6 +652,15 @@ class DeliveryService:
                 if conforming <= 0 or not item.product_id:
                     continue
                 product = await db.get(Product, item.product_id)
+                # Prix du vrac précisé à la livraison : il devient le prix
+                # de référence du produit pour les ventes à l'unité.
+                if (
+                    product is not None
+                    and product.is_bulk
+                    and getattr(item, "bulk_price", None)
+                    and float(item.bulk_price) > 0
+                ):
+                    product.bulk_price = Decimal(str(item.bulk_price))
                 batch_number = item.batch_number or ("REC-%d-%d" % (d.id, item.id))
                 expiry = item.expiry_date or (date.today() + timedelta(days=365))
                 location = item.location or "Reception"

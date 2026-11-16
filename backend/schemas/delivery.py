@@ -10,6 +10,11 @@ class DeliveryItemCreate(BaseModel):
     quantity: int = Field(default=1, ge=1)
     unit_price: float = Field(default=0, ge=0, description="Prix d'achat unitaire")
     selling_price: Optional[float] = Field(None, ge=0, description="Prix de vente unitaire")
+    bulk_price: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Prix du vrac (par unité) pour un produit vendable en vrac",
+    )
     received_quantity: int = Field(default=0, ge=0)
     non_conforming_quantity: int = Field(default=0, ge=0)
     expiry_date: Optional[date] = None
@@ -30,6 +35,9 @@ class DeliveryItemResponse(BaseModel):
     quantity: int
     unit_price: float
     selling_price: Optional[float] = None
+    bulk_price: Optional[float] = None
+    is_bulk: bool = False
+    units_per_box: int = 1
     total_price: float
     received_quantity: int = 0
     non_conforming_quantity: int = 0

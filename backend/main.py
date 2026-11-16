@@ -71,9 +71,18 @@ async def startup_event():
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_action ON audit_logs(action)"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_created_at ON audit_logs(created_at)"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_expired_products_log_created_at ON expired_products_log(created_at)"))
+            # Migration douce : prix du vrac précisé à la livraison.
+            try:
+                async with conn.begin_nested():
+                    await conn.execute(text(
+                        "ALTER TABLE delivery_items ADD COLUMN IF NOT EXISTS bulk_price NUMERIC(10, 2)"
+                    ))
+            except Exception:
+                pass
             # Migration douce : colonne expiry_date en DATE (anciennes bases).
             try:
-                await conn.execute(text("ALTER TABLE expired_products_log ALTER COLUMN expiry_date TYPE DATE USING expiry_date::date"))
+                async with conn.begin_nested():
+                    await conn.execute(text("ALTER TABLE expired_products_log ALTER COLUMN expiry_date TYPE DATE USING expiry_date::date"))
             except Exception:
                 pass
             # Tables RBAC roles/permissions (création idempotente).

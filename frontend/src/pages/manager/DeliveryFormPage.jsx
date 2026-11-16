@@ -118,6 +118,7 @@ function DeliveryFormPage() {
           quantity: Number(item.quantity || 1),
           unit_price: Number(item.unit_price || 0),
           selling_price: Number(item.selling_price ?? item.product_price ?? 0),
+          bulk_price: Number(item.bulk_price ?? 0),
           received_quantity: Number(item.received_quantity || 0),
           non_conforming_quantity: Number(item.non_conforming_quantity || 0),
           expiry_date: item.expiry_date || '',
@@ -140,11 +141,22 @@ function DeliveryFormPage() {
     }
   }
 
+  const getProduct = (productId) =>
+    products.find(p => String(p.id) === String(productId))
+
+  // Prix du vrac par défaut : prix dédié du produit, sinon prix boîte / unités.
+  const defaultBulkPrice = (product) => {
+    if (!product?.is_bulk) return 0
+    if (Number(product.bulk_price) > 0) return Number(product.bulk_price)
+    const units = Number(product.units_per_box) || 1
+    return Number(((Number(product.price) || 0) / units).toFixed(2))
+  }
+
   const handleAddItem = () => {
     setDelivery(prev => ({
       ...prev,
       items: [...prev.items, {
-        product_id: '', product_barcode: '', barcode: '', quantity: 1, unit_price: 0, selling_price: 0,
+        product_id: '', product_barcode: '', barcode: '', quantity: 1, unit_price: 0, selling_price: 0, bulk_price: 0,
         received_quantity: 1, non_conforming_quantity: 0,
         expiry_date: '', location: '', notes: '', batch_number: ''
       }]
@@ -167,20 +179,24 @@ function DeliveryFormPage() {
     // Load order detail to populate items
     api.get(`/manager/orders/${orderId}`).then(response => {
       const detail = response.data
-      const items = (detail.items || []).map(it => ({
-        product_id: String(it.product_id),
-        product_barcode: it.product_barcode || '',
-        barcode: it.product_barcode || '',
-        quantity: it.quantity || 1,
-        unit_price: it.unit_price || 0,
-        selling_price: products.find(p => String(p.id) === String(it.product_id))?.price || 0,
-        received_quantity: it.quantity || 0,
-        non_conforming_quantity: 0,
-        expiry_date: '',
-        location: '',
-        notes: '',
-        batch_number: ''
-      }))
+      const items = (detail.items || []).map(it => {
+        const product = getProduct(it.product_id)
+        return {
+          product_id: String(it.product_id),
+          product_barcode: it.product_barcode || '',
+          barcode: it.product_barcode || '',
+          quantity: it.quantity || 1,
+          unit_price: it.unit_price || 0,
+          selling_price: product?.price || 0,
+          bulk_price: defaultBulkPrice(product),
+          received_quantity: it.quantity || 0,
+          non_conforming_quantity: 0,
+          expiry_date: '',
+          location: '',
+          notes: '',
+          batch_number: ''
+        }
+      })
       setDelivery(prev => ({ ...prev, items }))
     }).catch(() => {})
   }
@@ -216,6 +232,9 @@ function DeliveryFormPage() {
               barcode: product?.barcode || '',
               unit_price: item.unit_price || product?.cost_price || product?.price || 0,
               selling_price: item.selling_price || product?.price || 0,
+              bulk_price: product?.is_bulk
+                ? (Number(item.bulk_price) > 0 ? item.bulk_price : defaultBulkPrice(product))
+                : 0,
             }
           : item
       )
@@ -258,6 +277,7 @@ function DeliveryFormPage() {
         quantity: parseInt(item.quantity, 10) || 1,
         unit_price: parseFloat(item.unit_price) || 0,
         selling_price: parseFloat(item.selling_price) || 0,
+        bulk_price: parseFloat(item.bulk_price) || 0,
         received_quantity: parseInt(item.received_quantity, 10) || 0,
         non_conforming_quantity: parseInt(item.non_conforming_quantity, 10) || 0,
         expiry_date: item.expiry_date || null,
@@ -268,6 +288,20 @@ function DeliveryFormPage() {
 
     if (items.length === 0) {
       addToast({ type: 'error', title: 'Erreur', message: 'Au moins un article est requis' })
+      return
+    }
+
+    const missingBulkPrice = (delivery.items || []).find(item => {
+      if (!item.product_id) return false
+      const product = getProduct(item.product_id)
+      return Boolean(product?.is_bulk) && (parseFloat(item.bulk_price) || 0) <= 0
+    })
+    if (missingBulkPrice) {
+      addToast({
+        type: 'error',
+        title: 'Prix du vrac requis',
+        message: 'Renseignez le prix du vrac pour chaque produit vendable en vrac.'
+      })
       return
     }
 
@@ -623,6 +657,33 @@ function DeliveryFormPage() {
                           />
                         </div>
                       </div>
+
+                      {getProduct(item.product_id)?.is_bulk && (
+                        <div className="mt-4 rounded-xl border border-primary-200 bg-primary-50/60 p-3 dark:border-primary-800 dark:bg-primary-900/20">
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:items-end">
+                            <div className="space-y-2">
+                              <Label htmlFor={`item-bulk-price-${index}`}>
+                                Prix du vrac (par unité) *
+                              </Label>
+                              <Input
+                                id={`item-bulk-price-${index}`}
+                                type="number"
+                                value={item.bulk_price || ''}
+                                onChange={(e) => handleItemChange(index, 'bulk_price', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)}
+                                min="0"
+                                step="0.01"
+                                placeholder="Prix d'une unité en vrac"
+                              />
+                            </div>
+                            <p className="text-xs text-gray-600 dark:text-gray-300 md:pb-2">
+                              Produit vendable en vrac : 1 boîte ={' '}
+                              <strong>{getProduct(item.product_id)?.units_per_box || 1}</strong>{' '}
+                              unité(s). Ce prix sera enregistré sur le produit pour les
+                              ventes à l'unité.
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                         <div className="space-y-2">

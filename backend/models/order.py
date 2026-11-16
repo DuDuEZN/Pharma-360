@@ -83,6 +83,11 @@ class DeliveryItem(Base):
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
     selling_price: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), nullable=True)
+    bulk_price: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(10, 2),
+        nullable=True,
+        comment="Prix du vrac (par unité) précisé à la livraison pour les produits is_bulk",
+    )
     total_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     received_quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     non_conforming_quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
