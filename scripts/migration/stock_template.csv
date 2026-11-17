@@ -1,0 +1,3 @@
+product_id,batch_number,quantity,expiry_date,location
+1,LOT-001,100,2027-12-31,Réception
+2,LOT-002,50,2026-06-30,Étagère A
