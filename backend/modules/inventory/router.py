@@ -270,7 +270,11 @@ async def remove_expired_products(
     _require_stock_manager(current_user)
 
     today = date.today()
-    conditions = [Batch.status == "active", Batch.expiry_date < today]
+    conditions = [
+        Batch.status == "active",
+        Batch.expiry_date < today,
+        Batch.quantity > 0,
+    ]
     if body and body.batch_ids:
         conditions.append(Batch.id.in_(body.batch_ids))
     result = await db.execute(select(Batch).where(and_(*conditions)))

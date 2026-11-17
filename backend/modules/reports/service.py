@@ -937,7 +937,11 @@ class ReportService:
             func.count(func.distinct(Batch.product_id)),
             func.coalesce(func.sum(Batch.quantity), 0),
             func.coalesce(func.sum(Batch.quantity * Batch.selling_price), 0),
-        ).where(Batch.status == "active", Batch.expiry_date < today)
+        ).where(
+            Batch.status == "active",
+            Batch.expiry_date < today,
+            Batch.quantity > 0,
+        )
         expired_row = (await db.execute(expired_query)).one()
         expired_products_count = int(expired_row[0] or 0)
         expired_quantity = int(expired_row[1] or 0)

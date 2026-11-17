@@ -411,6 +411,7 @@ class InventoryService:
             ).where(
                 Batch.status == "active",
                 Batch.expiry_date < today,
+                Batch.quantity > 0,
             )
         )
         expired_row = result.one()
@@ -494,7 +495,11 @@ class InventoryService:
         today = date.today()
         result = await db.execute(
             select(Batch)
-            .where(Batch.status == "active", Batch.expiry_date < today)
+            .where(
+                Batch.status == "active",
+                Batch.expiry_date < today,
+                Batch.quantity > 0,
+            )
             .options(joinedload(Batch.product))
             .order_by(asc(Batch.expiry_date))
         )
