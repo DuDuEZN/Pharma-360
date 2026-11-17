@@ -39,6 +39,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Path("logs").mkdir(exist_ok=True)
     Path("models").mkdir(exist_ok=True)
     yield
+    try:
+        from .core.database import close_pool
+
+        await close_pool()
+    except Exception:  # pragma: no cover - arrêt best effort
+        pass
     logger.info("IA Service shutting down")
 
 

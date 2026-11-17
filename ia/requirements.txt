@@ -21,9 +21,8 @@ pydantic>=2.5.0
 pydantic-settings>=2.1.0
 python-multipart>=0.0.6
 
-# Database (if needed)
-# sqlalchemy>=2.0.0
-# psycopg2-binary>=2.9.9
+# Database (accès lecture aux données de production)
+asyncpg>=0.29.0
 
 # Utilities
 python-dateutil>=2.8.2

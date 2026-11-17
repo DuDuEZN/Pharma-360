@@ -90,7 +90,7 @@ function ManagerReportsPage() {
   useEffect(() => {
     fetchReports()
     // Charger les recommandations et alertes du module IA.
-    fetch('http://localhost:8001/api/v1/dashboard/')
+    fetch('/ia/api/v1/dashboard/')
       .then(r => r.json())
       .then(d => { if (d?.status === 'success') setIaData(d.data) })
       .catch(() => {})

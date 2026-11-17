@@ -125,6 +125,7 @@ Télécharger et installer depuis [UB Mannheim](https://github.com/UB-Mannheim/t
 - `GET /api/v1/dashboard/alerts` - Alertes actives
 - `GET /api/v1/dashboard/predictions` - Prédictions de stock
 - `GET /api/v1/dashboard/recommendations` - Recommandations IA
+- `GET /api/v1/dashboard/sales-forecast?forecast_days=30&history_days=90&product_id=` - Prévisions de ventes (historique + projection)
 - `GET /api/v1/dashboard/rotation-analysis` - Analyse de rotation
 - `GET /api/v1/dashboard/health` - État de santé
 
@@ -163,6 +164,21 @@ TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
 ### Fichier `.env`
 
 Créer un fichier `.env` dans le dossier `ia/` avec les variables ci-dessus.
+
+### Accès aux données de production
+
+Le module IA lit directement la base PostgreSQL (produits, lots, ventes,
+livraisons) pour calculer ses prévisions et recommandations. Il utilise
+`asyncpg` et un pool de connexions paresseux (`ia/core/database.py`). Si la
+base est indisponible, les endpoints renvoient une liste vide au lieu de
+planter, et le pool est réinitialisé à la requête suivante.
+
+Les analyses s'appuient sur :
+
+- `sale_items` / `sales` (statut `paid`) pour l'historique de ventes ;
+- `batches` (statut `active`) pour le stock disponible et les péremptions ;
+- `delivery_items` / `deliveries` (statut `delivered`) pour l'historique
+  d'achats et les statistiques fournisseurs.
 
 ## 📈 Modèles de Données
 

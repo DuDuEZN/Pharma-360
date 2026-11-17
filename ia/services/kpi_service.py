@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from ia.core.config import settings
+from ia.services.analytics_data_service import analytics_data_service
 
 
 class KPIService:
@@ -126,23 +127,30 @@ class KPIService:
             Dictionary with monthly KPIs
         """
         try:
-            # Mock monthly data for standalone IA service
             start_date = f"{year}-{month:02d}-01"
             end_date = (datetime(year, month, 1) + timedelta(days=32)).replace(
                 day=1
             ) - timedelta(days=1)
             end_date_str = end_date.strftime("%Y-%m-%d")
 
-            # Mock data
-            total_sales = 0
-            total_revenue = 0.0
-            avg_sale_value = 0.0
+            days = max(
+                1,
+                (end_date.date() - datetime(year, month, 1).date()).days + 1,
+            )
+            sales_totals = await analytics_data_service.get_sales_totals(days)
+            total_sales = sales_totals["transactions"]
+            total_revenue = sales_totals["revenue"]
+            avg_sale_value = (
+                round(total_revenue / total_sales, 2) if total_sales else 0.0
+            )
 
             # Get stock metrics
             stock_stats = await self._get_stock_stats()
 
-            # Mock top products
-            top_products = []
+            # Top products of the month
+            top_products = await analytics_data_service.get_top_products(
+                days=days, limit=5
+            )
 
             return {
                 "year": year,
@@ -154,12 +162,12 @@ class KPIService:
                     "total": total_sales,
                     "total_revenue": total_revenue,
                     "average_sale_value": avg_sale_value,
-                    "daily_average": total_sales / end_date.day,
+                    "daily_average": round(total_sales / days, 2),
                 },
                 "stock": stock_stats,
                 "top_products": top_products,
                 "overall": await self._calculate_overall_score(
-                    {"total": total_sales, "total_revenue": total_revenue},
+                    {"total_sales": total_sales, "total_revenue": total_revenue},
                     stock_stats,
                     {},
                 ),
@@ -169,67 +177,56 @@ class KPIService:
             return {"status": "error", "error": str(e), "year": year, "month": month}
 
     async def _get_sales_stats(self, date: str) -> Dict[str, Any]:
-        """Get sales statistics for a specific date"""
+        """Statistiques de ventes réelles pour une date donnée."""
         try:
-            # Mock sales data for standalone IA service
-            # In production, this would fetch from backend
-            total_sales = 0
-            total_revenue = 0.0
-            avg_sale_value = 0.0
+            try:
+                target = datetime.strptime(date, "%Y-%m-%d").date()
+            except (TypeError, ValueError):
+                target = datetime.now().date()
 
-            # Mock hourly distribution
-            hourly_sales = {}
-
+            stats = await analytics_data_service.get_sales_for_day(target)
             return {
-                "date": date,
-                "total_sales": total_sales,
-                "total_revenue": total_revenue,
-                "average_sale_value": avg_sale_value,
-                "hourly_distribution": hourly_sales,
-                "peak_hour": None,
+                "date": stats["date"],
+                "total_sales": stats["total_sales"],
+                "total_revenue": stats["total_revenue"],
+                "average_sale_value": stats["average_sale_value"],
+                "hourly_distribution": stats["hourly_distribution"],
+                "peak_hour": stats["peak_hour"],
             }
 
         except Exception as e:
             return {"date": date, "error": str(e)}
 
     async def _get_stock_stats(self) -> Dict[str, Any]:
-        """Get stock statistics - Mock data for standalone IA service"""
+        """Statistiques de stock réelles (lots actifs et alertes)."""
         try:
-            # Mock data - In production, this would fetch from backend
-            return {
-                "total_batches": 0,
-                "total_quantity": 0,
-                "expiring_soon": 0,
-                "low_stock": 0,
-                "category_distribution": {},
-            }
-
+            return await analytics_data_service.get_stock_stats()
         except Exception as e:
             return {"error": str(e)}
 
     async def _get_supplier_stats(self, date: str) -> Dict[str, Any]:
-        """Get supplier statistics - Mock data for standalone IA service"""
+        """Statistiques fournisseurs réelles sur les 30 derniers jours."""
         try:
-            # Mock data - In production, this would fetch from backend
+            stats = await analytics_data_service.get_supplier_stats(30)
             return {
-                "total_suppliers": 0,
-                "active_suppliers": 0,
-                "invoices_received": 0,
-                "total_invoice_value": 0.0,
+                "total_suppliers": stats.get("total_suppliers", 0),
+                "active_suppliers": stats.get("active_suppliers", 0),
+                "invoices_received": stats.get("deliveries", 0),
+                "total_invoice_value": stats.get("purchase_value", 0.0),
             }
-
         except Exception as e:
             return {"error": str(e)}
 
     async def _get_top_products(
         self, start_date: str, end_date: str, limit: int = 5
     ) -> List[Dict[str, Any]]:
-        """Get top selling products - Mock data for standalone IA service"""
+        """Produits les plus vendus entre deux dates."""
         try:
-            # Mock data - In production, this would fetch from backend
-            return []
-
-        except Exception as e:
+            start = datetime.strptime(start_date, "%Y-%m-%d").date()
+            end = datetime.strptime(end_date, "%Y-%m-%d").date()
+            days = max(1, (end - start).days + 1)
+            return await analytics_data_service.get_top_products(days=days, limit=limit)
+        except Exception:
             return []
 
     async def _calculate_overall_score(

@@ -10,16 +10,44 @@ const formatLabelDate = (value) => {
   return isNaN(date.getTime()) ? '—' : date.toLocaleDateString('fr-FR')
 }
 
-const getPrintableItems = (delivery) =>
-  (delivery?.items || []).filter((item) => {
-    const quantity = Number(item.received_quantity ?? item.quantity ?? 0)
-    return quantity > 0 || item.received_quantity === undefined
-  })
+/**
+ * Nombre d'étiquettes à imprimer pour une ligne de livraison : une par unité
+ * réellement reçue (quantité reçue moins les unités non conformes). Une
+ * livraison de 7 paracétamol + 8 vastator produit donc 15 étiquettes.
+ */
+const getReceivedUnits = (item) => {
+  const received = item.received_quantity
+  if (received === undefined || received === null) {
+    // Détail non renseigné : on retombe sur la quantité commandée.
+    return Math.max(0, Math.trunc(Number(item.quantity ?? 0)))
+  }
+  const nonConforming = Math.max(
+    0,
+    Math.trunc(Number(item.non_conforming_quantity ?? 0))
+  )
+  return Math.max(0, Math.trunc(Number(received)) - nonConforming)
+}
+
+// Sécurité : évite de saturer le navigateur sur une quantité aberrante.
+const MAX_LABELS = 2000
+
+const getPrintableItems = (delivery) => {
+  const labels = []
+  for (const item of delivery?.items || []) {
+    const units = getReceivedUnits(item)
+    const copies = Math.min(units, MAX_LABELS - labels.length)
+    for (let index = 0; index < copies; index += 1) {
+      labels.push(item)
+    }
+    if (labels.length >= MAX_LABELS) break
+  }
+  return labels
+}
 
 /**
  * DeliveryLabelSheet
  * Étiquettes produit imprimées automatiquement après validation d'une
- * livraison. Une étiquette par ligne d'article reçue.
+ * livraison. Une étiquette par unité reçue.
  *
  * Contenu : nom de la pharmacie, nom du produit, prix de vente, code-barres
  * (texte + barres CODE128), date de livraison et date de péremption.
@@ -88,7 +116,7 @@ function DeliveryLabelSheet({ delivery, onDone }) {
       window.print()
       body.classList.remove('printing-labels')
       if (onDoneRef.current) onDoneRef.current()
-    }, 400)
+    }, 600)
 
     const cleanup = () => body.classList.remove('printing-labels')
     window.addEventListener('afterprint', cleanup)

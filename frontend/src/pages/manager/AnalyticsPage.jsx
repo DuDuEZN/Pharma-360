@@ -20,6 +20,9 @@ function AnalyticsPage() {
   const [marginTrend, setMarginTrend] = useState(null)
   const [productStats, setProductStats] = useState([])
   const [iaPredictions, setIaPredictions] = useState([])
+  const [iaRecommendations, setIaRecommendations] = useState([])
+  const [iaForecast, setIaForecast] = useState(null)
+  const [forecastProductId, setForecastProductId] = useState('all')
   const [trendProductId, setTrendProductId] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('month')
@@ -104,14 +107,19 @@ function AnalyticsPage() {
       setMarginTrend(marginRes.data)
       setProductStats(productStatsRes.data.products || [])
 
-      // Prévisions IA (best-effort, ne bloque pas l'affichage).
+      // Module IA : recommandations, prévisions de rupture et prévisions de
+      // ventes (best-effort, ne bloque pas l'affichage).
       try {
-        const iaRes = await fetch('http://localhost:8001/api/v1/dashboard/predictions')
+        const iaRes = await fetch('/ia/api/v1/dashboard/')
         const iaJson = await iaRes.json()
-        setIaPredictions(iaJson?.data || [])
+        setIaPredictions(iaJson?.data?.predictions || [])
+        setIaRecommendations(iaJson?.data?.recommendations || [])
       } catch {
         setIaPredictions([])
+        setIaRecommendations([])
       }
+
+      await fetchIaForecast(forecastProductId)
     } catch (error) {
       addToast({
         type: 'error',
@@ -122,6 +130,27 @@ function AnalyticsPage() {
       setIsLoading(false)
     }
   }
+
+  const fetchIaForecast = async (productId = 'all') => {
+    try {
+      const params = new URLSearchParams({
+        forecast_days: '30',
+        history_days: '90',
+      })
+      if (productId !== 'all') params.set('product_id', productId)
+      const response = await fetch(`/ia/api/v1/dashboard/sales-forecast?${params.toString()}`)
+      const payload = await response.json()
+      setIaForecast(payload?.data || null)
+    } catch {
+      setIaForecast(null)
+    }
+  }
+
+  useEffect(() => {
+    // Recharge la prévision IA lorsque l'utilisateur change de produit.
+    fetchIaForecast(forecastProductId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forecastProductId])
 
   const handleRefresh = () => {
     fetchAnalytics()
@@ -256,7 +285,11 @@ function AnalyticsPage() {
       )
     }
 
-    const maxValue = Math.max(...data.datasets.flatMap(d => d.data), 1)
+    const numericValues = data.datasets
+      .flatMap(d => d.data)
+      .map(value => Number(value))
+      .filter(value => Number.isFinite(value))
+    const maxValue = Math.max(...numericValues, 1)
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
 
     return (
@@ -275,17 +308,27 @@ function AnalyticsPage() {
                   strokeWidth="2"
                   vectorEffect="non-scaling-stroke"
                   points={dataset.data.map((value, i) => {
+                    const numeric = Number(value)
+                    if (value === null || value === undefined || !Number.isFinite(numeric)) {
+                      return null
+                    }
                     const x = data.labels.length > 1 ? (i / (data.labels.length - 1)) * 100 : 50
-                    const y = 100 - ((value / maxValue) * 100)
+                    const y = 100 - ((numeric / maxValue) * 100)
                     return `${x},${y}`
-                  }).join(' ')}
+                  }).filter(Boolean).join(' ')}
                 />
               </svg>
             ))}
             <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs">
-              {data.labels.map((label, i) => (
-                <span key={i} className="truncate max-w-[80px] text-center">{label}</span>
-              ))}
+              {data.labels.map((label, i) => {
+                const step = Math.max(1, Math.ceil(data.labels.length / 12))
+                const visible = i % step === 0 || i === data.labels.length - 1
+                return (
+                  <span key={i} className="truncate max-w-[80px] text-center">
+                    {visible ? label : ''}
+                  </span>
+                )
+              })}
             </div>
           </div>
           <div className="flex gap-4 mt-2">
@@ -320,9 +363,38 @@ function AnalyticsPage() {
     }
   }, [salesData])
 
+  // Prévision IA : ventes réelles puis projection sur 30 jours.
+  const forecastChartData = useMemo(() => {
+    if (!iaForecast?.labels) return null
+
+    const history = iaForecast.history || []
+    const forecast = iaForecast.forecast || []
+    const historyLength = history.length
+    const forecastStart = Math.max(historyLength - 1, 0)
+    const lastActual = historyLength > 0 ? history[historyLength - 1] : 0
+
+    return {
+      labels: iaForecast.labels.map(d => formatDateShort(d)),
+      datasets: [
+        {
+          label: 'Ventes réelles',
+          data: [...history, ...Array(forecast.length).fill(null)]
+        },
+        {
+          label: 'Prévision IA',
+          data: [
+            ...Array(forecastStart).fill(null),
+            lastActual,
+            ...forecast
+          ]
+        }
+      ]
+    }
+  }, [iaForecast])
+
   const stockChartData = useMemo(() => {
     if (!stockData) return null
-    
+
     return {
       labels: stockData.by_category?.map(c => c.category_name) || [],
       values: stockData.by_category?.map(c => c.quantity) || [],
@@ -355,7 +427,8 @@ function AnalyticsPage() {
 
     const byDate = new Map()
     series.forEach((item) => {
-      ;(item.points || []).forEach((point) => {
+      const points = item.points || []
+      points.forEach((point) => {
         const entry = byDate.get(point.date) || { purchase: 0, margin: 0, count: 0 }
         entry.purchase += Number(point.purchase_price || 0)
         entry.margin += Number(point.margin || 0)
@@ -540,6 +613,42 @@ function AnalyticsPage() {
             </TabsList>
 
             <TabsContent value="sales" className="space-y-4">
+              {/* Prévisions de ventes IA : historique + projection */}
+              <SimpleLineChart
+                data={forecastChartData}
+                title="Prévisions de ventes (IA)"
+                actions={
+                  <div className="flex items-center gap-3">
+                    {iaForecast && (
+                      <span className="text-xs text-gray-500 hidden md:inline">
+                        Prévision 30 j : {iaForecast.predicted_total ?? 0} unités ·{' '}
+                        {iaForecast.trend === 'increasing'
+                          ? 'tendance en hausse'
+                          : iaForecast.trend === 'decreasing'
+                            ? 'tendance en baisse'
+                            : 'tendance stable'}
+                        {typeof iaForecast.trend_percent === 'number'
+                          ? ` (${iaForecast.trend_percent > 0 ? '+' : ''}${iaForecast.trend_percent} %)`
+                          : ''}
+                      </span>
+                    )}
+                    <Select value={forecastProductId} onValueChange={setForecastProductId}>
+                      <SelectTrigger className="w-56">
+                        <SelectValue placeholder="Produit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous les produits</SelectItem>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={String(product.id)}>
+                            {product.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                }
+              />
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <SimpleLineChart
                   data={salesChartData}
@@ -858,6 +967,60 @@ function AnalyticsPage() {
                 }
               />
 
+              {/* Recommandations IA */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" />
+                    Recommandations IA
+                  </CardTitle>
+                  <CardDescription>
+                    Actions suggérées à partir de l'historique de ventes et des lots en stock.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {iaRecommendations.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4 text-sm">
+                      Aucune recommandation pour le moment.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {iaRecommendations.map((rec, index) => (
+                        <div
+                          key={`${rec.type || 'rec'}-${rec.product_id || index}-${index}`}
+                          className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-medium">{rec.title || rec.product_name}</p>
+                            <Badge
+                              variant={
+                                rec.priority === 'URGENT'
+                                  ? 'danger'
+                                  : rec.priority === 'HIGH'
+                                    ? 'warning'
+                                    : rec.priority === 'NORMAL'
+                                      ? 'info'
+                                      : 'secondary'
+                              }
+                            >
+                              {rec.priority || rec.type || 'INFO'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                            {rec.message}
+                          </p>
+                          {rec.recommended_quantity > 0 && (
+                            <p className="text-xs text-primary-600 mt-1">
+                              Quantité conseillée : {rec.recommended_quantity}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Prévisions IA */}
               <Card>
                 <CardHeader>
@@ -879,7 +1042,14 @@ function AnalyticsPage() {
                       {iaPredictions.slice(0, 10).map((p, i) => (
                         <div key={i} className="flex items-center justify-between text-sm border-b border-gray-100 dark:border-gray-700 py-2">
                           <span>{p.product_name || p.product || `Produit ${i + 1}`}</span>
-                          <span className="font-medium">{p.predicted_sales ?? p.value ?? '—'}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-gray-500">
+                              Couverture : {p.days_until_rupture ?? '∞'} j
+                            </span>
+                            <span className="font-medium">
+                              {p.predicted_sales ?? p.value ?? '—'} unités / 30 j
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
