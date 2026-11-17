@@ -36,7 +36,8 @@ import {
   RolesPage,
   PermissionsPage,
   AdminSettingsPage,
-  AdminAnalyticsPage
+  AdminAnalyticsPage,
+  AdminAuditPage
 } from '@/pages/admin'
 
 // Manager Pages
@@ -150,6 +151,7 @@ function App() {
                         <Route path="settings" element={<AdminSettingsPage />} />
                         <Route path="reports" element={<AdminReportsPage />} />
                         <Route path="analytics" element={<AdminAnalyticsPage />} />
+                        <Route path="audit" element={<AdminAuditPage />} />
                       </Route>
                       
                       {/* Manager Routes */}
@@ -167,6 +169,7 @@ function App() {
                         <Route path="reports" element={<ManagerReportsPage />} />
                         <Route path="reports/new" element={<ReportFormPage />} />
                         <Route path="analytics" element={<ManagerAnalyticsPage />} />
+                        <Route path="audit" element={<AdminAuditPage />} />
                         <Route path="settings" element={<ManagerSettingsPage />} />
                         <Route path="backup" element={<BackupPage />} />
                         <Route path="restore" element={<RestorePage />} />

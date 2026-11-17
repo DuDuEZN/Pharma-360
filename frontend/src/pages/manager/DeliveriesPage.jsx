@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Truck, Plus, Search, Eye, Check, X, Package, Calendar, Clock, Filter, Download, FileText } from 'lucide-react'
+import { Truck, Plus, Search, Eye, Check, X, Package, Calendar, Clock, Filter, Download, FileText, Edit, Trash2 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
@@ -35,15 +35,17 @@ function DeliveriesPage() {
   const statusOptions = [
     { value: 'all', label: 'Tous' },
     { value: 'pending', label: 'En attente de validation' },
+    { value: 'to_modify', label: 'À corriger (rejeté)' },
     { value: 'in_transit', label: 'En transit' },
     { value: 'delivered', label: 'Livré' },
-    { value: 'rejected', label: 'Rejeté' },
+    { value: 'rejected', label: 'Rejeté (ancien)' },
     { value: 'partial', label: 'Partiel' },
     { value: 'cancelled', label: 'Annulé' },
   ]
 
   const statusColors = {
     pending: 'warning',
+    to_modify: 'danger',
     in_transit: 'info',
     delivered: 'success',
     rejected: 'danger',
@@ -53,9 +55,10 @@ function DeliveriesPage() {
 
   const statusLabels = {
     pending: 'En attente de validation',
+    to_modify: 'À corriger (rejeté)',
     in_transit: 'En transit',
     delivered: 'Livré',
-    rejected: 'Rejeté',
+    rejected: 'Rejeté (ancien)',
     partial: 'Partiel',
     cancelled: 'Annulé',
   }
@@ -173,18 +176,56 @@ function DeliveriesPage() {
   }
 
   const handleDownloadInvoice = async (deliveryId) => {
+    // Ouvre la fenêtre AVANT la requête : sinon le navigateur bloque le popup
+    // car window.open n'est plus déclenché par un geste utilisateur direct.
+    const popup = window.open('', '_blank', 'noopener,noreferrer')
     try {
       const response = await api.get(`/manager/deliveries/${deliveryId}/invoice`, {
         responseType: 'blob'
       })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      window.open(url, '_blank', 'noopener,noreferrer')
+      const raw = response.data
+      const contentType = response.headers?.['content-type'] || 'application/pdf'
+      const blob = raw instanceof Blob ? raw : new Blob([raw], { type: contentType })
+
+      if (blob.type && blob.type.includes('json')) {
+        throw new Error('Facture introuvable')
+      }
+
+      const url = window.URL.createObjectURL(blob)
+      if (popup) {
+        popup.location.href = url
+      } else {
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `facture_livraison_${deliveryId}`
+        document.body.appendChild(link)
+        link.click()
+        link.parentNode.removeChild(link)
+      }
       setTimeout(() => window.URL.revokeObjectURL(url), 60000)
+    } catch (error) {
+      if (popup) popup.close()
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: error.response?.data?.detail || error.message || 'Impossible d\'ouvrir la facture'
+      })
+    }
+  }
+
+  const handleDeleteDelivery = async (deliveryId) => {
+    if (!window.confirm('Supprimer définitivement cette livraison rejetée ?')) return
+    try {
+      await api.delete(`/manager/deliveries/${deliveryId}`)
+      addToast({ type: 'success', title: 'Succès', message: 'Livraison supprimée' })
+      setIsModalOpen(false)
+      setSelectedDelivery(null)
+      fetchDeliveries()
     } catch (error) {
       addToast({
         type: 'error',
         title: 'Erreur',
-        message: 'Impossible d\'ouvrir la facture'
+        message: error.response?.data?.detail || 'Impossible de supprimer la livraison'
       })
     }
   }
@@ -438,6 +479,24 @@ function DeliveriesPage() {
                               </Button>
                             </>
                           )}
+                          {canCreate && delivery.status === 'to_modify' && (
+                            <>
+                              <Button variant="ghost" size="sm" asChild title="Corriger la livraison">
+                                <Link to={`/manager/deliveries/${delivery.id}/edit`}>
+                                  <Edit className="w-4 h-4 text-blue-600" />
+                                </Link>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteDelivery(delivery.id)}
+                                className="text-red-500 hover:text-red-600"
+                                title="Supprimer la livraison rejetée"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -651,6 +710,23 @@ function DeliveriesPage() {
               >
                 <Check className="w-4 h-4 mr-2" />
                 Valider et entrer en stock
+              </Button>
+            </div>
+          )}
+          {canCreate && selectedDelivery?.status === 'to_modify' && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="danger"
+                onClick={() => handleDeleteDelivery(selectedDelivery.id)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Supprimer
+              </Button>
+              <Button asChild>
+                <Link to={`/manager/deliveries/${selectedDelivery.id}/edit`}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Corriger la livraison
+                </Link>
               </Button>
             </div>
           )}

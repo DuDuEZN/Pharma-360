@@ -17,6 +17,7 @@ import {
   Sun,
   Monitor,
   X,
+  Shield,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { cashNavigation } from '@/features/cash'
@@ -41,6 +42,12 @@ function Sidebar({ mobileOpen = false, onClose }) {
     { name: 'Gestionnaire', href: '/manager', icon: BarChart3, roles: ['admin', 'manager'] },
     { name: 'Livraisons', href: '/manager/deliveries', icon: Truck, roles: ['seller'] },
     { name: 'Rapports', href: '/reports', icon: FileText, roles: ['admin', 'manager'] },
+    {
+      name: 'Journal d\'audit',
+      href: user?.role === 'admin' ? '/admin/audit' : '/manager/audit',
+      icon: Shield,
+      roles: ['admin', 'manager'],
+    },
     { name: 'Paramètres', href: user?.role === 'manager' ? '/manager/settings' : '/settings', icon: Settings, roles: ['admin', 'manager'] },
     { name: 'Aide', href: '/help', icon: HelpCircle, roles: ['admin', 'manager', 'seller', 'cashier'] },
   ]

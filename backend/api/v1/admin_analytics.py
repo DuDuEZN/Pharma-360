@@ -109,7 +109,16 @@ async def get_analytics_stats(
     total_stock = sum(p.current_stock for p in products)
     stock_value = sum(p.current_stock * float(p.price) for p in products)
     out_of_stock = sum(1 for p in products if p.current_stock == 0)
-    expired_products = sum(1 for p in products if any(b.is_expired for b in (p.batches or [])))
+    expired_products = sum(1 for p in products if p.has_expired_stock)
+    expired_quantity = sum(p.expired_stock for p in products)
+    expired_value = sum(
+        sum(
+            int(b.quantity or 0) * float(b.selling_price or 0)
+            for b in (p.batches or [])
+            if b.status == "active" and b.expiry_date < date.today()
+        )
+        for p in products
+    )
 
     # Top margin products
     top_margin = []
@@ -139,6 +148,8 @@ async def get_analytics_stats(
         "stock_value": round(stock_value, 2),
         "out_of_stock": out_of_stock,
         "expired_products": expired_products,
+        "expired_quantity": expired_quantity,
+        "expired_value": round(expired_value, 2),
         "top_margin_products": top_margin,
     }
 
@@ -276,10 +287,35 @@ async def get_analytics_stock(
 
     expiring_soon = []
     out_of_stock = []
+    expired_products = []
+    expired_quantity = 0
+    expired_value = 0.0
 
     for p in products:
         active_batches = [b for b in (p.batches or []) if b.status == "active" and b.quantity > 0]
         active_batches.sort(key=lambda b: b.expiry_date)
+
+        expired_batches = [
+            b for b in active_batches if b.expiry_date < today
+        ]
+        if expired_batches:
+            qty = sum(int(b.quantity or 0) for b in expired_batches)
+            expired_quantity += qty
+            expired_value += sum(
+                int(b.quantity or 0) * float(b.selling_price or 0)
+                for b in expired_batches
+            )
+            expired_products.append(
+                {
+                    "name": p.name,
+                    "barcode": p.barcode or "",
+                    "quantity": qty,
+                    "batches": len(expired_batches),
+                    "nearest_expiry": min(
+                        b.expiry_date for b in expired_batches
+                    ).isoformat(),
+                }
+            )
 
         for b in active_batches:
             days_until = (b.expiry_date - today).days
@@ -364,6 +400,10 @@ async def get_analytics_stock(
     return {
         "expiring_soon": expiring_soon[:10],
         "out_of_stock_products": out_of_stock[:10],
+        "expired_products": expired_products[:10],
+        "expired_products_count": len(expired_products),
+        "expired_quantity": expired_quantity,
+        "expired_value": round(expired_value, 2),
         "by_category": by_category,
         "rotation": rotation,
     }

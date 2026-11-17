@@ -18,6 +18,9 @@ class InventoryItemResponse(BaseModel):
     category_id: Optional[int] = Field(None, description="Category ID")
     category_name: Optional[str] = Field(None, description="Category name")
     total_quantity: int = Field(..., description="Total quantity in stock")
+    expired_quantity: int = Field(
+        default=0, description="Quantité en stock dont le lot est périmé"
+    )
     available_quantity: int = Field(
         ..., description="Available quantity (not reserved)"
     )
@@ -105,6 +108,18 @@ class InventorySummaryResponse(BaseModel):
     )
     low_stock_count: int = Field(..., description="Number of low stock items")
     expiring_soon_count: int = Field(..., description="Number of items expiring soon")
+    expired_batches_count: int = Field(
+        default=0, description="Number of batches currently expired"
+    )
+    expired_products_count: int = Field(
+        default=0, description="Number of products with expired stock"
+    )
+    expired_quantity: int = Field(
+        default=0, description="Quantity held in expired batches"
+    )
+    expired_value: float = Field(
+        default=0.0, description="Value held in expired batches"
+    )
     categories: list[dict] = Field(
         default_factory=list, description="Breakdown by category"
     )

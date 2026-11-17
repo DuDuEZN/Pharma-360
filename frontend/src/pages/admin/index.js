@@ -6,6 +6,7 @@ import PermissionsPage from './PermissionsPage'
 import SettingsPage from './SettingsPage'
 import ReportsPage from './ReportsPage'
 import AnalyticsPage from './AnalyticsPage'
+import AuditPage from './AuditPage'
 
 export {
   AdminPage,
@@ -14,5 +15,6 @@ export {
   PermissionsPage,
   SettingsPage as AdminSettingsPage,
   ReportsPage as AdminReportsPage,
-  AnalyticsPage as AdminAnalyticsPage
+  AnalyticsPage as AdminAnalyticsPage,
+  AuditPage as AdminAuditPage
 }

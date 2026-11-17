@@ -42,6 +42,7 @@ function OrderFormPage() {
 
   const statusOptions = [
     { value: 'pending', label: 'En attente' },
+    { value: 'to_modify', label: 'À corriger (rejeté)' },
     { value: 'confirmed', label: 'Confirmée' },
     { value: 'in_progress', label: 'En cours' },
     { value: 'completed', label: 'Terminée' },

@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/badge.jsx'
 import { useToast } from '@/components/common/Toast'
+import ProductSearchSelect from '@/components/common/ProductSearchSelect'
 import api from '@/lib/api'
 import { cn, formatCurrency, formatDate, formatDateShort, formatPercentage } from '@/lib/utils'
 
@@ -429,19 +430,13 @@ function AnalyticsPage() {
             </SelectContent>
           </Select>
           
-          <Select value={productFilter} onValueChange={setProductFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Produit" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les produits</SelectItem>
-              {products.map((p) => (
-                <SelectItem key={p.id} value={p.id.toString()}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <ProductSearchSelect
+            value={productFilter}
+            onChange={setProductFilter}
+            fallbackOptions={products}
+            placeholder="Rechercher un produit..."
+            className="w-64"
+          />
           
           <Button type="button" variant="outline" onClick={handleRefresh}>
             <RefreshCw className="w-4 h-4" />

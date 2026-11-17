@@ -64,6 +64,10 @@ async def list_batches(
     if status:
         query = query.where(Batch.status == status)
         count_query = count_query.where(Batch.status == status)
+    else:
+        # Les lots supprimés (sortis du stock) ne sont plus listés par défaut.
+        query = query.where(Batch.status != "deleted")
+        count_query = count_query.where(Batch.status != "deleted")
 
     if expiring_soon:
         from datetime import timedelta
@@ -468,3 +472,84 @@ async def adjust_batch_stock(
     return BatchStockResponse(
         success=True, new_quantity=new_quantity, movement_id=movement.id, error=None
     )
+
+
+@router.delete(
+    "/{batch_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Supprimer un lot périmé ou vide",
+    description=(
+        "Retire définitivement un lot périmé (ou dont la quantité est nulle) "
+        "du stock. Réservé au gestionnaire de stock ou à l'administrateur."
+    ),
+)
+async def delete_batch(
+    batch_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Supprime (sortie de stock) un lot périmé ou vide."""
+    if not RBACUtils.has_permission(current_user.role, "manager"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only manager or admin users can delete batches",
+        )
+
+    result = await db.execute(select(Batch).where(Batch.id == batch_id))
+    batch = result.scalar_one_or_none()
+    if not batch:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Batch not found"
+        )
+
+    is_expired = batch.is_expired
+    old_quantity = int(batch.quantity or 0)
+    if not is_expired and old_quantity > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Seuls les lots périmés ou dont la quantité est nulle "
+                "peuvent être supprimés"
+            ),
+        )
+
+    from ...models.movement import Movement
+    from ...services.audit_service import AuditService
+
+    movement = Movement(
+        type="expiry" if is_expired else "adjustment",
+        product_id=batch.product_id,
+        batch_id=batch.id,
+        old_quantity=old_quantity,
+        new_quantity=0,
+        quantity_change=-old_quantity,
+        user_id=current_user.id,
+        notes=(
+            f"Suppression lot {batch.batch_number} "
+            f"({'périmé' if is_expired else 'vide'})"
+        ),
+        reference_id=batch.id,
+        reference_type="batch",
+    )
+    db.add(movement)
+
+    if is_expired:
+        await AuditService.log_expired_product(
+            db=db,
+            product_id=batch.product_id,
+            batch_id=batch.id,
+            batch_number=batch.batch_number,
+            quantity=old_quantity,
+            expiry_date=batch.expiry_date,
+            user_id=current_user.id,
+            reason=f"Suppression du lot périmé {batch.batch_number}",
+        )
+
+    # Sortie de stock sans casser l'historique : le lot reste en base
+    # (traçabilité des ventes) mais n'est plus compté ni affiché.
+    batch.quantity = 0
+    batch.bulk_quantity = 0
+    batch.reserved_quantity = 0
+    batch.status = "deleted"
+    await db.commit()
+    return None

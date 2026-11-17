@@ -56,8 +56,23 @@ export const inventoryApi = {
   },
 
   /** Retrait des lots périmés. */
-  removeExpired() {
-    return api.post(`${BASE}/remove-expired`)
+  removeExpired(batchIds) {
+    return api.post(`${BASE}/remove-expired`, batchIds ? { batch_ids: batchIds } : undefined)
+  },
+
+  /** Lots périmés encore en stock (avant retrait). */
+  expired() {
+    return api.get(`${BASE}/expired`)
+  },
+
+  /** Historique des lots périmés déjà sortis. */
+  expiredHistory(params) {
+    return api.get(`${BASE}/expired-history`, { params })
+  },
+
+  /** Suppression d'un lot périmé ou vide (gestionnaire/admin). */
+  deleteBatch(id) {
+    return api.delete(`/batches/${id}`)
   },
 
   /** Import CSV de stock. */

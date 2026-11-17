@@ -103,6 +103,9 @@ class ProductService:
 
             # Add computed fields
             response.current_stock = product.current_stock
+            response.current_bulk_stock = product.current_bulk_stock
+            response.expired_stock = product.expired_stock
+            response.has_expired_stock = product.has_expired_stock
             response.is_low_stock = product.is_low_stock
             response.is_overstocked = product.is_overstocked
             response.next_expiring_batch = (
@@ -158,6 +161,9 @@ class ProductService:
         for product in products:
             response = ProductResponse.model_validate(product)
             response.current_stock = product.current_stock
+            response.current_bulk_stock = product.current_bulk_stock
+            response.expired_stock = product.expired_stock
+            response.has_expired_stock = product.has_expired_stock
             response.is_low_stock = product.is_low_stock
             response.is_overstocked = product.is_overstocked
             response.next_expiring_batch = (
@@ -221,6 +227,9 @@ class ProductService:
         # Convert to response objects
         product_response = ProductResponse.model_validate(product)
         product_response.current_stock = product.current_stock
+        product_response.current_bulk_stock = product.current_bulk_stock
+        product_response.expired_stock = product.expired_stock
+        product_response.has_expired_stock = product.has_expired_stock
         product_response.is_low_stock = product.is_low_stock
         product_response.is_overstocked = product.is_overstocked
         product_response.next_expiring_batch = selected_batch.batch_number

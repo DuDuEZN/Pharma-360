@@ -87,6 +87,12 @@ class ProductResponse(ProductBase):
     current_bulk_stock: int = Field(
         default=0, description="Unités de vrac déjà reconditionnées"
     )
+    expired_stock: int = Field(
+        default=0, description="Quantité en stock dont le lot est périmé"
+    )
+    has_expired_stock: bool = Field(
+        default=False, description="Whether any expired batch still holds stock"
+    )
     bulk_unit_price: Decimal = Field(
         default=0, description="Prix effectif d'une unité en vrac"
     )

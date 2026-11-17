@@ -3,7 +3,7 @@ Product Model for Pharmacie 360 Backend
 SQLAlchemy model for products table
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
@@ -136,22 +136,33 @@ class Product(Base):
 
     @hybrid_property
     def current_stock(self) -> int:
-        """Get current total stock across all batches"""
+        """Stock vendable : lots actifs ET non périmés uniquement.
+
+        Un lot périmé ne doit jamais être compté dans le stock disponible :
+        il reste consultable (voir ``expired_stock``) mais n'est pas vendable.
+        """
+        today = date.today()
         if self.batches:
             return sum(
-                batch.quantity for batch in self.batches if batch.status == "active"
+                int(batch.quantity or 0)
+                for batch in self.batches
+                if batch.status == "active" and batch.expiry_date >= today
             )
         return 0
 
     @current_stock.inplace.expression
     @classmethod
     def _current_stock_expression(cls):
-        """Version SQL : somme des quantités des lots actifs (sous-requête corrélée)"""
+        """Version SQL : somme des quantités des lots actifs non périmés."""
         from .batch import Batch
 
         return (
             select(func.coalesce(func.sum(Batch.quantity), 0))
-            .where(Batch.product_id == cls.id, Batch.status == "active")
+            .where(
+                Batch.product_id == cls.id,
+                Batch.status == "active",
+                Batch.expiry_date >= func.current_date(),
+            )
             .correlate_except(Batch)
             .scalar_subquery()
         )
@@ -163,14 +174,32 @@ class Product(Base):
 
     @property
     def current_bulk_stock(self) -> int:
-        """Unités de vrac déjà reconditionnées (tous lots actifs confondus)"""
+        """Unités de vrac disponibles (lots actifs non périmés uniquement)."""
+        today = date.today()
         if self.batches:
             return sum(
                 int(batch.bulk_quantity or 0)
                 for batch in self.batches
-                if batch.status == "active"
+                if batch.status == "active" and batch.expiry_date >= today
             )
         return 0
+
+    @property
+    def expired_stock(self) -> int:
+        """Quantité encore en stock dont le lot est périmé (non vendable)."""
+        today = date.today()
+        if not self.batches:
+            return 0
+        return sum(
+            int(batch.quantity or 0)
+            for batch in self.batches
+            if batch.status == "active" and batch.expiry_date < today
+        )
+
+    @property
+    def has_expired_stock(self) -> bool:
+        """Indique si le produit possède au moins un lot périmé en stock."""
+        return self.expired_stock > 0
 
     @property
     def bulk_unit_price(self) -> Decimal:
@@ -203,10 +232,13 @@ class Product(Base):
         if not self.batches:
             return None
 
+        today = date.today()
         active_batches = [
             batch
             for batch in self.batches
-            if batch.status == "active" and batch.quantity > 0
+            if batch.status == "active"
+            and batch.quantity > 0
+            and batch.expiry_date >= today
         ]
 
         if not active_batches:
@@ -216,8 +248,8 @@ class Product(Base):
 
     @property
     def has_expiring_soon(self) -> bool:
-        """Check if any batch is expiring within 30 days"""
-        from datetime import date, timedelta
+        """Vrai si un lot actif expire dans les 30 jours (hors lots déjà périmés)."""
+        from datetime import timedelta
 
         if not self.batches:
             return False
@@ -226,6 +258,8 @@ class Product(Base):
         threshold = today + timedelta(days=30)
 
         return any(
-            batch.expiry_date <= threshold and batch.status == "active"
+            today <= batch.expiry_date <= threshold
+            and batch.status == "active"
+            and int(batch.quantity or 0) > 0
             for batch in self.batches
         )

@@ -33,6 +33,17 @@ function OrdersPage() {
   const canEdit = user?.role === 'seller' || user?.role === 'admin'
   const canDelete = user?.role === 'admin'
 
+  // Le vendeur ne peut modifier une commande que tant qu'elle est en attente
+  // ou rejetée (à corriger). L'admin peut modifier toutes les commandes.
+  const canEditOrder = (order) =>
+    user?.role === 'admin' ||
+    (canEdit && ['pending', 'to_modify'].includes(order.status))
+
+  // Le vendeur peut supprimer une commande uniquement lorsqu'elle lui a été
+  // renvoyée pour correction (to_modify). L'admin peut supprimer toutes.
+  const canDeleteOrder = (order) =>
+    canDelete || (user?.role === 'seller' && order.status === 'to_modify')
+
   const statusOptions = [
     { value: 'all', label: 'Tous' },
     { value: 'pending', label: 'En attente' },
@@ -156,6 +167,7 @@ function OrdersPage() {
   }
 
   const handleDeleteOrder = async (orderId) => {
+    if (!window.confirm('Supprimer définitivement cette commande ?')) return false
     try {
       await ordersApi.delete(orderId)
       addToast({
@@ -164,12 +176,14 @@ function OrdersPage() {
         message: 'Commande supprimée avec succès'
       })
       fetchOrders()
+      return true
     } catch (error) {
       addToast({
         type: 'error',
         title: 'Erreur',
-        message: 'Impossible de supprimer la commande'
+        message: error.response?.data?.detail || 'Impossible de supprimer la commande'
       })
+      return false
     }
   }
 
@@ -381,23 +395,33 @@ function OrdersPage() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          {canEdit && (
+                          {canEditOrder(order) && (
                             <Button
                               variant="ghost"
                               size="sm"
                               asChild
+                              title={
+                                order.status === 'to_modify'
+                                  ? 'Corriger la commande rejetée'
+                                  : 'Modifier la commande'
+                              }
                             >
                               <Link to={`/manager/orders/${order.id}/edit`}>
                                 <Edit className="w-4 h-4" />
                               </Link>
                             </Button>
                           )}
-                          {canDelete && (
+                          {canDeleteOrder(order) && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDeleteOrder(order.id)}
                               className="text-red-500 hover:text-red-600"
+                              title={
+                                order.status === 'to_modify'
+                                  ? 'Supprimer la commande rejetée'
+                                  : 'Supprimer la commande'
+                              }
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -540,6 +564,29 @@ function OrdersPage() {
           )}
         </ModalBody>
         <ModalFooter>
+          {selectedOrder && canDeleteOrder(selectedOrder) && (
+            <Button
+              variant="danger"
+              onClick={async () => {
+                const deleted = await handleDeleteOrder(selectedOrder.id)
+                if (deleted) {
+                  setIsModalOpen(false)
+                  setSelectedOrder(null)
+                }
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Supprimer
+            </Button>
+          )}
+          {selectedOrder && canEditOrder(selectedOrder) && selectedOrder.status === 'to_modify' && (
+            <Button asChild>
+              <Link to={`/manager/orders/${selectedOrder.id}/edit`}>
+                <Edit className="w-4 h-4 mr-2" />
+                Corriger la commande
+              </Link>
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setIsModalOpen(false)}>
             Fermer
           </Button>

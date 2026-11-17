@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Label } from '@/components/ui/label.jsx'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { useToast } from '@/components/common/Toast'
+import ProductSearchSelect from '@/components/common/ProductSearchSelect'
 import api from '@/lib/api'
 import reportsApi from '../api'
 import { cn, formatDate } from '@/lib/utils'
@@ -337,22 +338,12 @@ function ReportFormPage() {
                   
                   <div className="space-y-2">
                     <Label htmlFor="product_id">Produit</Label>
-                    <Select
+                    <ProductSearchSelect
                       value={report.product_id}
-                      onValueChange={(value) => handleChange('product_id', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Tous les produits" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous les produits</SelectItem>
-                        {products.map(product => (
-                          <SelectItem key={product.id} value={String(product.id)}>
-                            {product.name} ({product.barcode})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(value) => handleChange('product_id', value)}
+                      fallbackOptions={products}
+                      placeholder="Rechercher un produit..."
+                    />
                   </div>
                 </div>
               </div>

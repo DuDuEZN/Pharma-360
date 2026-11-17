@@ -51,6 +51,12 @@ function AdminPage() {
       icon: BarChart3,
       description: 'Analyse des données'
     },
+    {
+      path: '/admin/audit',
+      name: 'Journal d\'audit',
+      icon: Shield,
+      description: 'Traçabilité des actions et périmés'
+    },
   ]
 
   return (

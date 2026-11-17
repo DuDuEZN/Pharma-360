@@ -135,6 +135,9 @@ class ReportStatsResponse(BaseSchema):
     top_products: list[dict] = Field(default_factory=list)
     sales_by_category: dict = Field(default_factory=dict)
     sales_by_day: dict = Field(default_factory=dict)
+    expired_products_count: int = 0
+    expired_quantity: int = 0
+    expired_value: float = 0.00
 
 
 __all__ = [

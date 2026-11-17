@@ -50,6 +50,14 @@ async def update_delivery(delivery_id: int, data: DeliveryUpdate, db: AsyncSessi
     # Le manager ne modifie pas les livraisons ; il ne fait que les valider/rejeter.
     if current_user.role not in ("seller", "admin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Seller or admin required")
+    existing = await DeliveryService.get_delivery(db, delivery_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+    if current_user.role == "seller" and existing.status not in ("pending", "to_modify"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Une livraison n'est modifiable que tant qu'elle est en attente ou à corriger",
+        )
     delivery = await DeliveryService.update_delivery(db, delivery_id, data)
     if not delivery:
         raise HTTPException(status_code=404, detail="Delivery not found")
@@ -147,20 +155,45 @@ async def upload_invoice(
 @router.get("/{delivery_id}/invoice")
 async def download_invoice(delivery_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     import os
+    import mimetypes
+
     from fastapi.responses import FileResponse
+
     delivery = await DeliveryService.get_delivery(db, delivery_id)
     if not delivery or not delivery.invoice_path:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    if not os.path.exists(delivery.invoice_path):
-        raise HTTPException(status_code=404, detail="Invoice file not found")
-    return FileResponse(delivery.invoice_path, filename=os.path.basename(delivery.invoice_path))
+        raise HTTPException(status_code=404, detail="Facture introuvable pour cette livraison")
+
+    path = delivery.invoice_path
+    if not os.path.isabs(path):
+        path = os.path.join("/app", path.lstrip("/"))
+        if not os.path.exists(path):
+            path = os.path.join(os.getcwd(), delivery.invoice_path)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Fichier de facture introuvable sur le serveur")
+
+    media_type, _ = mimetypes.guess_type(path)
+    return FileResponse(
+        path,
+        media_type=media_type or "application/octet-stream",
+        filename=os.path.basename(path),
+        content_disposition_type="inline",
+    )
 
 
 @router.delete("/{delivery_id}", status_code=204)
 async def delete_delivery(delivery_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Suppression réservée à l'administrateur : le manager valide/rejette seulement.
-    if current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin required")
+    # Admin : suppression libre. Vendeur : uniquement une livraison rejetée
+    # (to_modify), pour lui permettre de la retirer après rejet.
+    if current_user.role not in ("admin", "seller"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin or seller required")
+    existing = await DeliveryService.get_delivery(db, delivery_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+    if current_user.role == "seller" and existing.status != "to_modify":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Le vendeur ne peut supprimer qu'une livraison rejetée (à corriger)",
+        )
     ok = await DeliveryService.delete_delivery(db, delivery_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Delivery not found")

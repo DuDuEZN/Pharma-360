@@ -54,18 +54,31 @@ class InventoryService:
         products = result.scalars().unique().all()
 
         inventory_items = []
+        today = date.today()
         for product in products:
-            total_quantity = sum(batch.quantity for batch in product.batches)
-            available_quantity = sum(
-                batch.quantity - getattr(batch, "reserved_quantity", 0)
+            sellable_batches = [
+                batch
                 for batch in product.batches
+                if batch.status == "active" and batch.expiry_date >= today
+            ]
+            total_quantity = sum(int(batch.quantity or 0) for batch in sellable_batches)
+            available_quantity = sum(
+                int(batch.quantity or 0)
+                - int(getattr(batch, "reserved_quantity", 0) or 0)
+                for batch in sellable_batches
             )
             reserved_quantity = sum(
-                getattr(batch, "reserved_quantity", 0) for batch in product.batches
+                int(getattr(batch, "reserved_quantity", 0) or 0)
+                for batch in sellable_batches
             )
             bulk_quantity = sum(
                 int(getattr(batch, "bulk_quantity", 0) or 0)
+                for batch in sellable_batches
+            )
+            expired_quantity = sum(
+                int(batch.quantity or 0)
                 for batch in product.batches
+                if batch.status == "active" and batch.expiry_date < today
             )
 
             if low_stock_only and total_quantity > 10 and bulk_quantity == 0:
@@ -84,8 +97,11 @@ class InventoryService:
                         float(batch.selling_price) if batch.selling_price else 0.0
                     ),
                     "location": batch.location,
+                    "status": batch.status,
+                    "is_expired": batch.is_expired,
                 }
                 for batch in product.batches
+                if batch.status != "deleted"
             ]
 
             inventory_items.append(
@@ -96,6 +112,7 @@ class InventoryService:
                     category_id=product.category_id,
                     category_name=product.category.name if product.category else None,
                     total_quantity=total_quantity,
+                    expired_quantity=expired_quantity,
                     available_quantity=available_quantity,
                     reserved_quantity=reserved_quantity,
                     bulk_quantity=bulk_quantity,
@@ -128,16 +145,30 @@ class InventoryService:
         if not product:
             return None
 
-        total_quantity = sum(batch.quantity for batch in product.batches)
-        available_quantity = sum(
-            batch.quantity - getattr(batch, "reserved_quantity", 0)
+        today = date.today()
+        sellable_batches = [
+            batch
             for batch in product.batches
+            if batch.status == "active" and batch.expiry_date >= today
+        ]
+        total_quantity = sum(int(batch.quantity or 0) for batch in sellable_batches)
+        available_quantity = sum(
+            int(batch.quantity or 0)
+            - int(getattr(batch, "reserved_quantity", 0) or 0)
+            for batch in sellable_batches
         )
         reserved_quantity = sum(
-            getattr(batch, "reserved_quantity", 0) for batch in product.batches
+            int(getattr(batch, "reserved_quantity", 0) or 0)
+            for batch in sellable_batches
         )
         bulk_quantity = sum(
-            int(getattr(batch, "bulk_quantity", 0) or 0) for batch in product.batches
+            int(getattr(batch, "bulk_quantity", 0) or 0)
+            for batch in sellable_batches
+        )
+        expired_quantity = sum(
+            int(batch.quantity or 0)
+            for batch in product.batches
+            if batch.status == "active" and batch.expiry_date < today
         )
 
         batches_data = [
@@ -153,8 +184,11 @@ class InventoryService:
                     float(batch.selling_price) if batch.selling_price else 0.0
                 ),
                 "location": batch.location,
+                "status": batch.status,
+                "is_expired": batch.is_expired,
             }
             for batch in product.batches
+            if batch.status != "deleted"
         ]
 
         return InventoryItemResponse(
@@ -164,6 +198,7 @@ class InventoryService:
             category_id=product.category_id,
             category_name=product.category.name if product.category else None,
             total_quantity=total_quantity,
+            expired_quantity=expired_quantity,
             available_quantity=available_quantity,
             reserved_quantity=reserved_quantity,
             bulk_quantity=bulk_quantity,
@@ -236,11 +271,8 @@ class InventoryService:
 
         low_stock_items = []
         for product in products:
-            total_quantity = sum(batch.quantity for batch in product.batches)
-            bulk_quantity = sum(
-                int(getattr(batch, "bulk_quantity", 0) or 0)
-                for batch in product.batches
-            )
+            total_quantity = product.current_stock
+            bulk_quantity = product.current_bulk_stock
             # Un produit dont il reste des unités de vrac n'est pas en rupture.
             if total_quantity <= threshold and bulk_quantity == 0:
                 low_stock_items.append(
@@ -268,7 +300,12 @@ class InventoryService:
         """Get batches that are expiring soon (FEFO priority)"""
         result = await db.execute(
             select(Batch)
-            .where(Batch.expiry_date <= expiry_date)
+            .where(
+                Batch.expiry_date <= expiry_date,
+                Batch.expiry_date >= date.today(),
+                Batch.status == "active",
+                Batch.quantity > 0,
+            )
             .order_by(asc(Batch.expiry_date))
             .options(joinedload(Batch.product))
         )
@@ -331,25 +368,56 @@ class InventoryService:
     @staticmethod
     async def get_inventory_summary(db: AsyncSession) -> InventorySummaryResponse:
         """Get overall inventory statistics"""
+        today = date.today()
+
         # Count total products
         result = await db.execute(select(func.count(Product.id)))
         total_products = int(result.scalar() or 0)
 
-        # Calculate total quantity
-        result = await db.execute(select(func.coalesce(func.sum(Batch.quantity), 0)))
+        sellable_filter = (
+            Batch.status == "active",
+            Batch.expiry_date >= today,
+        )
+
+        # Quantité vendable (lots actifs non périmés)
+        result = await db.execute(
+            select(func.coalesce(func.sum(Batch.quantity), 0)).where(*sellable_filter)
+        )
         total_quantity = int(result.scalar() or 0)
 
         # Unités de vrac déjà reconditionnées (vendables à l'unité)
         result = await db.execute(
-            select(func.coalesce(func.sum(Batch.bulk_quantity), 0))
+            select(func.coalesce(func.sum(Batch.bulk_quantity), 0)).where(
+                *sellable_filter
+            )
         )
         total_bulk_quantity = int(result.scalar() or 0)
 
-        # Calculate total value
+        # Calculate total value (hors périmés)
         result = await db.execute(
-            select(func.coalesce(func.sum(Batch.quantity * Batch.selling_price), 0))
+            select(
+                func.coalesce(func.sum(Batch.quantity * Batch.selling_price), 0)
+            ).where(*sellable_filter)
         )
         total_value = float(result.scalar() or 0)
+
+        # Périmés : valeur et quantité encore présentes en stock
+        result = await db.execute(
+            select(
+                func.coalesce(func.sum(Batch.quantity), 0),
+                func.coalesce(func.sum(Batch.quantity * Batch.selling_price), 0),
+                func.count(func.distinct(Batch.product_id)),
+                func.count(Batch.id),
+            ).where(
+                Batch.status == "active",
+                Batch.expiry_date < today,
+            )
+        )
+        expired_row = result.one()
+        expired_quantity = int(expired_row[0] or 0)
+        expired_value = float(expired_row[1] or 0)
+        expired_products_count = int(expired_row[2] or 0)
+        expired_batches_count = int(expired_row[3] or 0)
 
         # Count low stock items + valeur du vrac
         low_stock_count = 0
@@ -357,24 +425,26 @@ class InventoryService:
         result = await db.execute(select(Product))
         products = result.scalars().unique().all()
         for product in products:
-            total_qty = sum(batch.quantity for batch in product.batches)
-            product_bulk_qty = sum(
-                int(getattr(batch, "bulk_quantity", 0) or 0)
-                for batch in product.batches
-            )
+            total_qty = product.current_stock
+            product_bulk_qty = product.current_bulk_stock
             if total_qty <= 10 and product_bulk_qty == 0:
                 low_stock_count += 1
             if product_bulk_qty:
                 total_bulk_value += product_bulk_qty * float(product.bulk_unit_price)
 
-        # Count expiring soon items
-        expiry_date = date.today() + timedelta(days=30)
+        # Count expiring soon items (périmés exclus)
+        expiry_date = today + timedelta(days=30)
         result = await db.execute(
-            select(func.count(Batch.id)).where(Batch.expiry_date <= expiry_date)
+            select(func.count(Batch.id)).where(
+                Batch.expiry_date <= expiry_date,
+                Batch.expiry_date >= today,
+                Batch.status == "active",
+                Batch.quantity > 0,
+            )
         )
         expiring_soon_count = int(result.scalar() or 0)
 
-        # Get breakdown by category
+        # Get breakdown by category (hors périmés)
         result = await db.execute(
             select(
                 Category.id,
@@ -383,6 +453,7 @@ class InventoryService:
             )
             .join(Product, Product.category_id == Category.id)
             .join(Batch, Batch.product_id == Product.id)
+            .where(*sellable_filter)
             .group_by(Category.id, Category.name)
         )
         categories = [
@@ -390,9 +461,10 @@ class InventoryService:
             for row in result.all()
         ]
 
-        # Get breakdown by location
+        # Get breakdown by location (hors périmés)
         result = await db.execute(
             select(Batch.location, func.coalesce(func.sum(Batch.quantity), 0))
+            .where(*sellable_filter)
             .group_by(Batch.location)
             .having(Batch.location.isnot(None))
         )
@@ -408,9 +480,76 @@ class InventoryService:
             total_bulk_value=total_bulk_value,
             low_stock_count=low_stock_count,
             expiring_soon_count=expiring_soon_count,
+            expired_batches_count=expired_batches_count,
+            expired_products_count=expired_products_count,
+            expired_quantity=expired_quantity,
+            expired_value=expired_value,
             categories=categories,
             locations=locations,
         )
+
+    @staticmethod
+    async def get_expired_batches(db: AsyncSession) -> List[dict]:
+        """Liste les lots actuellement périmés (encore en stock, avant retrait)."""
+        today = date.today()
+        result = await db.execute(
+            select(Batch)
+            .where(Batch.status == "active", Batch.expiry_date < today)
+            .options(joinedload(Batch.product))
+            .order_by(asc(Batch.expiry_date))
+        )
+        batches = result.scalars().unique().all()
+        return [
+            {
+                "batch_id": batch.id,
+                "batch_number": batch.batch_number,
+                "product_id": batch.product_id,
+                "product_name": batch.product.name if batch.product else None,
+                "product_code": (
+                    (batch.product.code or str(batch.product.id))
+                    if batch.product
+                    else None
+                ),
+                "quantity": int(batch.quantity or 0),
+                "bulk_quantity": int(batch.bulk_quantity or 0),
+                "expiry_date": batch.expiry_date,
+                "days_until_expiry": (batch.expiry_date - today).days,
+                "location": batch.location,
+                "value": float(
+                    (batch.quantity or 0) * (batch.selling_price or 0)
+                ),
+            }
+            for batch in batches
+        ]
+
+    @staticmethod
+    async def get_expired_history(
+        db: AsyncSession, limit: int = 100, offset: int = 0
+    ) -> List[dict]:
+        """Historique des produits périmés sortis du stock."""
+        from ...models.audit_log import ExpiredProductLog
+
+        result = await db.execute(
+            select(ExpiredProductLog)
+            .order_by(desc(ExpiredProductLog.created_at))
+            .limit(limit)
+            .offset(offset)
+        )
+        entries = result.scalars().all()
+        return [
+            {
+                "id": entry.id,
+                "product_id": entry.product_id,
+                "batch_id": entry.batch_id,
+                "batch_number": entry.batch_number,
+                "quantity": entry.quantity,
+                "expiry_date": entry.expiry_date,
+                "user_id": entry.user_id,
+                "reason": entry.reason,
+                "created_at": entry.created_at,
+            }
+            for entry in entries
+        ]
 
     @staticmethod
     async def _convert_products_to_inventory(
@@ -418,18 +557,31 @@ class InventoryService:
     ) -> List[InventoryItemResponse]:
         """Helper method to convert products to inventory items"""
         inventory_items = []
+        today = date.today()
         for product in products:
-            total_quantity = sum(batch.quantity for batch in product.batches)
-            available_quantity = sum(
-                batch.quantity - getattr(batch, "reserved_quantity", 0)
+            sellable_batches = [
+                batch
                 for batch in product.batches
+                if batch.status == "active" and batch.expiry_date >= today
+            ]
+            total_quantity = sum(int(batch.quantity or 0) for batch in sellable_batches)
+            available_quantity = sum(
+                int(batch.quantity or 0)
+                - int(getattr(batch, "reserved_quantity", 0) or 0)
+                for batch in sellable_batches
             )
             reserved_quantity = sum(
-                getattr(batch, "reserved_quantity", 0) for batch in product.batches
+                int(getattr(batch, "reserved_quantity", 0) or 0)
+                for batch in sellable_batches
             )
             bulk_quantity = sum(
                 int(getattr(batch, "bulk_quantity", 0) or 0)
+                for batch in sellable_batches
+            )
+            expired_quantity = sum(
+                int(batch.quantity or 0)
                 for batch in product.batches
+                if batch.status == "active" and batch.expiry_date < today
             )
 
             batches_data = [
@@ -445,8 +597,11 @@ class InventoryService:
                         float(batch.selling_price) if batch.selling_price else 0.0
                     ),
                     "location": batch.location,
+                    "status": batch.status,
+                    "is_expired": batch.is_expired,
                 }
                 for batch in product.batches
+                if batch.status != "deleted"
             ]
 
             inventory_items.append(
@@ -457,6 +612,7 @@ class InventoryService:
                     category_id=product.category_id,
                     category_name=product.category.name if product.category else None,
                     total_quantity=total_quantity,
+                    expired_quantity=expired_quantity,
                     available_quantity=available_quantity,
                     reserved_quantity=reserved_quantity,
                     bulk_quantity=bulk_quantity,

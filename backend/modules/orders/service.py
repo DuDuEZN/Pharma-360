@@ -149,11 +149,16 @@ class OrderService:
         o = await OrderService._get_orm(db, order_id)
         if not o:
             return None
+        previous_status = o.status
         o.supplier_id = data.supplier_id
         o.reference = data.reference
         o.order_date = data.order_date or o.order_date
         o.expected_delivery_date = data.expected_delivery_date
         o.status = data.status or o.status
+        # Une commande rejetée (to_modify) repasse en attente après correction
+        # par le vendeur, afin que le gestionnaire puisse la valider à nouveau.
+        if previous_status == "to_modify":
+            o.status = "pending"
         o.priority = data.priority or o.priority
         o.notes = data.notes
         from sqlalchemy import delete as sql_delete
@@ -505,11 +510,15 @@ class DeliveryService:
         d = await DeliveryService._get_orm(db, delivery_id)
         if not d:
             return None
+        previous_status = d.status
         d.supplier_id = data.supplier_id
         d.reference = data.reference
         d.delivery_date = data.delivery_date or d.delivery_date
         d.expected_date = data.expected_date
         d.status = data.status or d.status
+        # Une livraison rejetée (to_modify) repasse en attente après correction.
+        if previous_status == "to_modify":
+            d.status = "pending"
         d.tracking_number = data.tracking_number
         d.notes = data.notes
         d.order_id = data.order_id
@@ -642,7 +651,7 @@ class DeliveryService:
         d = await DeliveryService._get_orm(db, delivery_id)
         if not d:
             return None
-        if d.status not in ("pending",):
+        if d.status not in ("pending", "to_modify"):
             raise ValueError("Livraison %d ne peut pas etre validee (statut: %s)" % (delivery_id, d.status))
         d.status = "delivered"
         d.received_at = datetime.utcnow()
@@ -712,9 +721,10 @@ class DeliveryService:
         d = await DeliveryService._get_orm(db, delivery_id)
         if not d:
             return None
-        if d.status not in ("pending",):
+        if d.status not in ("pending", "to_modify"):
             raise ValueError("Livraison %d ne peut pas etre rejetee (statut: %s)" % (delivery_id, d.status))
-        d.status = "rejected"
+        # Retour au vendeur pour correction (harmonisé avec les commandes).
+        d.status = "to_modify"
         if reason:
             d.reception_notes = (d.reception_notes or "") + "\n[Rejet] " + str(reason)
         await db.commit()

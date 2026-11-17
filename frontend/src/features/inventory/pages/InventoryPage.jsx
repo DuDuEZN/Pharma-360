@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { Package, Search, Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle, Filter, Calendar, ArrowUp, ArrowDown, Warehouse, RefreshCw, DollarSign, FileText } from 'lucide-react'
+import { Package, Search, Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle, Filter, Calendar, ArrowUp, ArrowDown, Warehouse, RefreshCw, DollarSign, FileText, History } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useDisclosure } from '@/hooks/useDisclosure'
 import { useTable } from '@/hooks/useTable'
@@ -54,6 +54,9 @@ function InventoryPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteBatchId, setDeleteBatchId] = useState(null)
   const [importing, setImporting] = useState(false)
+  const [expiredHistory, setExpiredHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
 
   const {
     isOpen: isBatchModalOpen,
@@ -108,8 +111,7 @@ function InventoryPage() {
       const batchesResponse = await api.get('/batches', {
         params: { 
           page: 1, 
-          page_size: 100,
-          status: 'active' 
+          page_size: 100
         }
       })
       setBatches(batchesResponse.data.batches || [])
@@ -366,6 +368,23 @@ function InventoryPage() {
     }
   }
 
+  const handleOpenExpiredHistory = async () => {
+    setIsHistoryOpen(true)
+    setHistoryLoading(true)
+    try {
+      const response = await inventoryApi.expiredHistory({ limit: 200 })
+      setExpiredHistory(response.data.logs || [])
+    } catch (err) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Impossible de charger l\'historique des périmés'
+      })
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
   const handlePrintInventorySheet = () => {
     const rows = filteredBatches.map(b => {
       const p = products.find(x => String(x.id) === String(b.product_id))
@@ -572,6 +591,22 @@ th{background:#f2f2f2}
                 >
                   <AlertTriangle className="w-4 h-4 mr-2" />
                   Retirer Périmés
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFilterStatus('expired')}
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Voir Périmés
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenExpiredHistory}
+                >
+                  <History className="w-4 h-4 mr-2" />
+                  Historique Périmés
                 </Button>
                 <Button
                   variant="outline"
@@ -833,6 +868,14 @@ th{background:#f2f2f2}
                               size="icon"
                               onClick={() => handleOpenDeleteModal(batch.id)}
                               className="text-danger-500 hover:text-danger-600"
+                              disabled={!isStockManager || (!batch.is_expired && Number(batch.quantity || 0) > 0)}
+                              title={
+                                !isStockManager
+                                  ? 'Suppression réservée au gestionnaire'
+                                  : batch.is_expired || Number(batch.quantity || 0) === 0
+                                    ? 'Supprimer le lot'
+                                    : 'Seuls les lots périmés ou vides peuvent être supprimés'
+                              }
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -1016,7 +1059,7 @@ th{background:#f2f2f2}
             <div>
               <p className="font-medium">Êtes-vous sûr de vouloir supprimer ce lot ?</p>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Cette action est irréversible. Toutes les données associées à ce lot seront également supprimées.
+                Le lot sera sorti du stock. Seuls les lots périmés ou vides peuvent être supprimés.
               </p>
             </div>
           </Alert>
@@ -1032,6 +1075,59 @@ th{background:#f2f2f2}
           >
             <Trash2 className="w-4 h-4 mr-2" />
             Supprimer
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Historique des produits périmés sortis */}
+      <Modal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} size="lg">
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <History className="w-5 h-5 text-primary-600" />
+            <span>Historique des produits périmés sortis</span>
+          </div>
+        </ModalHeader>
+        <ModalBody>
+          {historyLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : expiredHistory.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-6">
+              Aucun produit périmé retiré pour le moment.
+            </p>
+          ) : (
+            <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Lot</TableHead>
+                    <TableHead>Quantité</TableHead>
+                    <TableHead>Péremption</TableHead>
+                    <TableHead>Motif</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {expiredHistory.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>{formatDate(entry.created_at)}</TableCell>
+                      <TableCell className="font-mono text-xs">{entry.batch_number || '—'}</TableCell>
+                      <TableCell>{entry.quantity || 0}</TableCell>
+                      <TableCell>{entry.expiry_date ? formatDate(entry.expiry_date) : '—'}</TableCell>
+                      <TableCell className="text-xs">{entry.reason || '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={() => setIsHistoryOpen(false)}>
+            Fermer
           </Button>
         </ModalFooter>
       </Modal>

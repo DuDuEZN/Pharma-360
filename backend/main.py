@@ -309,6 +309,38 @@ async def logging_middleware(request: Request, call_next):
                         username = payload.get("username")
                 except Exception:
                     pass
+            # Jeton ancien sans nom d'utilisateur : on le récupère en base.
+            if user_id and not username:
+                try:
+                    from backend.models.user import User as UserModel
+                    from sqlalchemy import select
+
+                    async with async_session_maker() as lookup_session:
+                        user = (
+                            await lookup_session.execute(
+                                select(UserModel).where(UserModel.id == user_id)
+                            )
+                        ).scalar_one_or_none()
+                        username = user.username if user else None
+                except Exception:
+                    pass
+
+            # Déduit l'entité concernée depuis le chemin de la requête.
+            entity_type = None
+            entity_id = None
+            parts = [p for p in request.url.path.split("/") if p]
+            if len(parts) >= 3 and parts[0] == "api" and parts[1] == "v1":
+                # On ignore les préfixes de rôle pour garder la ressource.
+                resource_parts = [
+                    part for part in parts[2:] if part not in ("manager", "admin")
+                ]
+                if resource_parts and not resource_parts[0].isdigit():
+                    entity_type = resource_parts[0]
+                    for part in resource_parts[1:]:
+                        if part.isdigit():
+                            entity_id = int(part)
+                            break
+
             # Ignore les endpoints d'audit pour éviter la récursion.
             if not request.url.path.startswith("/api/v1/audit"):
                 async with async_session_maker() as session:
@@ -317,6 +349,8 @@ async def logging_middleware(request: Request, call_next):
                         action=f"{request.method} {request.url.path}",
                         user_id=user_id,
                         username=username,
+                        entity_type=entity_type,
+                        entity_id=entity_id,
                         method=request.method,
                         path=str(request.url.path),
                         ip_address=request.client.host if request.client else None,

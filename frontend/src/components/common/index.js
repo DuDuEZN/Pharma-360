@@ -6,6 +6,7 @@ export { default as ChartComponent } from './ChartComponent';
 export { default as ProtectedRoute } from './ProtectedRoute';
 export { default as NotificationCenter } from './NotificationCenter';
 export { default as BarcodeInput } from './BarcodeInput';
+export { default as ProductSearchSelect } from './ProductSearchSelect';
 export { default as Button } from './Button';
 export { default as ProductCard } from './ProductCard';
 export { default as Alert } from './Alert';

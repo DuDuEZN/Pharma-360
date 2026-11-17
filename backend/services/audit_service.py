@@ -77,17 +77,148 @@ class AuditService:
                 pass
 
     @staticmethod
-    async def list_logs(db: AsyncSession, limit: int = 100, offset: int = 0):
-        from sqlalchemy import select, desc
-        result = await db.execute(
-            select(AuditLog).order_by(desc(AuditLog.created_at)).limit(limit).offset(offset)
-        )
-        return result.scalars().all()
+    def _serialize_log(entry: AuditLog) -> dict:
+        return {
+            "id": entry.id,
+            "action": entry.action,
+            "entity_type": entry.entity_type,
+            "entity_id": entry.entity_id,
+            "user_id": entry.user_id,
+            "username": entry.username,
+            "method": entry.method,
+            "path": entry.path,
+            "details": entry.details,
+            "ip_address": entry.ip_address,
+            "status_code": entry.status_code,
+            "created_at": entry.created_at.isoformat() if entry.created_at else None,
+        }
 
     @staticmethod
-    async def list_expired(db: AsyncSession, limit: int = 100, offset: int = 0):
-        from sqlalchemy import select, desc
+    def _serialize_expired(entry: ExpiredProductLog) -> dict:
+        return {
+            "id": entry.id,
+            "product_id": entry.product_id,
+            "batch_id": entry.batch_id,
+            "batch_number": entry.batch_number,
+            "quantity": entry.quantity,
+            "expiry_date": entry.expiry_date.isoformat() if entry.expiry_date else None,
+            "user_id": entry.user_id,
+            "reason": entry.reason,
+            "created_at": entry.created_at.isoformat(),
+        }
+
+    @staticmethod
+    async def list_logs(
+        db: AsyncSession,
+        limit: int = 100,
+        offset: int = 0,
+        action: Optional[str] = None,
+        username: Optional[str] = None,
+        entity_type: Optional[str] = None,
+        method: Optional[str] = None,
+        search: Optional[str] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+    ) -> dict:
+        from sqlalchemy import func, or_, select, desc
+
+        conditions = []
+        if action:
+            conditions.append(AuditLog.action == action)
+        if username:
+            conditions.append(AuditLog.username.ilike(f"%{username}%"))
+        if entity_type:
+            conditions.append(AuditLog.entity_type == entity_type)
+        if method:
+            conditions.append(AuditLog.method == method.upper())
+        if search:
+            like = f"%{search}%"
+            conditions.append(
+                or_(
+                    AuditLog.path.ilike(like),
+                    AuditLog.details.ilike(like),
+                    AuditLog.username.ilike(like),
+                    AuditLog.action.ilike(like),
+                )
+            )
+        if date_from:
+            conditions.append(AuditLog.created_at >= date_from)
+        if date_to:
+            conditions.append(AuditLog.created_at <= date_to)
+
+        query = select(AuditLog)
+        count_query = select(func.count(AuditLog.id))
+        if conditions:
+            query = query.where(*conditions)
+            count_query = count_query.where(*conditions)
+
+        total = int((await db.execute(count_query)).scalar() or 0)
         result = await db.execute(
-            select(ExpiredProductLog).order_by(desc(ExpiredProductLog.created_at)).limit(limit).offset(offset)
+            query.order_by(desc(AuditLog.created_at)).limit(limit).offset(offset)
         )
-        return result.scalars().all()
+        rows = result.scalars().all()
+        return {
+            "logs": [AuditService._serialize_log(row) for row in rows],
+            "total": total,
+        }
+
+    @staticmethod
+    async def list_expired(
+        db: AsyncSession,
+        limit: int = 100,
+        offset: int = 0,
+        search: Optional[str] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+    ) -> dict:
+        from sqlalchemy import func, or_, select, desc
+
+        conditions = []
+        if search:
+            like = f"%{search}%"
+            conditions.append(
+                or_(
+                    ExpiredProductLog.batch_number.ilike(like),
+                    ExpiredProductLog.reason.ilike(like),
+                )
+            )
+        if date_from:
+            conditions.append(ExpiredProductLog.created_at >= date_from)
+        if date_to:
+            conditions.append(ExpiredProductLog.created_at <= date_to)
+
+        query = select(ExpiredProductLog)
+        count_query = select(func.count(ExpiredProductLog.id))
+        if conditions:
+            query = query.where(*conditions)
+            count_query = count_query.where(*conditions)
+
+        total = int((await db.execute(count_query)).scalar() or 0)
+        result = await db.execute(
+            query.order_by(desc(ExpiredProductLog.created_at))
+            .limit(limit)
+            .offset(offset)
+        )
+        rows = result.scalars().all()
+        return {
+            "logs": [AuditService._serialize_expired(row) for row in rows],
+            "total": total,
+        }
+
+    @staticmethod
+    async def purge_logs(
+        db: AsyncSession, before: Optional[datetime] = None, keep_days: int = 90
+    ) -> int:
+        """Supprime les entrées d'audit plus anciennes qu'une date/heure."""
+        from datetime import timedelta
+
+        from sqlalchemy import delete as sql_delete
+
+        if before is None:
+            before = datetime.utcnow() - timedelta(days=max(int(keep_days), 1))
+
+        result = await db.execute(
+            sql_delete(AuditLog).where(AuditLog.created_at < before)
+        )
+        await db.commit()
+        return int(result.rowcount or 0)

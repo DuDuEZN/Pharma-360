@@ -929,6 +929,20 @@ class ReportService:
         result = await db.execute(items_query)
         total_items = result.scalar() or 0
 
+        # Produits périmés encore en stock (intégrés aux statistiques/rapports)
+        from ...models.batch import Batch
+
+        today = date.today()
+        expired_query = select(
+            func.count(func.distinct(Batch.product_id)),
+            func.coalesce(func.sum(Batch.quantity), 0),
+            func.coalesce(func.sum(Batch.quantity * Batch.selling_price), 0),
+        ).where(Batch.status == "active", Batch.expiry_date < today)
+        expired_row = (await db.execute(expired_query)).one()
+        expired_products_count = int(expired_row[0] or 0)
+        expired_quantity = int(expired_row[1] or 0)
+        expired_value = float(expired_row[2] or 0)
+
         return ReportStatsResponse(
             total_sales=float(total_revenue or 0),
             total_items=total_items,
@@ -937,6 +951,9 @@ class ReportService:
             top_products=top_products,
             sales_by_category=sales_by_category,
             sales_by_day=sales_by_day,
+            expired_products_count=expired_products_count,
+            expired_quantity=expired_quantity,
+            expired_value=expired_value,
         )
 
     @staticmethod

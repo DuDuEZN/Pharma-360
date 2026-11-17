@@ -8,6 +8,7 @@ from typing import Annotated, Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 import csv
@@ -43,6 +44,12 @@ def _require_stock_manager(current_user: User):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Gestionnaire de stock ou admin requis",
         )
+
+
+class RemoveExpiredRequest(BaseModel):
+    """Sélection optionnelle de lots périmés à retirer."""
+
+    batch_ids: Optional[List[int]] = None
 
 
 @router.get(
@@ -156,6 +163,41 @@ async def get_inventory_summary(
 
 
 @router.get(
+    "/expired",
+    summary="Lister les produits périmés",
+    description="Liste les lots périmés encore présents en stock (avant retrait)",
+)
+async def get_expired_batches(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Liste consultable des lots périmés encore en stock."""
+    items = await InventoryService.get_expired_batches(db)
+    return {
+        "batches": items,
+        "total": len(items),
+        "total_quantity": sum(item["quantity"] for item in items),
+        "total_value": sum(item["value"] for item in items),
+    }
+
+
+@router.get(
+    "/expired-history",
+    summary="Historique des produits périmés sortis",
+    description="Historique des lots périmés retirés du stock",
+)
+async def get_expired_history(
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Historique consultable des périmés déjà sortis."""
+    entries = await InventoryService.get_expired_history(db, limit=limit, offset=offset)
+    return {"logs": entries, "total": len(entries)}
+
+
+@router.get(
     "/location/{location}",
     summary="Get inventory by location",
     description="Get inventory items stored at a specific location",
@@ -220,6 +262,7 @@ async def adjust_stock(
     description="Retire du stock tous les lots périmés (gestionnaire ou admin uniquement)",
 )
 async def remove_expired_products(
+    body: Optional[RemoveExpiredRequest] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -227,11 +270,10 @@ async def remove_expired_products(
     _require_stock_manager(current_user)
 
     today = date.today()
-    result = await db.execute(
-        select(Batch).where(
-            and_(Batch.status == "active", Batch.expiry_date < today)
-        )
-    )
+    conditions = [Batch.status == "active", Batch.expiry_date < today]
+    if body and body.batch_ids:
+        conditions.append(Batch.id.in_(body.batch_ids))
+    result = await db.execute(select(Batch).where(and_(*conditions)))
     expired_batches = result.scalars().all()
 
     removed_count = 0

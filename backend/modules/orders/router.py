@@ -57,6 +57,14 @@ async def update_order(order_id: int, data: OrderUpdate, db: AsyncSession = Depe
     # Le manager ne modifie pas les commandes ; il ne fait que les valider/rejeter.
     if current_user.role not in ("seller", "admin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Seller or admin required")
+    existing = await OrderService.get_order(db, order_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if current_user.role == "seller" and existing.status not in ("pending", "to_modify"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Une commande n'est modifiable que tant qu'elle est en attente ou à corriger",
+        )
     order = await OrderService.update_order(db, order_id, data)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -107,9 +115,18 @@ async def reject_order(order_id: int, body: Optional[StatusUpdate] = None, db: A
 
 @router.delete("/{order_id}", status_code=204)
 async def delete_order(order_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Suppression réservée à l'administrateur : le manager valide/rejette seulement.
-    if current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin required")
+    # Admin : suppression libre. Vendeur : uniquement une commande rejetée
+    # (to_modify), pour lui permettre de la retirer après rejet.
+    if current_user.role not in ("admin", "seller"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin or seller required")
+    order = await OrderService.get_order(db, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if current_user.role == "seller" and order.status != "to_modify":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Le vendeur ne peut supprimer qu'une commande rejetée (à corriger)",
+        )
     ok = await OrderService.delete_order(db, order_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Order not found")

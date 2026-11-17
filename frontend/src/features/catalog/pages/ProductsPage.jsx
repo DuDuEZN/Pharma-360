@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Package, Search, Plus, Edit, Trash2, Barcode, X } from 'lucide-react'
+import { Package, Search, Plus, Edit, Trash2, Barcode, X, Eye, AlertTriangle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Select } from '@/components/ui/Select/Select'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table.jsx'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
 import { Skeleton, SkeletonText } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/common/Toast'
 import { useAlerts } from '@/hooks/useAlerts'
@@ -30,6 +31,13 @@ function ProductsPage() {
   const canManageProducts = ['admin', 'manager'].includes(user?.role)
   // La suppression reste réservée à l'administrateur (règle backend).
   const canDeleteProducts = user?.role === 'admin'
+  const isStockManager = ['admin', 'manager'].includes(user?.role)
+
+  // Consultation des lots d'un produit (au clic sur le nom).
+  const [batchProduct, setBatchProduct] = useState(null)
+  const [productBatches, setProductBatches] = useState([])
+  const [batchesLoading, setBatchesLoading] = useState(false)
+  const [deletingBatchId, setDeletingBatchId] = useState(null)
 
   const { 
     searchQuery, 
@@ -155,6 +163,63 @@ function ProductsPage() {
         title: 'Erreur',
         message: error.response?.data?.detail || 'Impossible de supprimer ce produit'
       })
+    }
+  }
+
+  const loadProductBatches = async (product) => {
+    setBatchesLoading(true)
+    try {
+      const response = await api.get('/batches', {
+        params: { product_id: product.id, page: 1, page_size: 100 }
+      })
+      setProductBatches(response.data.batches || [])
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Impossible de charger les lots de ce produit'
+      })
+    } finally {
+      setBatchesLoading(false)
+    }
+  }
+
+  const handleOpenBatches = async (product) => {
+    setBatchProduct(product)
+    setProductBatches([])
+    await loadProductBatches(product)
+  }
+
+  const handleDeleteBatch = async (batch) => {
+    if (!isStockManager) return
+    if (!batch.is_expired && Number(batch.quantity || 0) > 0) {
+      addToast({
+        type: 'error',
+        title: 'Suppression impossible',
+        message: 'Seuls les lots périmés ou vides peuvent être supprimés'
+      })
+      return
+    }
+    if (!window.confirm(`Supprimer le lot « ${batch.batch_number} » ?`)) return
+
+    setDeletingBatchId(batch.id)
+    try {
+      await api.delete(`/batches/${batch.id}`)
+      addToast({
+        type: 'success',
+        title: 'Lot supprimé',
+        message: `Le lot ${batch.batch_number} a été sorti du stock`
+      })
+      if (batchProduct) await loadProductBatches(batchProduct)
+      fetchProducts()
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: error.response?.data?.detail || 'Impossible de supprimer ce lot'
+      })
+    } finally {
+      setDeletingBatchId(null)
     }
   }
 
@@ -297,7 +362,14 @@ function ProductsPage() {
                                 className="w-8 h-8 rounded object-cover"
                               />
                             )}
-                            <span className="font-medium">{product.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenBatches(product)}
+                              className="font-medium text-left hover:text-primary-600 hover:underline"
+                              title="Voir les lots enregistrés"
+                            >
+                              {product.name}
+                            </button>
                             {product.is_bulk && (
                               <Badge variant="primary" size="xs">
                                 Vrac · {product.units_per_box || 1}/boîte
@@ -320,6 +392,11 @@ function ProductsPage() {
                               {product.is_bulk && (
                                 <span className="text-xs text-gray-500 dark:text-gray-400">
                                   {product.current_bulk_stock || 0} unité(s) vrac
+                                </span>
+                              )}
+                              {Number(product.expired_stock || 0) > 0 && (
+                                <span className="text-xs font-medium text-danger-600">
+                                  {product.expired_stock} périmé(s)
                                 </span>
                               )}
                             </div>
@@ -446,6 +523,94 @@ function ProductsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Modal : lots du produit */}
+      <Modal isOpen={Boolean(batchProduct)} onClose={() => setBatchProduct(null)}>
+        <ModalHeader>
+          <div className="flex items-center gap-2">
+            <Eye className="w-5 h-5 text-primary-600" />
+            <span>Lots de {batchProduct?.name}</span>
+          </div>
+        </ModalHeader>
+        <ModalBody>
+          {batchesLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : productBatches.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-6">
+              Aucun lot enregistré pour ce produit.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Lot</TableHead>
+                    <TableHead>Péremption</TableHead>
+                    <TableHead>Quantité</TableHead>
+                    <TableHead>Vrac</TableHead>
+                    <TableHead>Emplacement</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {productBatches.map((batch) => {
+                    const removable = isStockManager && (batch.is_expired || Number(batch.quantity || 0) === 0)
+                    return (
+                      <TableRow key={batch.id}>
+                        <TableCell className="font-mono text-xs">{batch.batch_number}</TableCell>
+                        <TableCell>{batch.expiry_date ? formatDate(batch.expiry_date) : '—'}</TableCell>
+                        <TableCell>{batch.quantity || 0}</TableCell>
+                        <TableCell>{batch.bulk_quantity || 0}</TableCell>
+                        <TableCell>{batch.location || '—'}</TableCell>
+                        <TableCell>
+                          {batch.is_expired ? (
+                            <Badge variant="danger">Périmé</Badge>
+                          ) : batch.is_expiring_soon ? (
+                            <Badge variant="warning">Péremption proche</Badge>
+                          ) : (
+                            <Badge variant="success">Actif</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {removable ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteBatch(batch)}
+                              disabled={deletingBatchId === batch.id}
+                              title="Supprimer le lot périmé"
+                            >
+                              <Trash2 className="w-4 h-4 text-danger-500" />
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          {!isStockManager && (
+            <p className="text-xs text-gray-500 mt-3 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              La suppression d'un lot périmé est réservée au gestionnaire de stock.
+            </p>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={() => setBatchProduct(null)}>
+            Fermer
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   )
 }
