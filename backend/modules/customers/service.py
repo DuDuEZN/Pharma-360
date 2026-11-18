@@ -136,7 +136,10 @@ class CustomerService:
         """Get all orders for a customer"""
         result = await db.execute(
             select(Sale)
-            .where(Sale.customer_id == customer_id)
+            .where(
+                Sale.customer_id == customer_id,
+                Sale.status.notin_(["cancelled", "refunded"]),
+            )
             .options(selectinload(Sale.items))
             .order_by(desc(Sale.created_at))
         )
@@ -157,7 +160,10 @@ class CustomerService:
         """Get all sales/invoices for a customer"""
         result = await db.execute(
             select(Sale)
-            .where(Sale.customer_id == customer_id)
+            .where(
+                Sale.customer_id == customer_id,
+                Sale.status.notin_(["cancelled", "refunded"]),
+            )
             .order_by(desc(Sale.created_at))
         )
         sales = result.scalars().all()
@@ -174,10 +180,17 @@ class CustomerService:
 
     @staticmethod
     async def get_customer_purchases(customer_id: int, db: AsyncSession) -> List[dict]:
-        """Get purchase history for a customer"""
+        """Get purchase history for a customer.
+
+        On exclut les ventes annulées et remboursées : l'historique
+        d'achat ne contient que les ventes réglées et à crédit.
+        """
         result = await db.execute(
             select(Sale)
-            .where(Sale.customer_id == customer_id)
+            .where(
+                Sale.customer_id == customer_id,
+                Sale.status.notin_(["cancelled", "refunded"]),
+            )
             .options(
                 selectinload(Sale.items).selectinload(SaleItem.product)
             )
@@ -213,7 +226,13 @@ class CustomerService:
 
     @staticmethod
     def _is_credit(sale: Sale) -> bool:
-        """Un achat est considéré à crédit tant qu'il n'est pas réglé."""
+        """Un achat est considéré à crédit tant qu'il n'est pas réglé.
+
+        Les ventes annulées et remboursées sont exclues : elles ne
+        constituent ni un crédit ni un achat valide.
+        """
+        if sale.status in ("cancelled", "refunded", "paid"):
+            return False
         return sale.status in ("pending", "partial") or sale.payment_method == "credit"
 
     @staticmethod
@@ -221,7 +240,10 @@ class CustomerService:
         """Solde de crédit et liste des achats à crédit d'un client."""
         result = await db.execute(
             select(Sale)
-            .where(Sale.customer_id == customer_id)
+            .where(
+                Sale.customer_id == customer_id,
+                Sale.status.notin_(["cancelled", "refunded"]),
+            )
             .options(selectinload(Sale.items))
             .order_by(desc(Sale.created_at))
         )
@@ -257,28 +279,38 @@ class CustomerService:
         customer_id: int, db: AsyncSession
     ) -> CustomerStatsResponse:
         """Get statistics for a customer"""
-        # Get total purchases
+        # Get total purchases (on exclut annulées et remboursées)
         result = await db.execute(
             select(func.coalesce(func.sum(Sale.total), 0)).where(
-                Sale.customer_id == customer_id
+                Sale.customer_id == customer_id,
+                Sale.status.notin_(["cancelled", "refunded"]),
             )
         )
         total_purchases = float(result.scalar() or 0)
 
         # Get purchase count
         result = await db.execute(
-            select(func.count(Sale.id)).where(Sale.customer_id == customer_id)
+            select(func.count(Sale.id)).where(
+                Sale.customer_id == customer_id,
+                Sale.status.notin_(["cancelled", "refunded"]),
+            )
         )
         purchase_count = int(result.scalar() or 0)
 
         # Get first and last purchase dates
         result = await db.execute(
-            select(func.min(Sale.created_at)).where(Sale.customer_id == customer_id)
+            select(func.min(Sale.created_at)).where(
+                Sale.customer_id == customer_id,
+                Sale.status.notin_(["cancelled", "refunded"]),
+            )
         )
         first_purchase_date = result.scalar()
 
         result = await db.execute(
-            select(func.max(Sale.created_at)).where(Sale.customer_id == customer_id)
+            select(func.max(Sale.created_at)).where(
+                Sale.customer_id == customer_id,
+                Sale.status.notin_(["cancelled", "refunded"]),
+            )
         )
         last_purchase_date = result.scalar()
 
