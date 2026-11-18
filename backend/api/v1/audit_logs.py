@@ -30,7 +30,7 @@ async def list_audit_logs(
     date_from: Optional[datetime] = Query(None),
     date_to: Optional[datetime] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_role(["admin", "manager"])),
+    current_user: User = Depends(get_current_user_with_role(["admin"])),
 ):
     return await AuditService.list_logs(
         db,
@@ -56,7 +56,7 @@ async def export_audit_logs(
     date_from: Optional[datetime] = Query(None),
     date_to: Optional[datetime] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_role(["admin", "manager"])),
+    current_user: User = Depends(get_current_user_with_role(["admin"])),
 ):
     """Export CSV des journaux d'audit filtrés."""
     data = await AuditService.list_logs(
@@ -131,7 +131,7 @@ async def list_expired_products_log(
     date_from: Optional[datetime] = Query(None),
     date_to: Optional[datetime] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_role(["admin", "manager"])),
+    current_user: User = Depends(get_current_user_with_role(["admin"])),
 ):
     return await AuditService.list_expired(
         db,

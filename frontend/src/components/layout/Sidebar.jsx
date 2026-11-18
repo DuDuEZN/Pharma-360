@@ -44,9 +44,9 @@ function Sidebar({ mobileOpen = false, onClose }) {
     { name: 'Rapports', href: '/reports', icon: FileText, roles: ['admin', 'manager'] },
     {
       name: 'Journal d\'audit',
-      href: user?.role === 'admin' ? '/admin/audit' : '/manager/audit',
+      href: '/admin/audit',
       icon: Shield,
-      roles: ['admin', 'manager'],
+      roles: ['admin'],
     },
     { name: 'Paramètres', href: user?.role === 'manager' ? '/manager/settings' : '/settings', icon: Settings, roles: ['admin', 'manager'] },
     { name: 'Aide', href: '/help', icon: HelpCircle, roles: ['admin', 'manager', 'seller', 'cashier'] },

@@ -169,7 +169,6 @@ function App() {
                         <Route path="reports" element={<ManagerReportsPage />} />
                         <Route path="reports/new" element={<ReportFormPage />} />
                         <Route path="analytics" element={<ManagerAnalyticsPage />} />
-                        <Route path="audit" element={<AdminAuditPage />} />
                         <Route path="settings" element={<ManagerSettingsPage />} />
                         <Route path="backup" element={<BackupPage />} />
                         <Route path="restore" element={<RestorePage />} />
