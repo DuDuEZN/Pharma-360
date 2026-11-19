@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -136,7 +137,13 @@ class Batch(Base):
     )
 
     # Constraints
-    __table_args__ = ({"comment": "Product batches - CORE for FEFO/FIFO system"},)
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('active', 'expired', 'returned', 'damaged', 'deleted')",
+            name="batches_status_check",
+        ),
+        {"comment": "Product batches - CORE for FEFO/FIFO system"},
+    )
 
     def __repr__(self) -> str:
         return (

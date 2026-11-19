@@ -79,6 +79,19 @@ async def startup_event():
                     ))
             except Exception:
                 pass
+            # Migration douce : statut "deleted" autorisé pour les lots
+            # (suppression d'un lot périmé/vide sans casser l'historique).
+            try:
+                async with conn.begin_nested():
+                    await conn.execute(text(
+                        "ALTER TABLE batches DROP CONSTRAINT IF EXISTS batches_status_check"
+                    ))
+                    await conn.execute(text(
+                        "ALTER TABLE batches ADD CONSTRAINT batches_status_check "
+                        "CHECK (status IN ('active', 'expired', 'returned', 'damaged', 'deleted'))"
+                    ))
+            except Exception:
+                pass
             # Migration douce : colonne expiry_date en DATE (anciennes bases).
             try:
                 async with conn.begin_nested():
