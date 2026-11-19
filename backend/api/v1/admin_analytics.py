@@ -2,12 +2,13 @@
 Admin Analytics API Endpoints for Pharmacie 360 Backend
 Provides analytics data for the administrator dashboard.
 """
+import calendar
 from datetime import date, datetime, timedelta
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy import and_, desc, extract, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 import csv
@@ -53,6 +54,7 @@ def _category_name(product) -> str:
 async def get_analytics_stats(
     range: Annotated[Optional[str], Query()] = "month",
     category: Annotated[Optional[int], Query()] = None,
+    product_id: Annotated[Optional[int], Query()] = None,
     user: Annotated[Optional[int], Query()] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -67,18 +69,48 @@ async def get_analytics_stats(
     if start_date and end_date:
         query = query.where(and_(func.date(Sale.created_at) >= start_date, func.date(Sale.created_at) <= end_date))
     if category:
-        query = query.join(SaleItem, SaleItem.sale_id == Sale.id).where(SaleItem.product_id.in_(
-            select(Product.id).where(Product.category_id == category)
-        ))
+        query = query.where(
+            Sale.id.in_(
+                select(SaleItem.sale_id)
+                .join(Product, Product.id == SaleItem.product_id)
+                .where(Product.category_id == category)
+            )
+        )
+    if product_id:
+        query = query.where(
+            Sale.id.in_(
+                select(SaleItem.sale_id).where(SaleItem.product_id == product_id)
+            )
+        )
     if user:
         query = query.where(Sale.user_id == user)
 
     result = await db.execute(query)
     sales = result.scalars().all()
 
-    total_sales = float(sum(s.total or 0 for s in sales))
+    def _sale_revenue(sale) -> float:
+        """Chiffre d'affaires de la vente, restreint au produit filtré."""
+        if product_id:
+            return sum(
+                float(item.total_price or 0)
+                for item in sale.items
+                if item.product_id == product_id
+            )
+        return float(sale.total or 0)
+
+    def _sale_quantity(sale) -> int:
+        """Quantité vendue, restreinte au produit filtré."""
+        if product_id:
+            return sum(
+                int(item.quantity or 0)
+                for item in sale.items
+                if item.product_id == product_id
+            )
+        return int(sale.total_items or 0)
+
+    total_sales = sum(_sale_revenue(s) for s in sales)
     total_transactions = len(sales)
-    total_items_sold = sum(s.total_items for s in sales)
+    total_items_sold = sum(_sale_quantity(s) for s in sales)
     unique_customers = len({s.customer_id for s in sales if s.customer_id})
 
     # Previous period for change calculation
@@ -86,18 +118,32 @@ async def get_analytics_stats(
         period_days = (end_date - start_date).days or 1
         prev_start = start_date - timedelta(days=period_days)
         prev_end = start_date - timedelta(days=1)
-        prev_query = select(Sale).where(
+        prev_query = select(Sale).options(selectinload(Sale.items)).where(
             and_(
                 Sale.status == "paid",
                 func.date(Sale.created_at) >= prev_start,
                 func.date(Sale.created_at) <= prev_end,
             )
         )
+        if category:
+            prev_query = prev_query.where(
+                Sale.id.in_(
+                    select(SaleItem.sale_id)
+                    .join(Product, Product.id == SaleItem.product_id)
+                    .where(Product.category_id == category)
+                )
+            )
+        if product_id:
+            prev_query = prev_query.where(
+                Sale.id.in_(
+                    select(SaleItem.sale_id).where(SaleItem.product_id == product_id)
+                )
+            )
         if user:
             prev_query = prev_query.where(Sale.user_id == user)
         prev_result = await db.execute(prev_query)
         prev_sales = prev_result.scalars().all()
-        prev_total = float(sum(s.total or 0 for s in prev_sales))
+        prev_total = sum(_sale_revenue(s) for s in prev_sales)
     else:
         prev_total = 0.0
 
@@ -158,6 +204,7 @@ async def get_analytics_stats(
 async def get_analytics_sales(
     range: Annotated[Optional[str], Query()] = "month",
     category: Annotated[Optional[int], Query()] = None,
+    product_id: Annotated[Optional[int], Query()] = None,
     user: Annotated[Optional[int], Query()] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -176,6 +223,20 @@ async def get_analytics_sales(
         query = query.where(and_(func.date(Sale.created_at) >= start_date, func.date(Sale.created_at) <= end_date))
     if user:
         query = query.where(Sale.user_id == user)
+    if category:
+        query = query.where(
+            Sale.id.in_(
+                select(SaleItem.sale_id)
+                .join(Product, Product.id == SaleItem.product_id)
+                .where(Product.category_id == category)
+            )
+        )
+    if product_id:
+        query = query.where(
+            Sale.id.in_(
+                select(SaleItem.sale_id).where(SaleItem.product_id == product_id)
+            )
+        )
 
     result = await db.execute(query)
     sales = result.scalars().unique().all()
@@ -187,7 +248,14 @@ async def get_analytics_sales(
     hour_totals = {}
     grand_total = 0.0
     for sale in sales:
-        amount = float(sale.total or 0)
+        if product_id:
+            amount = sum(
+                float(item.total_price or 0)
+                for item in sale.items
+                if item.product_id == product_id
+            )
+        else:
+            amount = float(sale.total or 0)
         grand_total += amount
 
         created = sale.created_at
@@ -200,6 +268,8 @@ async def get_analytics_sales(
         for item in sale.items:
             prod = item.product
             if not prod:
+                continue
+            if product_id and item.product_id != product_id:
                 continue
             if category and prod.category_id != category:
                 continue
@@ -260,6 +330,132 @@ async def get_analytics_sales(
         "daily": daily,
         "by_day_of_week": by_day_of_week,
         "by_hour": by_hour,
+    }
+
+
+@router.get("/monthly-daily-average")
+async def get_monthly_daily_average(
+    year: Annotated[Optional[int], Query(ge=2000, le=2100)] = None,
+    product_id: Annotated[Optional[int], Query()] = None,
+    category: Annotated[Optional[int], Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Moyenne journalière des ventes par mois de l'année, par médicament.
+
+    Pour chaque produit et chaque mois, on calcule la quantité vendue divisée
+    par le nombre de jours du mois. Une série est renvoyée par produit (dans la
+    limite de ``limit`` produits les plus vendus) afin d'alimenter un graphique
+    de 12 points. Le filtre ``product_id`` restreint les séries à un produit.
+    """
+    if not RBACUtils.has_permission(current_user.role, "manager"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager or admin required")
+
+    if year is None:
+        year = date.today().year
+    start_date = date(year, 1, 1)
+    end_date = date(year, 12, 31)
+
+    month_labels = [
+        "Janv.", "Févr.", "Mars", "Avr.", "Mai", "Juin",
+        "Juil.", "Août", "Sept.", "Oct.", "Nov.", "Déc.",
+    ]
+
+    query = (
+        select(
+            SaleItem.product_id,
+            extract("month", Sale.created_at).label("month"),
+            func.sum(SaleItem.quantity).label("quantity"),
+            func.sum(SaleItem.total_price).label("revenue"),
+        )
+        .join(Sale, Sale.id == SaleItem.sale_id)
+        .where(
+            Sale.status == "paid",
+            func.date(Sale.created_at) >= start_date,
+            func.date(Sale.created_at) <= end_date,
+        )
+    )
+    if product_id:
+        query = query.where(SaleItem.product_id == product_id)
+    if category:
+        query = query.where(
+            SaleItem.product_id.in_(
+                select(Product.id).where(Product.category_id == category)
+            )
+        )
+    query = query.group_by(SaleItem.product_id, extract("month", Sale.created_at))
+    rows = (await db.execute(query)).all()
+
+    product_ids = {row[0] for row in rows if row[0] is not None}
+    products = {}
+    if product_ids:
+        prod_query = select(Product).where(Product.id.in_(product_ids))
+        for product in (await db.execute(prod_query)).scalars().all():
+            products[product.id] = product
+
+    today = date.today()
+    days_by_month = {}
+    for month in range(1, 13):
+        days = calendar.monthrange(year, month)[1]
+        # Mois en cours : on divise par les jours déjà écoulés pour ne pas
+        # sous-estimer la moyenne journalière.
+        if year == today.year and month == today.month:
+            days = max(today.day, 1)
+        days_by_month[month] = days
+
+    series_map = {}
+    for pid, month, quantity, revenue in rows:
+        if pid is None or month is None:
+            continue
+        month_index = int(month) - 1
+        if month_index < 0 or month_index > 11:
+            continue
+        entry = series_map.setdefault(
+            pid,
+            {
+                "quantities": [0] * 12,
+                "revenues": [0.0] * 12,
+            },
+        )
+        entry["quantities"][month_index] += int(quantity or 0)
+        entry["revenues"][month_index] += float(revenue or 0)
+
+    series = []
+    for pid, entry in series_map.items():
+        product = products.get(pid)
+        values = [
+            round(entry["quantities"][index] / days_by_month[index + 1], 2)
+            for index in range(12)
+        ]
+        total_quantity = sum(entry["quantities"])
+        series.append({
+            "product_id": pid,
+            "product_name": product.name if product else f"Produit {pid}",
+            "barcode": (product.barcode if product else "") or "",
+            "unit": (product.unit if product else "unité") or "unité",
+            "quantities": entry["quantities"],
+            "revenues": [round(value, 2) for value in entry["revenues"]],
+            "values": values,
+            "total_quantity": total_quantity,
+            "daily_average": round(total_quantity / 365, 2),
+        })
+
+    series.sort(key=lambda item: (-item["total_quantity"], item["product_name"].lower()))
+    series = series[:limit]
+
+    return {
+        "year": year,
+        "labels": month_labels,
+        "months": [
+            {
+                "month": month,
+                "label": month_labels[month - 1],
+                "days": days_by_month[month],
+            }
+            for month in range(1, 13)
+        ],
+        "series": series,
     }
 
 

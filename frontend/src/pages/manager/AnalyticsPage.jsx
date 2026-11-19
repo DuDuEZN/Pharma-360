@@ -24,6 +24,8 @@ function AnalyticsPage() {
   const [iaForecast, setIaForecast] = useState(null)
   const [forecastProductId, setForecastProductId] = useState('all')
   const [trendProductId, setTrendProductId] = useState('all')
+  const [monthlyAverage, setMonthlyAverage] = useState(null)
+  const [salesYear, setSalesYear] = useState(new Date().getFullYear())
   const [isLoading, setIsLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('month')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -46,7 +48,7 @@ function AnalyticsPage() {
 
   useEffect(() => {
     fetchAnalytics()
-  }, [timeRange, categoryFilter, productFilter])
+  }, [timeRange, categoryFilter, productFilter, salesYear])
 
   const fetchCategories = async () => {
     try {
@@ -78,9 +80,21 @@ function AnalyticsPage() {
       setIsLoading(true)
       
       // Fetch all analytics data in parallel
-      const [statsRes, salesRes, stockRes, productsRes, marginRes, productStatsRes] = await Promise.all([
-        api.get('/analytics/stats', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
-        api.get('/analytics/sales', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined } }),
+      const [statsRes, salesRes, stockRes, productsRes, marginRes, productStatsRes, monthlyRes] = await Promise.all([
+        api.get('/analytics/stats', {
+          params: {
+            range: timeRange,
+            category: categoryFilter !== 'all' ? categoryFilter : undefined,
+            product_id: productFilter !== 'all' ? productFilter : undefined,
+          },
+        }),
+        api.get('/analytics/sales', {
+          params: {
+            range: timeRange,
+            category: categoryFilter !== 'all' ? categoryFilter : undefined,
+            product_id: productFilter !== 'all' ? productFilter : undefined,
+          },
+        }),
         api.get('/analytics/stock', {
           params: {
             range: timeRange,
@@ -97,7 +111,15 @@ function AnalyticsPage() {
           },
         }),
         api.get('/analytics/product-margin-trend', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined, product_id: productFilter !== 'all' ? productFilter : undefined } }),
-        api.get('/analytics/product-stats', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined, product_id: productFilter !== 'all' ? productFilter : undefined } })
+        api.get('/analytics/product-stats', { params: { range: timeRange, category: categoryFilter !== 'all' ? categoryFilter : undefined, product_id: productFilter !== 'all' ? productFilter : undefined } }),
+        api.get('/analytics/monthly-daily-average', {
+          params: {
+            year: salesYear,
+            limit: 10,
+            category: categoryFilter !== 'all' ? categoryFilter : undefined,
+            product_id: productFilter !== 'all' ? productFilter : undefined,
+          },
+        }),
       ])
       
       setStats(statsRes.data)
@@ -106,6 +128,7 @@ function AnalyticsPage() {
       setTopProducts(productsRes.data.products || [])
       setMarginTrend(marginRes.data)
       setProductStats(productStatsRes.data.products || [])
+      setMonthlyAverage(monthlyRes.data)
 
       // Module IA : recommandations, prévisions de rupture et prévisions de
       // ventes (best-effort, ne bloque pas l'affichage).
@@ -290,7 +313,10 @@ function AnalyticsPage() {
       .map(value => Number(value))
       .filter(value => Number.isFinite(value))
     const maxValue = Math.max(...numericValues, 1)
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+    const colors = [
+      '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+      '#06b6d4', '#84cc16', '#eab308', '#ec4899', '#14b8a6',
+    ]
 
     return (
       <Card>
@@ -362,6 +388,26 @@ function AnalyticsPage() {
       ]
     }
   }, [salesData])
+
+  // Moyenne journalière des ventes par mois de l'année, une série par
+  // médicament. Les valeurs proviennent de /analytics/monthly-daily-average.
+  const monthlyAverageChartData = useMemo(() => {
+    const series = monthlyAverage?.series || []
+    if (series.length === 0) return null
+
+    return {
+      labels: monthlyAverage.labels || [],
+      datasets: series.map((item) => ({
+        label: item.product_name,
+        data: item.values || [],
+      })),
+    }
+  }, [monthlyAverage])
+
+  const yearOptions = useMemo(() => {
+    const current = new Date().getFullYear()
+    return [current, current - 1, current - 2, current - 3]
+  }, [])
 
   // Prévision IA : ventes réelles puis projection sur 30 jours.
   const forecastChartData = useMemo(() => {
@@ -468,7 +514,7 @@ function AnalyticsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <BarChart3 className="w-7 h-7 text-primary-600" />
-            Analytics et rapports
+            Analytics
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mt-1">
             Analyse des ventes, stocks et performances
@@ -646,6 +692,28 @@ function AnalyticsPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                }
+              />
+
+              <SimpleLineChart
+                data={monthlyAverageChartData}
+                title="Moyenne journalière des ventes par mois (par médicament)"
+                actions={
+                  <Select
+                    value={String(salesYear)}
+                    onValueChange={(value) => setSalesYear(Number(value))}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Année" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {yearOptions.map((year) => (
+                        <SelectItem key={year} value={String(year)}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 }
               />
 

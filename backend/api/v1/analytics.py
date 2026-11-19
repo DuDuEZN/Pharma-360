@@ -14,6 +14,7 @@ from .admin_analytics import (
     get_analytics_stock,
     get_analytics_top_products,
     get_analytics_users,
+    get_monthly_daily_average,
     get_product_margin_trend,
     get_product_stats,
 )
@@ -22,6 +23,9 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 router.add_api_route("/stats", get_analytics_stats, methods=["GET"])
 router.add_api_route("/sales", get_analytics_sales, methods=["GET"])
+router.add_api_route(
+    "/monthly-daily-average", get_monthly_daily_average, methods=["GET"]
+)
 router.add_api_route("/stock", get_analytics_stock, methods=["GET"])
 router.add_api_route("/top-products", get_analytics_top_products, methods=["GET"])
 router.add_api_route("/users", get_analytics_users, methods=["GET"])
