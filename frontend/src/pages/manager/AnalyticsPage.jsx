@@ -22,7 +22,6 @@ function AnalyticsPage() {
   const [iaPredictions, setIaPredictions] = useState([])
   const [iaRecommendations, setIaRecommendations] = useState([])
   const [iaForecast, setIaForecast] = useState(null)
-  const [forecastProductId, setForecastProductId] = useState('all')
   const [trendProductId, setTrendProductId] = useState('all')
   const [monthlyAverage, setMonthlyAverage] = useState(null)
   const [salesYear, setSalesYear] = useState(new Date().getFullYear())
@@ -142,7 +141,7 @@ function AnalyticsPage() {
         setIaRecommendations([])
       }
 
-      await fetchIaForecast(forecastProductId)
+      await fetchIaForecast(productFilter)
     } catch (error) {
       addToast({
         type: 'error',
@@ -168,12 +167,6 @@ function AnalyticsPage() {
       setIaForecast(null)
     }
   }
-
-  useEffect(() => {
-    // Recharge la prévision IA lorsque l'utilisateur change de produit.
-    fetchIaForecast(forecastProductId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forecastProductId])
 
   const handleRefresh = () => {
     fetchAnalytics()
@@ -665,6 +658,12 @@ function AnalyticsPage() {
                 title="Prévisions de ventes (IA)"
                 actions={
                   <div className="flex items-center gap-3">
+                    {productFilter !== 'all' && (
+                      <span className="text-xs font-medium text-primary-600">
+                        {products.find((p) => String(p.id) === String(productFilter))?.name ||
+                          `Produit #${productFilter}`}
+                      </span>
+                    )}
                     {iaForecast && (
                       <span className="text-xs text-gray-500 hidden md:inline">
                         Prévision 30 j : {iaForecast.predicted_total ?? 0} unités ·{' '}
@@ -678,19 +677,6 @@ function AnalyticsPage() {
                           : ''}
                       </span>
                     )}
-                    <Select value={forecastProductId} onValueChange={setForecastProductId}>
-                      <SelectTrigger className="w-56">
-                        <SelectValue placeholder="Produit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous les produits</SelectItem>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={String(product.id)}>
-                            {product.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 }
               />
