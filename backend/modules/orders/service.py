@@ -22,6 +22,20 @@ from ...schemas.delivery import (
 )
 
 
+def build_batch_barcode(product, batch_number: Optional[str]) -> Optional[str]:
+    """Code-barres d'un lot = code racine produit + '-' + numéro de lot.
+
+    Exemple : racine 12345678, lot LOT2026A → 12345678-LOT2026A. Le tiret est
+    ignoré à la lecture par le service de scan, donc l'ancien code collé
+    (12345678LOT2026A) reste scannable.
+    """
+    root = (getattr(product, "code", None) or "").strip()
+    lot = (batch_number or "").strip()
+    if not root:
+        return lot or None
+    return f"{root}-{lot}" if lot else root
+
+
 class OrderService:
     @staticmethod
     async def list_orders(db, search=None, status=None, limit=100, offset=0):
@@ -290,6 +304,7 @@ class DeliveryService:
         product_ids = {i.product_id for i in d.items if i.product_id}
         product_names = {}
         product_barcodes = {}
+        product_codes = {}
         product_prices = {}
         product_bulk = {}
         if product_ids:
@@ -298,15 +313,17 @@ class DeliveryService:
                     Product.id,
                     Product.name,
                     Product.barcode,
+                    Product.code,
                     Product.price,
                     Product.is_bulk,
                     Product.units_per_box,
                     Product.bulk_price,
                 ).where(Product.id.in_(product_ids))
             )
-            for pid, pname, pbarcode, pprice, pis_bulk, punits, pbulk in pres.all():
+            for pid, pname, pbarcode, pcode, pprice, pis_bulk, punits, pbulk in pres.all():
                 product_names[pid] = pname
                 product_barcodes[pid] = pbarcode
+                product_codes[pid] = pcode
                 product_prices[pid] = float(pprice or 0)
                 product_bulk[pid] = {
                     "is_bulk": bool(pis_bulk),
@@ -324,11 +341,16 @@ class DeliveryService:
             )
             if not item_bulk_price and bulk_info.get("is_bulk"):
                 item_bulk_price = product_prices.get(i.product_id, 0) / max(units_per_box, 1)
+            root_code = product_codes.get(i.product_id)
+            item_barcode = i.barcode
+            if not item_barcode and root_code and i.batch_number:
+                item_barcode = f"{root_code}-{i.batch_number}"
+            item_barcode = item_barcode or product_barcodes.get(i.product_id)
             item_objs.append(DeliveryItemResponse(
                 id=i.id, delivery_id=i.delivery_id, product_id=i.product_id,
                 product_name=product_names.get(i.product_id),
                 product_barcode=product_barcodes.get(i.product_id),
-                barcode=i.barcode or product_barcodes.get(i.product_id),
+                barcode=item_barcode,
                 product_price=product_prices.get(i.product_id, 0) or 0,
                 quantity=i.quantity, unit_price=float(i.unit_price or 0),
                 selling_price=(
@@ -616,9 +638,12 @@ class DeliveryService:
                 batch_number = item.batch_number or f"REC-{d.id}-{item.id}-{uuid.uuid4().hex[:6]}"
                 expiry = item.expiry_date or (date.today() + timedelta(days=365))
                 location = item.location or "Réception"
+                batch_barcode = build_batch_barcode(product, batch_number)
+                item.barcode = batch_barcode
                 batch = Batch(
                     product_id=item.product_id,
                     batch_number=batch_number,
+                    barcode=batch_barcode,
                     expiry_date=expiry,
                     quantity=conforming,
                     reserved_quantity=0,
@@ -682,14 +707,20 @@ class DeliveryService:
                     # quantites au lieu de violer la contrainte d'unicite.
                     existing_batch.quantity = int(existing_batch.quantity or 0) + conforming
                     existing_batch.initial_quantity = int(existing_batch.initial_quantity or 0) + conforming
+                    if not existing_batch.barcode:
+                        existing_batch.barcode = build_batch_barcode(product, existing_batch.batch_number)
+                    item.barcode = existing_batch.barcode
                 else:
                     if existing_batch is not None:
                         # Numero de lot deja utilise pour un autre produit :
                         # on le rend unique.
                         batch_number = "%s-%d-%d" % (batch_number, d.id, item.id)
+                    batch_barcode = build_batch_barcode(product, batch_number)
+                    item.barcode = batch_barcode
                     db.add(Batch(
                         product_id=item.product_id,
                         batch_number=batch_number,
+                        barcode=batch_barcode,
                         expiry_date=expiry,
                         quantity=conforming,
                         reserved_quantity=0,

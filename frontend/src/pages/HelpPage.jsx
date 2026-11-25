@@ -51,7 +51,7 @@ function HelpPage() {
       name: "Support Technique", 
       description: "Disponible 24/7 pour les urgences",
       icon: Phone,
-      contact: "+212 5 22 34 56 78"
+      contact: "01 66 95 94 06"
     },
     { 
       name: "Email Support", 
@@ -82,7 +82,7 @@ function HelpPage() {
           <div className="mt-4">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <HelpCircle className="w-8 h-8 text-primary-600" />
-              Centre d'aide Pharma 360°
+              Centre d'aide Pharma 360
             </h1>
             <p className="text-gray-600 dark:text-gray-300 mt-2">
               Bienvenue dans le centre d'aide. Trouvez des réponses à vos questions et contactez notre équipe si nécessaire.

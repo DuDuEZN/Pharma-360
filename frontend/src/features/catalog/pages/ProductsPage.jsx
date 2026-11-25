@@ -333,7 +333,7 @@ function ProductsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Code-barres</TableHead>
+                    <TableHead>Code racine</TableHead>
                     <TableHead>Nom</TableHead>
                     <TableHead>Catégorie</TableHead>
                     <TableHead>Prix</TableHead>
@@ -351,7 +351,10 @@ function ProductsPage() {
                     return (
                       <TableRow key={product.id}>
                         <TableCell className="font-mono text-sm">
-                          {product.barcode}
+                          <div>{product.code || '—'}</div>
+                          <div className="text-[11px] text-gray-500">
+                            {product.barcode}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">

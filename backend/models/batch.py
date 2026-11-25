@@ -57,6 +57,11 @@ class Batch(Base):
     batch_number: Mapped[str] = mapped_column(
         String(50), unique=True, nullable=False, index=True
     )
+    # Code-barres propre au lot : code racine du produit + numéro de lot.
+    # Il permet d'identifier le lot exact lors du scan (FEFO par défaut sinon).
+    barcode: Mapped[Optional[str]] = mapped_column(
+        String(50), unique=True, nullable=True, index=True
+    )
     expiry_date: Mapped[date] = mapped_column(
         Date, nullable=False, index=True, comment="Date of expiration - CORE for FEFO"
     )

@@ -37,6 +37,8 @@ function ProductFormPage() {
     is_bulk: false,
     units_per_box: 2,
     bulk_price: '',
+    apply_tax: true,
+    tax_rate: 18,
   })
   
   const [categories, setCategories] = useState([])
@@ -168,14 +170,14 @@ function ProductFormPage() {
     setIsSubmitting(true)
     
     try {
-      // Le système génère systématiquement un code-barres si aucun n'a été saisi.
-      const barcode = (product.barcode || '').trim() ||
-        ('PH' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase())
+      // Le backend génère le code racine (8 chiffres) et le code-barres s'il
+      // n'est pas saisi. Le code-barres produit par défaut = code racine.
+      const barcode = (product.barcode || '').trim()
 
       const basePayload = {
         name: product.name,
-        barcode,
-        code: product.sku || null,
+        barcode: barcode || null,
+        code: (product.sku || '').trim() || null,
         dci: product.dci || null,
         category_id: product.category_id ? parseInt(product.category_id, 10) : null,
         description: product.description || null,
@@ -186,6 +188,10 @@ function ProductFormPage() {
         units_per_box: product.is_bulk
           ? Math.max(parseInt(product.units_per_box) || 2, 2)
           : 1,
+        apply_tax: Boolean(product.apply_tax),
+        tax_rate: Boolean(product.apply_tax)
+          ? parseFloat(product.tax_rate) || 0
+          : 0,
       }
 
       const payload = id
@@ -316,7 +322,7 @@ function ProductFormPage() {
                       {/* Barcode */}
                       <div className="space-y-2">
                         <Label htmlFor="barcode" className="flex items-center gap-1">
-                          Code-barres <span className="text-xs text-gray-500">(généré automatiquement si vide)</span>
+                          Code-barres <span className="text-xs text-gray-500">(par défaut : code racine)</span>
                         </Label>
                         <div className="flex gap-2">
                           <Input
@@ -346,17 +352,21 @@ function ProductFormPage() {
                         )}
                       </div>
 
-                      {/* SKU */}
+                      {/* SKU / code racine */}
                       <div className="space-y-2">
-                        <Label htmlFor="sku">SKU (Optionnel)</Label>
+                        <Label htmlFor="sku">Code racine produit</Label>
                         <Input
                           id="sku"
                           name="sku"
                           value={product.sku}
                           onChange={handleChange}
-                          placeholder="Ex: PAR-500-001"
+                          placeholder="8 chiffres — généré si vide"
                           disabled={isSubmitting}
                         />
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Unique dans tout le catalogue. Il préfixe le code-barres
+                          de chaque lot (racine + n° de lot).
+                        </p>
                       </div>
 
                       {/* Category */}
@@ -519,6 +529,48 @@ function ProductFormPage() {
                     </div>
                   </div>
                   )}
+
+                  {/* TVA — activée par défaut, désactivable produit par produit */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b pb-2">
+                      TVA
+                    </h3>
+
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                      <div>
+                        <Label htmlFor="apply_tax">Appliquer la TVA</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Activée par défaut à 18 %. Désactivez-la pour les
+                          produits exonérés de TVA.
+                        </p>
+                      </div>
+                      <Switch
+                        id="apply_tax"
+                        checked={product.apply_tax !== false}
+                        onCheckedChange={(checked) =>
+                          handleSwitchChange('apply_tax', checked)
+                        }
+                        disabled={isSubmitting}
+                      />
+                    </div>
+
+                    {product.apply_tax !== false && (
+                      <div className="max-w-xs space-y-2">
+                        <Label htmlFor="tax_rate">Taux de TVA (%)</Label>
+                        <Input
+                          id="tax_rate"
+                          name="tax_rate"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={product.tax_rate ?? 18}
+                          onChange={handleChange}
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                    )}
+                  </div>
 
                   {/* Stock Information */}
                   <div className="space-y-4">

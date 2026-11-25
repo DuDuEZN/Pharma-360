@@ -30,6 +30,23 @@ router = APIRouter(prefix="/products", tags=["products"])
 logger = get_logger("products")
 
 
+async def _generate_root_code(db: AsyncSession) -> str:
+    """Génère un code racine unique de 8 chiffres dans tout le catalogue."""
+    import secrets
+
+    for _ in range(200):
+        candidate = str(secrets.randbelow(90_000_000) + 10_000_000)
+        exists = await db.execute(
+            select(Product.id).where(Product.code == candidate)
+        )
+        if exists.scalar_one_or_none() is None:
+            return candidate
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Impossible de générer un code produit unique",
+    )
+
+
 @router.get("/", response_model=ProductListResponse, summary="List all products")
 async def list_products(
     page: Annotated[int, Query(ge=1)] = 1,
@@ -225,23 +242,34 @@ async def create_product(
             ),
         )
 
-    # Le système génère systématiquement un code-barres unique si aucun
-    # n'a été fourni (saisie manuelle ou scan).
-    barcode = (product_data.barcode or "").strip() or None
-    if not barcode:
-        import uuid
-        while True:
-            candidate = "PH" + uuid.uuid4().hex[:10].upper()
-            exists = await db.execute(
-                select(Product.id).where(Product.barcode == candidate)
-            )
-            if exists.scalar_one_or_none() is None:
-                barcode = candidate
-                break
+    # Code racine produit : saisi par le gestionnaire ou généré (8 chiffres
+    # uniques). Il sert de préfixe aux codes-barres de tous les lots.
+    root_code = (product_data.code or "").strip() or await _generate_root_code(db)
+    code_exists = await db.execute(
+        select(Product.id).where(Product.code == root_code)
+    )
+    if code_exists.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Le code produit « {root_code} » est déjà utilisé",
+        )
+
+    # Le code-barres produit par défaut est le code racine : scanner la racine
+    # identifie le produit et sélectionne le lot FEFO.
+    barcode = (product_data.barcode or "").strip() or root_code
+    barcode_exists = await db.execute(
+        select(Product.id).where(Product.barcode == barcode)
+    )
+    if barcode_exists.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Le code-barres « {barcode} » est déjà utilisé",
+        )
 
     product = Product(
         name=product_data.name,
         dci=product_data.dci,
+        code=root_code,
         barcode=barcode,
         category_id=product_data.category_id,
         description=product_data.description,
@@ -256,6 +284,8 @@ async def create_product(
         is_bulk=product_data.is_bulk,
         units_per_box=max(int(product_data.units_per_box or 1), 1),
         bulk_price=product_data.bulk_price,
+        apply_tax=product_data.apply_tax,
+        tax_rate=product_data.tax_rate,
     )
     db.add(product)
     await db.flush()
@@ -290,7 +320,42 @@ async def update_product(
 
     # Use exclude_unset so valid falsy values (0, False, empty string) are applied,
     # while omitted fields remain unchanged.
-    for field, value in product_data.model_dump(exclude_unset=True).items():
+    updates = product_data.model_dump(exclude_unset=True)
+
+    # Le code racine ne doit jamais rester vide : on en génère un si besoin.
+    if "code" in updates:
+        code_value = (updates.get("code") or "").strip()
+        updates["code"] = code_value or await _generate_root_code(db)
+        if updates["code"] != product.code:
+            duplicate = await db.execute(
+                select(Product.id).where(
+                    Product.code == updates["code"], Product.id != product.id
+                )
+            )
+            if duplicate.scalar_one_or_none() is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Le code produit « {updates['code']} » est déjà utilisé",
+                )
+
+    if "barcode" in updates:
+        barcode_value = (updates.get("barcode") or "").strip()
+        updates["barcode"] = barcode_value or updates.get("code") or product.code
+        if updates["barcode"] != product.barcode:
+            duplicate = await db.execute(
+                select(Product.id).where(
+                    Product.barcode == updates["barcode"], Product.id != product.id
+                )
+            )
+            if duplicate.scalar_one_or_none() is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Le code-barres « {updates['barcode']} » est déjà utilisé"
+                    ),
+                )
+
+    for field, value in updates.items():
         setattr(product, field, value)
 
     await db.flush()

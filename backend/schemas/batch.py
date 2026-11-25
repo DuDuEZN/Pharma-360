@@ -23,6 +23,7 @@ class BatchBase(BaseModel):
     batch_number: str = Field(
         ..., min_length=1, max_length=50, description="Batch number"
     )
+    barcode: Optional[str] = Field(None, max_length=50, description="Code-barres du lot")
     expiry_date: date_type = Field(..., description="Expiration date (YYYY-MM-DD)")
     quantity: int = Field(default=0, ge=0, description="Current quantity")
     bulk_quantity: int = Field(
@@ -58,6 +59,7 @@ class BatchUpdate(BaseModel):
 
     product_id: Optional[int] = Field(None)
     batch_number: Optional[str] = Field(None, min_length=1, max_length=50)
+    barcode: Optional[str] = Field(None, max_length=50)
     expiry_date: Optional[date_type] = Field(None)
     quantity: Optional[int] = Field(None, ge=0)
     bulk_quantity: Optional[int] = Field(None, ge=0)
@@ -80,6 +82,7 @@ class BatchResponse(BaseModel):
     product_id: int = Field(..., description="Product ID")
     product_name: Optional[str] = Field(None, description="Product name")
     batch_number: str = Field(..., description="Batch number")
+    barcode: Optional[str] = Field(None, description="Code-barres du lot")
     expiry_date: date_type = Field(..., description="Expiration date")
     quantity: int = Field(..., description="Current quantity")
     bulk_quantity: int = Field(

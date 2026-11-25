@@ -231,9 +231,113 @@
   }
 }
 
-/* Étiquettes de livraison : masquées à l'écran, visibles à l'impression */
+/* Étiquettes : masquées à l'écran, visibles uniquement à l'impression.
+   La taille de page et des étiquettes est générée dynamiquement par
+   LabelPrintSheet selon le format de papier choisi. */
 .delivery-labels-print {
   display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Aperçu avant impression (écran)
+   --------------------------------------------------------------------------- */
+.label-print-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  overflow-y: auto;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.label-print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto 20px;
+  padding: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+}
+
+.dark .label-print-toolbar {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #1c1c1e;
+}
+
+.label-preview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.delivery-label-preview {
+  width: 240px;
+  min-height: 150px;
+  padding: 10px;
+  border: 1px dashed #9ca3af;
+  border-radius: 6px;
+  background: #fff;
+  color: #000;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.delivery-label-preview .delivery-label-pharmacy {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.delivery-label-preview .delivery-label-product {
+  margin: 3px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.delivery-label-preview .delivery-label-price {
+  margin: 3px 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.delivery-label-preview .delivery-label-barcode svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.delivery-label-preview .delivery-label-barcode-text {
+  margin: 0;
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.delivery-label-preview .delivery-label-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 4px;
+  font-size: 9px;
+  line-height: 1.2;
 }
 
 @media print {
@@ -246,134 +350,76 @@
     display: none !important;
   }
 
-  body.printing-labels #delivery-labels-print,
-  body.printing-labels #bulk-labels-print {
-    display: grid !important;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4mm;
-    padding: 6mm;
-    background: #fff;
-    color: #000;
-    font-size: 9pt;
-  }
-
-  #delivery-labels-print .delivery-label {
-    border: 1px dashed #999;
-    border-radius: 2mm;
-    padding: 3mm;
-    page-break-inside: avoid;
-    break-inside: avoid;
-    text-align: center;
-    max-width: 62mm;
-  }
-
-  #delivery-labels-print .delivery-label-pharmacy {
-    margin: 0;
-    font-size: 10pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.3pt;
-  }
-
-  #delivery-labels-print .delivery-label-product {
-    margin: 1mm 0 0;
-    font-size: 9pt;
-    font-weight: 600;
-    line-height: 1.2;
-    overflow-wrap: anywhere;
-  }
-
-  #delivery-labels-print .delivery-label-price {
-    margin: 1mm 0;
-    font-size: 12pt;
-    font-weight: 700;
-  }
-
-  #delivery-labels-print .delivery-label-barcode svg {
-    display: block;
-    margin: 0 auto;
-    max-width: 100%;
-    height: 16mm;
-  }
-
-  #delivery-labels-print .delivery-label-barcode-text {
-    margin: 0;
-    font-family: monospace;
-    font-size: 8pt;
-  }
-
-  #delivery-labels-print .delivery-label-dates {
+  #delivery-labels-print .delivery-label,
+  #bulk-labels-print .delivery-label {
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 0.5mm;
-    margin-top: 1mm;
-    font-size: 7.5pt;
-    line-height: 1.2;
-  }
-}
-
-/* Étiquettes de vrac : mêmes styles que les étiquettes de livraison. */
-@media print {
-  #bulk-labels-print .delivery-label {
+    justify-content: space-between;
+    overflow: hidden;
+    padding: 1.4mm;
     border: 1px dashed #999;
-    border-radius: 2mm;
-    padding: 3mm;
+    border-radius: 1.5mm;
+    text-align: center;
     page-break-inside: avoid;
     break-inside: avoid;
-    text-align: center;
-    max-width: 62mm;
   }
 
+  #delivery-labels-print .delivery-label-pharmacy,
   #bulk-labels-print .delivery-label-pharmacy {
     margin: 0;
-    font-size: 10pt;
+    font-size: 1.05em;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.3pt;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
   }
 
+  #delivery-labels-print .delivery-label-product,
   #bulk-labels-print .delivery-label-product {
-    margin: 1mm 0 0;
-    font-size: 9pt;
+    margin: 0.6mm 0 0;
+    font-size: 0.95em;
     font-weight: 600;
-    line-height: 1.2;
+    line-height: 1.15;
     overflow-wrap: anywhere;
+  }
+
+  #delivery-labels-print .delivery-label-price,
+  #bulk-labels-print .delivery-label-price {
+    margin: 0.6mm 0;
+    font-size: 1.2em;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  #delivery-labels-print .delivery-label-barcode svg,
+  #bulk-labels-print .delivery-label-barcode svg {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    max-height: 11mm;
+    height: auto;
+    margin: 0 auto;
+  }
+
+  #delivery-labels-print .delivery-label-barcode-text,
+  #bulk-labels-print .delivery-label-barcode-text {
+    margin: 0;
+    font-family: monospace;
+    font-size: 0.85em;
+  }
+
+  #delivery-labels-print .delivery-label-dates,
+  #bulk-labels-print .delivery-label-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3mm;
+    margin-top: 0.6mm;
+    font-size: 0.75em;
+    line-height: 1.15;
   }
 
   #bulk-labels-print .delivery-label-bulk-tag {
     font-weight: 700;
   }
-
-  #bulk-labels-print .delivery-label-price {
-    margin: 1mm 0;
-    font-size: 12pt;
-    font-weight: 700;
-  }
-
-  #bulk-labels-print .delivery-label-barcode svg {
-    display: block;
-    margin: 0 auto;
-    max-width: 100%;
-    height: 16mm;
-  }
-
-  #bulk-labels-print .delivery-label-barcode-text {
-    margin: 0;
-    font-family: monospace;
-    font-size: 8pt;
-  }
-
-  #bulk-labels-print .delivery-label-dates {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5mm;
-    margin-top: 1mm;
-    font-size: 7.5pt;
-    line-height: 1.2;
-  }
-}
-
-
-@page {
-  margin: 12mm;
 }

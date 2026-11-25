@@ -9,12 +9,20 @@ from datetime import datetime
 from typing import Annotated, Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from ...core.database import get_db
 from ...core.logging import get_logger
 from ...core.security import RBACUtils, get_current_user
 from ...models.user import User
+from ...services.backup_service import (
+    BackupError,
+    create_backup,
+    delete_backup,
+    list_backups,
+    resolve_backup,
+    restore_backup,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -144,7 +152,7 @@ async def update_pharmacy_settings(
 
 
 @router.get("/backups")
-async def list_backups(
+async def list_backups_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -154,16 +162,90 @@ async def list_backups(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin required",
         )
-    backups_dir = os.path.join(os.path.dirname(__file__), "..", "..", "backups")
-    backups = []
-    if os.path.exists(backups_dir):
-        for fname in sorted(os.listdir(backups_dir)):
-            fpath = os.path.join(backups_dir, fname)
-            if os.path.isfile(fpath):
-                stat = os.stat(fpath)
-                backups.append({
-                    "name": fname,
-                    "size": stat.st_size,
-                    "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
-                })
-    return {"backups": backups}
+    return {"backups": list_backups()}
+
+
+@router.post("/backup", status_code=status.HTTP_201_CREATED)
+async def create_backup_endpoint(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Crée une sauvegarde complète de la base de données."""
+    if not RBACUtils.has_permission(current_user.role, "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin required",
+        )
+    try:
+        entry = await create_backup()
+    except BackupError as exc:
+        logger.error("Backup creation failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        )
+    return {"status": "success", "backup": entry, "message": "Sauvegarde créée"}
+
+
+@router.get("/backups/{backup_id}/download")
+async def download_backup_endpoint(
+    backup_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Télécharge une sauvegarde."""
+    if not RBACUtils.has_permission(current_user.role, "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin required",
+        )
+    path = resolve_backup(backup_id)
+    if not path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Sauvegarde introuvable"
+        )
+    return FileResponse(
+        path, media_type="application/octet-stream", filename=path.name
+    )
+
+
+@router.delete("/backups/{backup_id}")
+async def delete_backup_endpoint(
+    backup_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Supprime une sauvegarde."""
+    if not RBACUtils.has_permission(current_user.role, "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin required",
+        )
+    if not delete_backup(backup_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Sauvegarde introuvable"
+        )
+    return {"status": "success", "message": "Sauvegarde supprimée"}
+
+
+@router.post("/restore/{backup_id}")
+async def restore_backup_endpoint(
+    backup_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Restaure une sauvegarde (administrateur uniquement)."""
+    if not RBACUtils.has_permission(current_user.role, "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin required",
+        )
+    try:
+        await restore_backup(backup_id)
+    except BackupError as exc:
+        logger.error("Backup restore failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        )
+    return {"status": "success", "message": "Sauvegarde restaurée"}

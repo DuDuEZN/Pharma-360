@@ -87,10 +87,10 @@ function Sidebar({ mobileOpen = false, onClose }) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-semibold leading-tight tracking-tight text-secondary-900 dark:text-white">
-              {pharmacy.name}
+              Pharma 360
             </p>
-            <p className="text-[11px] font-medium text-secondary-500 dark:text-secondary-400">
-              Gestion de pharmacie
+            <p className="truncate text-[11px] font-medium text-secondary-500 dark:text-secondary-400">
+              {pharmacy.name || 'Gestion de pharmacie'}
             </p>
           </div>
           <button

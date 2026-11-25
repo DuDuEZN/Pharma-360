@@ -45,6 +45,12 @@ class ProductBase(BaseModel):
     bulk_price: Decimal = Field(
         default=0.00, ge=0, description="Prix de vente d'une unité en vrac"
     )
+    apply_tax: bool = Field(
+        default=True, description="Appliquer la TVA à ce produit"
+    )
+    tax_rate: Decimal = Field(
+        default=18.00, ge=0, le=100, description="Taux de TVA (%)"
+    )
 
 
 # Product Create Schema
@@ -75,6 +81,8 @@ class ProductUpdate(BaseModel):
     is_bulk: Optional[bool] = Field(None)
     units_per_box: Optional[int] = Field(None, ge=1)
     bulk_price: Optional[Decimal] = Field(None, ge=0)
+    apply_tax: Optional[bool] = Field(None)
+    tax_rate: Optional[Decimal] = Field(None, ge=0, le=100)
 
 
 # Product Response Schema

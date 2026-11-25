@@ -10,6 +10,7 @@ from .audit_logs import router as audit_logs_router
 from .auth import router as auth_router
 from .barcode import router as barcode_router
 from .batches import router as batches_router
+from .backups import router as backups_router
 from .dashboard import router as dashboard_router
 from .deliveries import router as deliveries_router
 from .docs import router as docs_router
@@ -40,6 +41,7 @@ routers = [
     returns_router,
     invoices_router,
     settings_router,
+    backups_router,
     suppliers_router,
     sale_history_router,
     roles_router,

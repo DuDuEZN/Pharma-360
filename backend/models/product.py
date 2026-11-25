@@ -86,6 +86,14 @@ class Product(Base):
     bulk_price: Mapped[Decimal] = mapped_column(
         Numeric(10, 2), default=0.00, nullable=False
     )
+    # TVA : activée par défaut au taux de 18 %. Le gestionnaire peut la
+    # désactiver produit par produit à la création (produits exonérés).
+    apply_tax: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
+    )
+    tax_rate: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), default=18.00, server_default="18.00", nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

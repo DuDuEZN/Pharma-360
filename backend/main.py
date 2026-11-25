@@ -92,6 +92,58 @@ async def startup_event():
                     ))
             except Exception:
                 pass
+            # Migration douce : TVA par produit (18 % activée par défaut) et
+            # code-barres unique par lot (code racine + numéro de lot).
+            try:
+                async with conn.begin_nested():
+                    await conn.execute(text(
+                        "ALTER TABLE products ADD COLUMN IF NOT EXISTS apply_tax "
+                        "BOOLEAN NOT NULL DEFAULT TRUE"
+                    ))
+                    await conn.execute(text(
+                        "ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_rate "
+                        "NUMERIC(5, 2) NOT NULL DEFAULT 18.00"
+                    ))
+                    await conn.execute(text(
+                        "ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS tax_rate "
+                        "NUMERIC(5, 2) NOT NULL DEFAULT 0.00"
+                    ))
+                    await conn.execute(text(
+                        "ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS tax_amount "
+                        "NUMERIC(12, 2) NOT NULL DEFAULT 0.00"
+                    ))
+                    await conn.execute(text(
+                        "ALTER TABLE batches ADD COLUMN IF NOT EXISTS barcode VARCHAR(50)"
+                    ))
+                    await conn.execute(text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS ix_batches_barcode "
+                        "ON batches (barcode) WHERE barcode IS NOT NULL"
+                    ))
+            except Exception:
+                pass
+            # Backfill : tout produit possède un code racine de 8 chiffres…
+            try:
+                async with conn.begin_nested():
+                    await conn.execute(text(
+                        "UPDATE products "
+                        "SET code = lpad((10000000 + id)::text, 8, '0') "
+                        "WHERE code IS NULL OR btrim(code) = ''"
+                    ))
+            except Exception:
+                pass
+            # … et chaque lot existant reçoit son code-barres racine + lot.
+            try:
+                async with conn.begin_nested():
+                    await conn.execute(text(
+                        "UPDATE batches b "
+                        "SET barcode = p.code || '-' || b.batch_number "
+                        "FROM products p "
+                        "WHERE b.product_id = p.id "
+                        "AND (b.barcode IS NULL OR btrim(b.barcode) = '') "
+                        "AND p.code IS NOT NULL AND btrim(p.code) <> ''"
+                    ))
+            except Exception:
+                pass
             # Migration douce : colonne expiry_date en DATE (anciennes bases).
             try:
                 async with conn.begin_nested():

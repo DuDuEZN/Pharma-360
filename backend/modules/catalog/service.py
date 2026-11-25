@@ -35,9 +35,13 @@ class ProductService:
     async def get_product_by_barcode(
         barcode: str, db: AsyncSession
     ) -> Optional[Product]:
-        """Get product by barcode"""
+        """Get product by barcode (ou par code racine produit)."""
         result = await db.execute(select(Product).where(Product.barcode == barcode))
-        return result.scalar_one_or_none()
+        product = result.scalar_one_or_none()
+        if product is None:
+            result = await db.execute(select(Product).where(Product.code == barcode))
+            product = result.scalar_one_or_none()
+        return product
 
     @staticmethod
     async def get_product_by_dci(dci: str, db: AsyncSession) -> list[Product]:

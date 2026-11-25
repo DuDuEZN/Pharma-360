@@ -68,6 +68,8 @@ class SaleItemResponse(BaseModel):
     sale_unit: str = Field(default="box", description="box ou bulk")
     unit_price: Decimal = Field(..., description="Unit price")
     total_price: Decimal = Field(..., description="Total price")
+    tax_rate: Decimal = Field(default=0, description="Taux de TVA de la ligne (%)")
+    tax_amount: Decimal = Field(default=0, description="Montant de TVA de la ligne")
     expiry_date: Optional[str] = Field(None, description="Expiry date at time of sale")
     created_at: datetime = Field(..., description="Creation timestamp")
 

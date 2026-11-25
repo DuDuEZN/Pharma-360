@@ -86,10 +86,10 @@ function LoginPage() {
               <Package className="h-8 w-8 text-white" strokeWidth={2.2} />
             </div>
             <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-secondary-900 dark:text-white">
-              {pharmacy.name}
+              Pharma 360
             </h1>
-            <p className="mt-1 text-[13px] text-secondary-500 dark:text-secondary-400">
-              Plateforme de gestion de pharmacie
+            <p className="mt-1 text-[13px] font-medium text-secondary-600 dark:text-secondary-300">
+              {pharmacy.name || 'Plateforme de gestion de pharmacie'}
             </p>
           </div>
 
@@ -133,7 +133,7 @@ function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-[11px] text-secondary-400 dark:text-secondary-500">
-          © {new Date().getFullYear()} {pharmacy.name}. Tous droits réservés.
+          © {new Date().getFullYear()} Pharma 360. Tous droits réservés.
         </p>
       </div>
     </div>

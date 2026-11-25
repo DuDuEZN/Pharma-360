@@ -213,6 +213,7 @@ class SaleService:
 
         # Create sale items and reserve stock
         total_subtotal = 0.00
+        total_tax = 0.00
         bulk_labels: dict[tuple[int, int], dict] = {}
         reconditioned_boxes = 0
         now_iso = datetime.now().isoformat()
@@ -269,6 +270,11 @@ class SaleService:
                 unit_price = float(product.bulk_unit_price)
                 total_price = unit_price * needed
                 total_subtotal += total_price
+                line_tax_rate = (
+                    float(product.tax_rate or 0) if product.apply_tax else 0.0
+                )
+                line_tax = round(total_price * line_tax_rate / 100.0, 2)
+                total_tax += line_tax
 
                 db.add(
                     SaleItem(
@@ -279,6 +285,8 @@ class SaleService:
                         sale_unit="bulk",
                         unit_price=unit_price,
                         total_price=total_price,
+                        tax_rate=line_tax_rate,
+                        tax_amount=line_tax,
                         expiry_date=batch.expiry_date,
                     )
                 )
@@ -308,7 +316,7 @@ class SaleService:
                         {
                             "product_id": product.id,
                             "product_name": product.name,
-                            "barcode": product.barcode,
+                            "barcode": batch.barcode or product.barcode,
                             "price": unit_price,
                             "batch_number": batch.batch_number,
                             "expiry_date": (
@@ -330,6 +338,11 @@ class SaleService:
             unit_price = float(item.unit_price)
             total_price = unit_price * item.quantity
             total_subtotal += total_price
+            line_tax_rate = (
+                float(product.tax_rate or 0) if product.apply_tax else 0.0
+            )
+            line_tax = round(total_price * line_tax_rate / 100.0, 2)
+            total_tax += line_tax
 
             # Create sale item
             sale_item = SaleItem(
@@ -340,6 +353,8 @@ class SaleService:
                 sale_unit="box",
                 unit_price=unit_price,
                 total_price=total_price,
+                tax_rate=line_tax_rate,
+                tax_amount=line_tax,
                 expiry_date=batch.expiry_date,
             )
 
@@ -369,8 +384,15 @@ class SaleService:
         subtotal_amount = round(float(total_subtotal), 2)
         discount_amount = round(float(sale_data.discount or 0), 2)
         discount_amount = min(max(discount_amount, 0.0), subtotal_amount)
-        tax_amount = round(float(sale_data.tax_amount or 0), 2)
-        tax_amount = max(tax_amount, 0.0)
+        # TVA calculée ligne par ligne selon le réglage de chaque produit
+        # (apply_tax + tax_rate). Elle est proratisée sur le net après remise.
+        computed_tax = round(float(total_tax), 2)
+        if discount_amount > 0 and subtotal_amount > 0:
+            computed_tax = round(
+                computed_tax * (subtotal_amount - discount_amount) / subtotal_amount,
+                2,
+            )
+        tax_amount = max(computed_tax, 0.0)
         total_amount = round(subtotal_amount - discount_amount + tax_amount, 2)
 
         new_sale.subtotal = subtotal_amount

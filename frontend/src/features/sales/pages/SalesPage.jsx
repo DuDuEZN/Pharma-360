@@ -85,9 +85,6 @@ function SalesPage() {
   const [discountType, setDiscountType] = useState('percentage')
   const [discountValue, setDiscountValue] = useState('')
 
-  // TVA (taux configurable dans les paramètres)
-  const [taxRate, setTaxRate] = useState(0)
-
   const {
     isOpen: isProductModalOpen,
     onOpen: openProductModal,
@@ -137,25 +134,6 @@ function SalesPage() {
     const timer = setTimeout(() => fetchProducts(searchQuery), 300)
     return () => clearTimeout(timer)
   }, [searchQuery, fetchProducts])
-
-  // Taux de TVA configuré dans les paramètres de la pharmacie.
-  useEffect(() => {
-    let cancelled = false
-    const loadTaxRate = async () => {
-      try {
-        const response = await api.get('/settings/pharmacy')
-        if (cancelled) return
-        const rate = Number(response.data?.tax_rate ?? 0)
-        setTaxRate(Number.isFinite(rate) ? rate : 0)
-      } catch {
-        if (!cancelled) setTaxRate(0)
-      }
-    }
-    loadTaxRate()
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   // --- Recherche clients --------------------------------------------------
   useEffect(() => {
@@ -436,11 +414,24 @@ function SalesPage() {
 
   const netTotal = Math.max(0, cartTotal - discountAmount)
 
-  // TVA calculée sur le net après remise.
+  // TVA calculée par produit (taux propre à chaque produit, exonérations
+  // possibles), puis proratisée sur le net après remise.
   const taxAmount = useMemo(() => {
-    if (taxRate <= 0) return 0
-    return Math.round(netTotal * taxRate) / 100
-  }, [netTotal, taxRate])
+    const grossTotal = cartItems.reduce(
+      (sum, item) => sum + getItemUnitPrice(item) * item.quantity,
+      0
+    )
+    if (grossTotal <= 0) return 0
+    const grossTax = cartItems.reduce((sum, item) => {
+      const product = item.product || {}
+      if (product.apply_tax === false) return sum
+      const rate = Number(product.tax_rate ?? 18)
+      if (!Number.isFinite(rate) || rate <= 0) return sum
+      return sum + getItemUnitPrice(item) * item.quantity * (rate / 100)
+    }, 0)
+    const ratio = Math.max(0, Math.min(1, netTotal / grossTotal))
+    return Math.round(grossTax * ratio * 100) / 100
+  }, [cartItems, netTotal])
 
   const grandTotal = Math.max(0, netTotal + taxAmount)
 
@@ -887,7 +878,7 @@ function SalesPage() {
                   )}
                   {taxAmount > 0 && (
                     <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
-                      <span>TVA ({taxRate}%)</span>
+                      <span>TVA</span>
                       <span>+{formatCurrency(taxAmount)}</span>
                     </div>
                   )}
@@ -1210,7 +1201,7 @@ function SalesPage() {
             )}
             {taxAmount > 0 && (
               <p className="mt-1 text-gray-700 dark:text-gray-200">
-                <span className="font-medium">TVA ({taxRate}%) :</span>{' '}
+                <span className="font-medium">TVA :</span>{' '}
                 +{formatCurrency(taxAmount)}
               </p>
             )}

@@ -6,10 +6,12 @@ Handles barcode scanning, processing, and middleware for hardware integration
 import re
 from typing import Optional, Tuple
 
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.batch import Batch
 from ..models.product import Product
+from ..modules.catalog.schemas import BatchResponse, ProductResponse
 from ..schemas.product import BarcodeScanResponse
 from ..services.product_service import ProductService
 
@@ -68,6 +70,75 @@ class BarcodeService:
         return normalized.upper()
 
     @staticmethod
+    async def find_batch_by_barcode(
+        barcode: str, db: AsyncSession
+    ) -> Optional[Tuple[Product, Batch]]:
+        """Retrouve un lot exact à partir de son code-barres.
+
+        Le code-barres d'un lot est ``code racine + '-' + numéro de lot``.
+        On tolère l'absence de tiret (codes collés), les minuscules et les
+        espaces : le scan terrain reste ainsi fiable.
+        """
+        raw = (barcode or "").strip()
+        if not raw:
+            return None
+        normalized = BarcodeService.normalize_barcode(raw)
+        result = await db.execute(
+            select(Batch, Product)
+            .join(Product, Product.id == Batch.product_id)
+            .where(
+                or_(
+                    Batch.barcode == raw,
+                    func.replace(Batch.barcode, "-", "") == normalized,
+                    func.replace(
+                        func.concat(Product.code, Batch.batch_number), "-", ""
+                    )
+                    == normalized,
+                )
+            )
+            .limit(1)
+        )
+        row = result.first()
+        if not row:
+            return None
+        # select(Batch, Product) → (lot, produit)
+        batch, product = row[0], row[1]
+        return product, batch
+
+    @staticmethod
+    def _build_batch_response(product: Product, batch: Batch) -> BarcodeScanResponse:
+        """Construit la réponse de scan pour un lot précis."""
+        product_response = ProductResponse.model_validate(product)
+        product_response.current_stock = product.current_stock
+        product_response.current_bulk_stock = product.current_bulk_stock
+        product_response.expired_stock = product.expired_stock
+        product_response.has_expired_stock = product.has_expired_stock
+        product_response.is_low_stock = product.is_low_stock
+        product_response.is_overstocked = product.is_overstocked
+        product_response.next_expiring_batch = batch.batch_number
+        product_response.has_expiring_soon = product.has_expiring_soon
+        product_response.category_name = (
+            product.category.name if product.category else None
+        )
+
+        batch_response = BatchResponse.model_validate(batch)
+        batch_response.product_name = product.name
+        batch_response.supplier_name = (
+            batch.supplier.name if batch.supplier else None
+        )
+        batch_response.is_active = batch.is_active
+        batch_response.is_expired = batch.is_expired
+        batch_response.is_available = batch.is_available
+        batch_response.percentage_used = batch.percentage_used
+        batch_response.days_until_expiry = batch.days_until_expiry
+        batch_response.is_expiring_soon = batch.is_expiring_soon
+        batch_response.fefo_priority = batch.fefo_priority
+
+        return BarcodeScanResponse(
+            product=product_response, batch=batch_response, error=None
+        )
+
+    @staticmethod
     async def scan_barcode(barcode: str, db: AsyncSession) -> BarcodeScanResponse:
         """
         Scan a barcode and return product with FEFO batch selection
@@ -92,6 +163,14 @@ class BarcodeService:
                 error=f"Format de code-barres invalide: {barcode}",
             )
 
+        # 1) Code-barres d'un lot précis (racine + numéro de lot) : il est
+        # prioritaire sur la sélection FEFO.
+        batch_hit = await BarcodeService.find_batch_by_barcode(barcode, db)
+        if batch_hit:
+            product, batch = batch_hit
+            return BarcodeService._build_batch_response(product, batch)
+
+        # 2) Sinon, code-barres produit : sélection FEFO classique.
         # Try to find product by barcode
         product = await ProductService.get_product_by_barcode(normalized_barcode, db)
 

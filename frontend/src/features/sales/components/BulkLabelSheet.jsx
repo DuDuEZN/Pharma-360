@@ -1,8 +1,11 @@
-import React, { useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
-import JsBarcode from 'jsbarcode'
+import React, { useState } from 'react'
 import { usePharmacy } from '@/providers/PharmacyProvider'
 import { formatCurrency } from '@/lib/utils'
+import {
+  DEFAULT_LABEL_FORMAT,
+  LabelBarcode,
+  LabelPrintSheet,
+} from '@/components/delivery/LabelPrintSheet'
 
 const MAX_LABELS = 200
 
@@ -14,45 +17,12 @@ const formatLabelDate = (value) => {
 
 /**
  * BulkLabelSheet
- * Étiquettes imprimées automatiquement quand une vente en vrac déclenche le
- * reconditionnement de boîtes. Une étiquette par unité de vrac obtenue.
+ * Aperçu et impression des étiquettes de vrac obtenues lors d'un
+ * reconditionnement. Une étiquette par unité de vrac.
  *
- * Le code-barres est celui du produit : il ne change pas lors du
- * reconditionnement. Seul le prix affiché est le prix de l'unité (vrac).
+ * Le code-barres est celui du lot (code racine + numéro de lot) : il permet
+ * de retrouver le lot exact lors du scan.
  */
-function LabelBarcode({ value }) {
-  const svgRef = useRef(null)
-
-  useEffect(() => {
-    const node = svgRef.current
-    const code = (value || '').trim()
-    if (!node || !code) return
-
-    try {
-      JsBarcode(node, code, {
-        format: 'CODE128',
-        width: 1.5,
-        height: 44,
-        displayValue: true,
-        fontSize: 12,
-        margin: 0,
-        background: '#ffffff',
-        lineColor: '#000000',
-      })
-    } catch (error) {
-      // Code non encodable : le texte reste affiché sous les barres.
-      console.error('Barcode generation failed:', error)
-    }
-  }, [value])
-
-  return (
-    <div className="delivery-label-barcode">
-      <svg ref={svgRef} />
-      {!value && <p className="delivery-label-barcode-text">—</p>}
-    </div>
-  )
-}
-
 const expandLabels = (labels) => {
   const expanded = []
   ;(labels || []).forEach((label, labelIndex) => {
@@ -66,74 +36,54 @@ const expandLabels = (labels) => {
 
 function BulkLabelSheet({ labels, onDone }) {
   const { pharmacy } = usePharmacy()
-  const printedRef = useRef(null)
-  const onDoneRef = useRef(onDone)
+  const [formatId, setFormatId] = useState(DEFAULT_LABEL_FORMAT)
   const items = expandLabels(labels)
-  const signature = items.length
-    ? `${items.length}-${items[0]?.product_id}-${items[0]?.batch_number}-${items[0]?.quantity}`
-    : ''
-
-  useEffect(() => {
-    onDoneRef.current = onDone
-  }, [onDone])
-
-  useEffect(() => {
-    if (!signature || items.length === 0) return undefined
-    // Impression unique pour un même lot d'étiquettes.
-    if (printedRef.current === signature) return undefined
-    printedRef.current = signature
-
-    const body = document.body
-    body.classList.add('printing-labels')
-
-    // Laisse le temps aux codes-barres de se dessiner avant l'impression.
-    const timer = window.setTimeout(() => {
-      window.print()
-      body.classList.remove('printing-labels')
-      if (onDoneRef.current) onDoneRef.current()
-    }, 500)
-
-    const cleanup = () => body.classList.remove('printing-labels')
-    window.addEventListener('afterprint', cleanup)
-
-    return () => {
-      window.clearTimeout(timer)
-      cleanup()
-      window.removeEventListener('afterprint', cleanup)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature])
 
   if (items.length === 0) return null
 
-  return createPortal(
-    <div id="bulk-labels-print" className="delivery-labels-print bulk-labels-print">
-      {items.map((item) => (
-        <div key={item.key} className="delivery-label bulk-label">
-          <p className="delivery-label-pharmacy">{pharmacy.name}</p>
-          <p className="delivery-label-product">
-            {item.product_name || 'Produit'}
-            <span className="delivery-label-bulk-tag"> · VRAC</span>
-          </p>
-          <p className="delivery-label-price">{formatCurrency(item.price || 0)}</p>
+  const renderLabel = (item, preview = false) => (
+    <div
+      key={`${preview ? 'preview' : 'print'}-${item.key}`}
+      className={
+        preview
+          ? 'delivery-label bulk-label delivery-label-preview'
+          : 'delivery-label bulk-label'
+      }
+    >
+      <p className="delivery-label-pharmacy">{pharmacy.name}</p>
+      <p className="delivery-label-product">
+        {item.product_name || 'Produit'}
+        <span className="delivery-label-bulk-tag"> · VRAC</span>
+      </p>
+      <p className="delivery-label-price">{formatCurrency(item.price || 0)}</p>
 
-          <LabelBarcode value={item.barcode} />
+      <LabelBarcode value={item.barcode} height={preview ? 30 : 32} />
 
-          <div className="delivery-label-dates">
-            <span>
-              Reconditionné le{' '}
-              {item.sale_date ? formatLabelDate(item.sale_date) : '—'}
-            </span>
-            <span>
-              Péremption{' '}
-              {item.expiry_date ? formatLabelDate(item.expiry_date) : '—'}
-            </span>
-            {item.batch_number && <span>Lot {item.batch_number}</span>}
-          </div>
-        </div>
-      ))}
-    </div>,
-    document.body
+      <div className="delivery-label-dates">
+        <span>
+          Reconditionné le{' '}
+          {item.sale_date ? formatLabelDate(item.sale_date) : '—'}
+        </span>
+        <span>
+          Péremption{' '}
+          {item.expiry_date ? formatLabelDate(item.expiry_date) : '—'}
+        </span>
+        {item.batch_number && <span>Lot {item.batch_number}</span>}
+      </div>
+    </div>
+  )
+
+  return (
+    <LabelPrintSheet
+      rootId="bulk-labels-print"
+      title="Étiquettes de vrac"
+      count={items.length}
+      formatId={formatId}
+      onFormatChange={setFormatId}
+      onClose={onDone}
+      renderPreview={() => items.map((item) => renderLabel(item, true))}
+      renderPrint={() => items.map((item) => renderLabel(item, false))}
+    />
   )
 }
 

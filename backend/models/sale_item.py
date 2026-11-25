@@ -70,6 +70,14 @@ class SaleItem(Base):
     )
     unit_price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     total_price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    tax_rate: Mapped[float] = mapped_column(
+        Numeric(5, 2), default=0.00, server_default="0.00", nullable=False,
+        comment="Taux de TVA appliqué à la ligne (0 si exonéré)",
+    )
+    tax_amount: Mapped[float] = mapped_column(
+        Numeric(12, 2), default=0.00, server_default="0.00", nullable=False,
+        comment="Montant de TVA de la ligne",
+    )
     expiry_date: Mapped[Optional[date]] = mapped_column(
         Date, nullable=True, comment="Expiry date at time of sale (from batch)"
     )
