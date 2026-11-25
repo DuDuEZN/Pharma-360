@@ -158,10 +158,8 @@ function DeliveriesPage() {
   }
 
   const handleRejectDelivery = async (deliveryId) => {
-    const reason = window.prompt('Motif du rejet de la livraison (optionnel) :')
-    if (reason === null) return
     try {
-      await api.post(`/manager/deliveries/${deliveryId}/reject`, { status: reason || '' })
+      await api.post(`/manager/deliveries/${deliveryId}/reject`, { status: '' })
       addToast({ type: 'success', title: 'Succès', message: 'Livraison rejetée' })
       setIsModalOpen(false)
       setSelectedDelivery(null)

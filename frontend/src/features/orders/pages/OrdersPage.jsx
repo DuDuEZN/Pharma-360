@@ -155,10 +155,8 @@ function OrdersPage() {
   }
 
   const handleRejectOrder = async (orderId) => {
-    const reason = window.prompt('Motif du rejet (optionnel) :')
-    if (reason === null) return
     try {
-      await ordersApi.reject(orderId, { status: reason || '' })
+      await ordersApi.reject(orderId, { status: '' })
       addToast({ type: 'success', title: 'Succès', message: 'Commande rejetée' })
       fetchOrders()
     } catch (error) {

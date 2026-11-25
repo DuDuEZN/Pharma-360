@@ -31,6 +31,7 @@ const Switch = forwardRef(({
     <div className="flex items-center gap-2">
       <button
         ref={switchRef}
+        type="button"
         id={id}
         role="switch"
         aria-checked={checked}
