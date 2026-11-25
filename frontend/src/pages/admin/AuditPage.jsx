@@ -503,7 +503,7 @@ function AuditPage() {
                           {formatDateTime(entry.created_at)}
                         </TableCell>
                         <TableCell className="text-xs">
-                          {entry.product_id ? `#${entry.product_id}` : '—'}
+                          {entry.product_name || (entry.product_id ? `#${entry.product_id}` : '—')}
                         </TableCell>
                         <TableCell className="font-mono text-xs">{entry.batch_number || '—'}</TableCell>
                         <TableCell>{entry.quantity ?? 0}</TableCell>

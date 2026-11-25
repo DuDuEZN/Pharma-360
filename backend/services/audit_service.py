@@ -94,10 +94,13 @@ class AuditService:
         }
 
     @staticmethod
-    def _serialize_expired(entry: ExpiredProductLog) -> dict:
+    def _serialize_expired(
+        entry: ExpiredProductLog, product_name: Optional[str] = None
+    ) -> dict:
         return {
             "id": entry.id,
             "product_id": entry.product_id,
+            "product_name": product_name or getattr(entry, "product_name", None),
             "batch_id": entry.batch_id,
             "batch_number": entry.batch_number,
             "quantity": entry.quantity,
@@ -121,6 +124,7 @@ class AuditService:
         date_to: Optional[datetime] = None,
     ) -> dict:
         from sqlalchemy import func, or_, select, desc
+        from ..models.product import Product
 
         conditions = []
         if action:
@@ -172,6 +176,7 @@ class AuditService:
         date_to: Optional[datetime] = None,
     ) -> dict:
         from sqlalchemy import func, or_, select, desc
+        from ..models.product import Product
 
         conditions = []
         if search:
@@ -180,6 +185,7 @@ class AuditService:
                 or_(
                     ExpiredProductLog.batch_number.ilike(like),
                     ExpiredProductLog.reason.ilike(like),
+                    Product.name.ilike(like),
                 )
             )
         if date_from:
@@ -187,8 +193,14 @@ class AuditService:
         if date_to:
             conditions.append(ExpiredProductLog.created_at <= date_to)
 
-        query = select(ExpiredProductLog)
-        count_query = select(func.count(ExpiredProductLog.id))
+        from ..models.product import Product
+
+        query = select(ExpiredProductLog, Product.name).outerjoin(
+            Product, Product.id == ExpiredProductLog.product_id
+        )
+        count_query = select(func.count(ExpiredProductLog.id)).outerjoin(
+            Product, Product.id == ExpiredProductLog.product_id
+        )
         if conditions:
             query = query.where(*conditions)
             count_query = count_query.where(*conditions)
@@ -199,9 +211,11 @@ class AuditService:
             .limit(limit)
             .offset(offset)
         )
-        rows = result.scalars().all()
+        rows = result.all()
         return {
-            "logs": [AuditService._serialize_expired(row) for row in rows],
+            "logs": [
+                AuditService._serialize_expired(row[0], row[1]) for row in rows
+            ],
             "total": total,
         }
 
