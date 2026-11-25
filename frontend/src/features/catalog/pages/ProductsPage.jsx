@@ -352,9 +352,11 @@ function ProductsPage() {
                       <TableRow key={product.id}>
                         <TableCell className="font-mono text-sm">
                           <div>{product.code || '—'}</div>
-                          <div className="text-[11px] text-gray-500">
-                            {product.barcode}
-                          </div>
+                          {product.barcode && product.barcode !== product.code && (
+                            <div className="text-[11px] text-gray-500">
+                              {product.barcode}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">

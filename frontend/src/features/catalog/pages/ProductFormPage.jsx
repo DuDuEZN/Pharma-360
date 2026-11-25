@@ -172,11 +172,8 @@ function ProductFormPage() {
     try {
       // Le backend génère le code racine (8 chiffres) et le code-barres s'il
       // n'est pas saisi. Le code-barres produit par défaut = code racine.
-      const barcode = (product.barcode || '').trim()
-
       const basePayload = {
         name: product.name,
-        barcode: barcode || null,
         code: (product.sku || '').trim() || null,
         dci: product.dci || null,
         category_id: product.category_id ? parseInt(product.category_id, 10) : null,
@@ -319,37 +316,14 @@ function ProductFormPage() {
                         )}
                       </div>
 
-                      {/* Barcode */}
-                      <div className="space-y-2">
-                        <Label htmlFor="barcode" className="flex items-center gap-1">
-                          Code-barres <span className="text-xs text-gray-500">(par défaut : code racine)</span>
-                        </Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id="barcode"
-                            name="barcode"
-                            value={product.barcode}
-                            onChange={handleChange}
-                            placeholder="Ex: 123456789012"
-                            disabled={isSubmitting}
-                            className={cn(errors.barcode && 'border-red-500')}
-                          />
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={generateBarcode}
-                            disabled={isSubmitting}
-                          >
-                            <Barcode className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        {errors.barcode && (
-                          <p className="text-sm text-red-500 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            {errors.barcode}
-                          </p>
-                        )}
+                      {/* Code-barres : identique au code racine. Le code-barres propre
+                          a chaque lot (racine + n° de lot) est genere a la livraison
+                          pour les etiquettes. */}
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">
+                        Le code-barres du produit est son code racine. Le
+                        code-barres de chaque lot (racine + numero de lot) est
+                        genere automatiquement a la reception / livraison pour
+                        les etiquettes.
                       </div>
 
                       {/* SKU / code racine */}
