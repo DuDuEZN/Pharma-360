@@ -20,6 +20,21 @@ export const catalogApi = {
     return api.get(`${BASE}/categories`)
   },
 
+  /** Créer une catégorie (admin/manager). */
+  createCategory(payload) {
+    return api.post(`${BASE}/categories`, payload)
+  },
+
+  /** Modifier une catégorie (admin/manager). */
+  updateCategory(id, payload) {
+    return api.put(`${BASE}/categories/${id}`, payload)
+  },
+
+  /** Supprimer une catégorie (admin/manager). */
+  deleteCategory(id) {
+    return api.delete(`${BASE}/categories/${id}`)
+  },
+
   /** Nombre de produits actifs par catégorie. */
   categoryStats() {
     return api.get(`${BASE}/categories/stats`)

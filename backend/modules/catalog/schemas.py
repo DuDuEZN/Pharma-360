@@ -193,3 +193,22 @@ class BarcodeScanResponse(BaseModel):
     error: Optional[str] = Field(None, description="Error message if not found")
 
     model_config = ConfigDict(from_attributes=True, json_encoders={Decimal: float})
+# Category Schemas
+class CategoryCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50, description="Category name")
+    description: Optional[str] = Field(None, description="Category description")
+    parent_id: Optional[int] = Field(None, description="Parent category ID")
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=50)
+    description: Optional[str] = None
+    parent_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    parent_id: Optional[int] = None
+    is_active: bool = True
+    model_config = ConfigDict(from_attributes=True)

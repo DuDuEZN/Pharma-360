@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Package, Search, Plus, Edit, Trash2, Barcode, X, Eye, AlertTriangle } from 'lucide-react'
+import { Package, Search, Plus, Edit, Trash2, Barcode, X, Eye, AlertTriangle, Tag } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
@@ -23,6 +23,11 @@ function ProductsPage() {
   const [products, setProducts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [categories, setCategories] = useState([])
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false)
+  const [categoryName, setCategoryName] = useState('')
+  const [categoryDesc, setCategoryDesc] = useState('')
+  const [editingCategory, setEditingCategory] = useState(null)
+  const [categorySaving, setCategorySaving] = useState(false)
   const [barcodeInput, setBarcodeInput] = useState('')
   const { addToast } = useToast()
   const { hasAlerts, getAlertCountForProduct, getProductAlertSeverity } = useAlerts()
@@ -92,6 +97,59 @@ function ProductsPage() {
       setCategories(response.data.categories || [])
     } catch (error) {
       console.error('Failed to fetch categories:', error)
+    }
+  }
+
+  const openCategoryModal = () => {
+    setEditingCategory(null)
+    setCategoryName('')
+    setCategoryDesc('')
+    setCategoryModalOpen(true)
+  }
+
+  const startEditCategory = (cat) => {
+    setEditingCategory(cat)
+    setCategoryName(cat.name)
+    setCategoryDesc(cat.description || '')
+  }
+
+  const cancelEditCategory = () => {
+    setEditingCategory(null)
+    setCategoryName('')
+    setCategoryDesc('')
+  }
+
+  const saveCategory = async () => {
+    if (!categoryName.trim()) {
+      addToast({ type: 'error', title: 'Erreur', message: 'Le nom de la catégorie est obligatoire' })
+      return
+    }
+    setCategorySaving(true)
+    try {
+      if (editingCategory) {
+        await catalogApi.updateCategory(editingCategory.id, { name: categoryName.trim(), description: categoryDesc.trim() || null })
+        addToast({ type: 'success', title: 'Succès', message: 'Catégorie mise à jour' })
+      } else {
+        await catalogApi.createCategory({ name: categoryName.trim(), description: categoryDesc.trim() || null })
+        addToast({ type: 'success', title: 'Succès', message: 'Catégorie créée' })
+      }
+      cancelEditCategory()
+      fetchCategories()
+    } catch (error) {
+      addToast({ type: 'error', title: 'Erreur', message: error.response?.data?.detail || 'Impossible d’enregistrer la catégorie' })
+    } finally {
+      setCategorySaving(false)
+    }
+  }
+
+  const deleteCategory = async (cat) => {
+    if (!window.confirm(`Supprimer la catégorie « ${cat.name} » ?`)) return
+    try {
+      await catalogApi.deleteCategory(cat.id)
+      addToast({ type: 'success', title: 'Succès', message: 'Catégorie supprimée' })
+      fetchCategories()
+    } catch (error) {
+      addToast({ type: 'error', title: 'Erreur', message: error.response?.data?.detail || 'Impossible de supprimer la catégorie' })
     }
   }
 
@@ -291,10 +349,16 @@ function ProductsPage() {
               )}
               
               {canManageProducts && (
-                <Button size="sm" onClick={() => navigate('/products/new')}>
-                  <Plus className="w-4 h-4" />
-                  <span className="hidden sm:inline ml-1">Ajouter</span>
-                </Button>
+                <>
+                  <Button variant="outline" size="sm" onClick={openCategoryModal}>
+                    <Tag className="w-4 h-4" />
+                    <span className="hidden sm:inline ml-1">Catégories</span>
+                  </Button>
+                  <Button size="sm" onClick={() => navigate('/products/new')}>
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline ml-1">Ajouter</span>
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -612,6 +676,74 @@ function ProductsPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="outline" onClick={() => setBatchProduct(null)}>
+            Fermer
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Gestion des catégories (admin/manager) */}
+      <Modal isOpen={categoryModalOpen} onClose={() => { setCategoryModalOpen(false); cancelEditCategory() }} size="lg">
+        <ModalHeader>
+          <h2 className="text-xl font-bold">Gestion des catégories</h2>
+        </ModalHeader>
+        <ModalBody>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Nom de la catégorie"
+                value={categoryName}
+                onChange={(e) => setCategoryName(e.target.value)}
+              />
+              <Input
+                placeholder="Description (optionnel)"
+                value={categoryDesc}
+                onChange={(e) => setCategoryDesc(e.target.value)}
+              />
+              <Button size="sm" onClick={saveCategory} disabled={categorySaving}>
+                {editingCategory ? 'Mettre à jour' : 'Ajouter'}
+              </Button>
+              {editingCategory && (
+                <Button variant="outline" size="sm" onClick={cancelEditCategory}>
+                  Annuler
+                </Button>
+              )}
+            </div>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categories.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center text-gray-500">Aucune catégorie</TableCell>
+                  </TableRow>
+                ) : categories.map((cat) => (
+                  <TableRow key={cat.id}>
+                    <TableCell className="font-medium">{cat.name}</TableCell>
+                    <TableCell className="text-sm text-gray-500">{cat.description || '—'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => startEditCategory(cat)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-red-500" onClick={() => deleteCategory(cat)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={() => { setCategoryModalOpen(false); cancelEditCategory() }}>
             Fermer
           </Button>
         </ModalFooter>

@@ -17,6 +17,9 @@ from ...models.product import Product
 from ...models.user import User
 from .schemas import (
     BarcodeScanRequest,
+    CategoryCreate,
+    CategoryResponse,
+    CategoryUpdate,
     ProductCreate,
     ProductDetailResponse,
     ProductListResponse,
@@ -156,6 +159,91 @@ async def list_categories(
             for c in result.scalars().all()
         ]
     }
+
+
+@router.post(
+    "/categories",
+    response_model=CategoryResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a product category",
+)
+async def create_category(
+    payload: CategoryCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CategoryResponse:
+    if not RBACUtils.has_permission(current_user.role, "manager"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager or admin required")
+    from ...models.category import Category
+    existing = await db.execute(select(Category).where(Category.name == payload.name))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Category already exists")
+    cat = Category(name=payload.name, description=payload.description, parent_id=payload.parent_id)
+    db.add(cat)
+    await db.commit()
+    await db.refresh(cat)
+    return CategoryResponse.model_validate(cat)
+
+
+@router.put(
+    "/categories/{category_id}",
+    response_model=CategoryResponse,
+    summary="Update a product category",
+)
+async def update_category(
+    category_id: int,
+    payload: CategoryUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CategoryResponse:
+    if not RBACUtils.has_permission(current_user.role, "manager"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager or admin required")
+    from ...models.category import Category
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    cat = result.scalar_one_or_none()
+    if not cat:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    if payload.name is not None:
+        cat.name = payload.name
+    if payload.description is not None:
+        cat.description = payload.description
+    if payload.parent_id is not None:
+        cat.parent_id = payload.parent_id
+    if payload.is_active is not None:
+        cat.is_active = payload.is_active
+    await db.commit()
+    await db.refresh(cat)
+    return CategoryResponse.model_validate(cat)
+
+
+@router.delete(
+    "/categories/{category_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a product category",
+)
+async def delete_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not RBACUtils.has_permission(current_user.role, "manager"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager or admin required")
+    from ...models.category import Category
+    from ...models.product import Product
+    # Refuse si des produits actifs y sont rattachés
+    count = await db.execute(select(func.count(Product.id)).where(Product.category_id == category_id))
+    if (count.scalar() or 0) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Category has products; reassign or delete them first",
+        )
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    cat = result.scalar_one_or_none()
+    if not cat:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    await db.delete(cat)
+    await db.commit()
+    return None
 
 
 @router.get(
