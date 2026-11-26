@@ -463,10 +463,19 @@ if ($SkipDatabase) {
         Write-Ok ("base " + $DbName + " existante")
     }
 
-    $prep = 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; ALTER SCHEMA public OWNER TO ' + $DbUser + ';'
+    # Extension uuid-ossp : optionnelle (Pharma 360 n'utilise pas uuid_generate_v4).
+    $extSql = 'DO $do$ BEGIN BEGIN CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; EXCEPTION WHEN OTHERS THEN RAISE NOTICE ''uuid-ossp indisponible : ignoree (non requise)''; END; END $do$;'
+    $r = Invoke-Psql -User $PostgresAdminUser -Database $DbName -Password $PostgresAdminPassword -Arguments @("-c", $extSql)
+    if ($r.Code -ne 0) {
+        Write-Warn2 ("extension uuid-ossp non installee (non requise) : " + $r.Output)
+    } else {
+        Write-Ok "extension uuid-ossp verifiee (optionnelle)"
+    }
+
+    $prep = "ALTER SCHEMA public OWNER TO $DbUser"
     $r = Invoke-Psql -User $PostgresAdminUser -Database $DbName -Password $PostgresAdminPassword -Arguments @("-c", $prep)
-    if ($r.Code -ne 0) { Fail ("Preparation du schema impossible : " + $r.Output) }
-    Write-Ok "extension uuid-ossp et schema public prets"
+    if ($r.Code -ne 0) { Fail ("Attribution du schema public impossible : " + $r.Output) }
+    Write-Ok ("schema public attribue a " + $DbUser)
 
     $initSql = Join-Path $RepoRoot "scripts\init-db.sql"
     if (-not (Test-Path $initSql)) { Fail ("Script introuvable : " + $initSql) }

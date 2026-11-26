@@ -165,7 +165,9 @@ Si un script est bloqué (politique PowerShell, téléchargement interdit), voic
 $env:PGPASSWORD = "<mot de passe postgres>"
 & "C:\Program Files\PostgreSQL\15\bin\psql.exe" -U postgres -h 127.0.0.1 -c "CREATE ROLE pharma_admin LOGIN PASSWORD '<mot de passe fort>';"
 & "C:\Program Files\PostgreSQL\15\bin\psql.exe" -U postgres -h 127.0.0.1 -c "CREATE DATABASE pharma360_prod OWNER pharma_admin ENCODING 'UTF8';"
-& "C:\Program Files\PostgreSQL\15\bin\psql.exe" -U postgres -h 127.0.0.1 -d pharma360_prod -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"; ALTER SCHEMA public OWNER TO pharma_admin;"
+& "C:\Program Files\PostgreSQL\15\bin\psql.exe" -U postgres -h 127.0.0.1 -d pharma360_prod -c "ALTER SCHEMA public OWNER TO pharma_admin;"
+# Extension uuid-ossp OPTIONNELLE (non utilisee par Pharma 360) :
+#   si le paquet contrib est absent, ignorer l'erreur et continuer.
 $env:PGPASSWORD = "<mot de passe pharma_admin>"
 & "C:\Program Files\PostgreSQL\15\bin\psql.exe" -U pharma_admin -h 127.0.0.1 -d pharma360_prod -v ON_ERROR_STOP=1 -f .\scripts\init-db.sql
 ```
@@ -410,6 +412,8 @@ git checkout <commit_precedent>
 | `nginx: [emerg] bind() to 0.0.0.0:80 failed` | port 80 déjà utilisé | `configure-nginx.ps1 -HttpPort 8080` |
 | Service ne démarre pas | erreur Python au démarrage | lancer la commande uvicorn manuellement pour voir l'erreur |
 | `password authentication failed for user "pharma_admin"` | mot de passe `.env` ≠ base | `install-pharma360.ps1 -RotateSecrets` (met à jour le rôle) |
+| `PREPARATION DU SCHEMA IMPOSSIBLE` / `LINE 1: CREATE EXTENSION IF NOT EXISTS "uuid-ossp"` | paquet `contrib` absent, ou extension non disponible sur ce PostgreSQL | **sans gravité** : l'extension est optionnelle. Mettre à jour `install-pharma360.ps1` et `scripts\init-db.sql` (version tolérante) puis relancer ; l'installation reprend où elle s'est arrêtée |
+| `Attribution du schema public impossible` / `must be owner of schema public` | connexion avec un compte non superutilisateur | relancer avec le vrai compte `postgres` (`-PostgresAdminUser postgres`) |
 | Connexion impossible alors que `/health` répond | compte admin non créé | `new-admin-pharma360.ps1` |
 | OCR en échec | Tesseract absent du `PATH` | réinstaller Tesseract, cocher `fra`, redémarrer le service IA |
 | Téléchargements bloqués pendant l'installation | proxy / pare-feu sortant | installer nginx et NSSM manuellement (§7.4 et §7.5) |

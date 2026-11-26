@@ -19,8 +19,18 @@
 -- 1. EXTENSIONS
 -- =============================================================================
 
--- Créer l'extension UUID si nécessaire (pour les identifiants uniques)
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Extension UUID : OPTIONNELLE. Pharma 360 n'utilise pas uuid_generate_v4()
+-- (les cles sont des SERIAL), donc l'absence du paquet contrib ne doit pas
+-- bloquer l'initialisation du schema.
+DO $do$
+BEGIN
+    BEGIN
+        CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Extension uuid-ossp indisponible : ignoree (non requise par Pharma 360).';
+    END;
+END
+$do$;
 
 -- =============================================================================
 -- 2. FONCTIONS UTILITAIRES
