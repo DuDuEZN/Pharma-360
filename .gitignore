@@ -241,3 +241,8 @@ logs/
 
 # Fichiers de cache
 .cache
+
+# Deploiement natif Windows (binaires et donnees locales)
+tools/
+uploads/
+backups/
