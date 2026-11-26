@@ -217,7 +217,7 @@ function DeliveryFormPage() {
     }))
   }
 
-  // Sélection d'un produit : le code-barres est toujours celui du produit
+  // Sélection d'un produit : le code produit est toujours celui du produit
   // (lecture seule) ; les prix d'achat et de vente sont pré-remplis.
   const handleSelectProduct = (index, productId) => {
     const product = products.find(p => String(p.id) === String(productId))
@@ -579,7 +579,7 @@ function DeliveryFormPage() {
                             <SelectContent>
                               {products.map(product => (
                                 <SelectItem key={product.id} value={String(product.id)}>
-                                  {product.name} ({product.barcode})
+                                  {product.name} ({product.code || product.barcode})
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -706,7 +706,7 @@ function DeliveryFormPage() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor={`item-barcode-${index}`}>
-                            Code-barres du produit
+                            Code produit
                           </Label>
                           <Input
                             id={`item-barcode-${index}`}
@@ -715,7 +715,7 @@ function DeliveryFormPage() {
                             readOnly
                             disabled
                             className="bg-gray-100"
-                            title="Le code-barres est défini par le produit et ne peut pas être modifié"
+                            title="Le code produit est défini par la fiche produit. Le code-barres du lot est généré après validation de la livraison."
                           />
                         </div>
                       </div>

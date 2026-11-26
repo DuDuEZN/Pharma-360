@@ -594,7 +594,8 @@ function DeliveriesPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Produit</TableHead>
-                        <TableHead>Code-barres</TableHead>
+                        <TableHead>Code produit</TableHead>
+                        <TableHead>Coût d'achat</TableHead>
                         <TableHead>Commandé</TableHead>
                         <TableHead>Reçu</TableHead>
                         <TableHead>Retourné</TableHead>
@@ -609,7 +610,10 @@ function DeliveriesPage() {
                         return (
                           <TableRow key={index}>
                             <TableCell>{item.product_name}</TableCell>
-                            <TableCell className="font-mono">{item.barcode || item.product_barcode || '—'}</TableCell>
+                            <TableCell className="font-mono">{item.product_barcode || item.barcode || '—'}</TableCell>
+                            <TableCell className="whitespace-nowrap font-medium">
+                              {formatCurrency((item.unit_price || 0) * (item.quantity || 0))}
+                            </TableCell>
                             <TableCell>{item.quantity}</TableCell>
                             <TableCell>{item.received_quantity || 0}</TableCell>
                             <TableCell>{item.non_conforming_quantity || 0}</TableCell>
@@ -621,6 +625,52 @@ function DeliveriesPage() {
                       })}
                     </TableBody>
                   </Table>
+                </CardContent>
+              </Card>
+
+              {/* Coûts de la livraison */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Coût des marchandises</CardTitle>
+                  <CardDescription>
+                    Prix d'achat unitaire × quantités de chaque ligne
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-xl border border-primary-200 bg-primary-50/70 p-4 dark:border-primary-800 dark:bg-primary-900/20">
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                        Coût total des marchandises
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-primary-700 dark:text-primary-300">
+                        {formatCurrency(selectedDelivery.total_purchase_cost || 0)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-gray-200 bg-white/70 p-4 dark:border-gray-700 dark:bg-white/5">
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                        Montant total reçu
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                        {formatCurrency(selectedDelivery.total_received_amount || 0)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-success-200 bg-success-50/70 p-4 dark:border-success-800 dark:bg-success-900/20">
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                        Montant entré en stock
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-success-700 dark:text-success-300">
+                        {formatCurrency(selectedDelivery.total_stock_amount || 0)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-4 dark:border-rose-800 dark:bg-rose-900/20">
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                        Montant des retours
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-rose-700 dark:text-rose-300">
+                        {formatCurrency(selectedDelivery.total_return_amount || 0)}
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 

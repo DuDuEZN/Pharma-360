@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { usePharmacy } from '@/providers/PharmacyProvider'
-import { Package, User, Lock, ArrowRight } from 'lucide-react'
+import { User, Lock, ArrowRight } from 'lucide-react'
 import { Input } from '@/components/ui/input.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card.jsx'
@@ -82,10 +82,12 @@ function LoginPage() {
         <div className="rounded-3xl border border-white/60 bg-white/70 p-8 shadow-apple-lg backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-white/[0.06]">
           {/* Logo */}
           <div className="mb-7 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] bg-gradient-to-b from-primary-500 to-primary-700 shadow-apple">
-              <Package className="h-8 w-8 text-white" strokeWidth={2.2} />
-            </div>
-            <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-secondary-900 dark:text-white">
+            <img
+              src="/logo-emblem.png"
+              alt="Pharma 360 Bénin"
+              className="mx-auto mb-4 h-24 w-24 object-contain drop-shadow-sm"
+            />
+            <h1 className="font-heading text-[26px] font-bold leading-tight tracking-tight text-[color:var(--p360-text-dark)] dark:text-white">
               Pharma 360
             </h1>
             <p className="mt-1 text-[13px] font-medium text-secondary-600 dark:text-secondary-300">

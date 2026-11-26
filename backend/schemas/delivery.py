@@ -86,6 +86,11 @@ class DeliveryResponse(BaseModel):
     invoice_path: Optional[str] = None
     stock_applied: bool = False
     items_count: int = 0
+    # Montants de la livraison (prix d'achat unitaire x quantités)
+    total_purchase_cost: float = 0
+    total_received_amount: float = 0
+    total_stock_amount: float = 0
+    total_return_amount: float = 0
     created_at: datetime
     updated_at: datetime
     items: Optional[List[DeliveryItemResponse]] = None

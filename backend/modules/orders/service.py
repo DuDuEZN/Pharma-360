@@ -372,6 +372,30 @@ class DeliveryService:
             ))
         supplier_name = d.supplier.name if d.supplier else None
         order_reference = d.order.reference if d.order else None
+
+        def _line_cost(item, quantity):
+            return float(item.unit_price or 0) * max(int(quantity or 0), 0)
+
+        total_purchase_cost = round(
+            sum(_line_cost(i, i.quantity) for i in d.items), 2
+        )
+        total_received_amount = round(
+            sum(_line_cost(i, i.received_quantity) for i in d.items), 2
+        )
+        total_stock_amount = round(
+            sum(
+                _line_cost(
+                    i,
+                    (i.received_quantity or 0) - (i.non_conforming_quantity or 0),
+                )
+                for i in d.items
+            ),
+            2,
+        )
+        total_return_amount = round(
+            sum(_line_cost(i, i.non_conforming_quantity) for i in d.items), 2
+        )
+
         return DeliveryResponse(
             id=d.id,
             supplier_id=d.supplier_id,
@@ -389,6 +413,10 @@ class DeliveryService:
             invoice_path=d.invoice_path,
             stock_applied=d.stock_applied,
             items_count=len(d.items),
+            total_purchase_cost=total_purchase_cost,
+            total_received_amount=total_received_amount,
+            total_stock_amount=total_stock_amount,
+            total_return_amount=total_return_amount,
             created_at=d.created_at,
             updated_at=d.updated_at,
             items=item_objs,

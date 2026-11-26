@@ -2,24 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --p360-primary-blue: #BAE6FD;
+  --p360-secondary-green: #A7F3D0;
+  --p360-accent-rose: #FCE7F3;
+  --p360-bg-canvas: #F8FAFC;
+  --p360-surface: #FFFFFF;
+  --p360-text-dark: #0F172A;
+  --p360-radius-card: 12px;
+  --p360-font-heading: 'Plus Jakarta Sans', sans-serif;
+  --p360-font-body: 'Inter', sans-serif;
+}
+
 @layer base {
   html {
     @apply scroll-smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-family: var(--p360-font-body);
   }
 
   body {
-    @apply text-secondary-900 font-sans;
+    @apply font-sans;
+    color: var(--p360-text-dark);
     letter-spacing: -0.011em;
     font-feature-settings: 'cv11', 'ss01';
-    background-color: #f6f8fb;
+    background-color: var(--p360-bg-canvas);
     background-image:
-      radial-gradient(1200px 700px at 8% 12%, rgba(187, 247, 208, 0.55) 0%, transparent 60%),
-      radial-gradient(1100px 700px at 92% 10%, rgba(191, 219, 254, 0.6) 0%, transparent 62%),
-      radial-gradient(1300px 800px at 50% 95%, rgba(251, 207, 232, 0.55) 0%, transparent 60%),
-      linear-gradient(135deg, #f0fdf4 0%, #eff6ff 45%, #fdf2f8 100%);
+      radial-gradient(1200px 700px at 8% 12%, rgba(167, 243, 208, 0.45) 0%, transparent 60%),
+      radial-gradient(1100px 700px at 92% 10%, rgba(186, 230, 253, 0.55) 0%, transparent 62%),
+      radial-gradient(1300px 800px at 50% 95%, rgba(252, 231, 243, 0.5) 0%, transparent 60%),
+      linear-gradient(135deg, #f8fafc 0%, #f8fafc 45%, #ffffff 100%);
     background-attachment: fixed;
     background-repeat: no-repeat;
     min-height: 100vh;
@@ -47,11 +61,12 @@
   }
 
   h1, h2, h3, h4 {
+    font-family: var(--p360-font-heading);
     letter-spacing: -0.022em;
   }
 
   ::selection {
-    background: rgba(0, 113, 227, 0.22);
+    background: rgba(186, 230, 253, 0.75);
   }
 
   ::-webkit-scrollbar {

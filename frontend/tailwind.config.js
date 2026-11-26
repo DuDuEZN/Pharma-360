@@ -71,19 +71,37 @@ export default {
           800: '#8c000f',
           900: '#6b000b',
         },
+        // Charte graphique Pharma 360
+        charte: {
+          blue: '#BAE6FD',
+          green: '#A7F3D0',
+          rose: '#FCE7F3',
+          canvas: '#F8FAFC',
+          surface: '#FFFFFF',
+          ink: '#0F172A',
+        },
       },
       fontFamily: {
         sans: [
+          'Inter',
           'SF Pro Text',
-          'SF Pro Display',
           '-apple-system',
           'BlinkMacSystemFont',
+          'Segoe UI',
+          'system-ui',
+          'sans-serif',
+        ],
+        heading: [
+          'Plus Jakarta Sans',
           'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
           'Segoe UI',
           'system-ui',
           'sans-serif',
         ],
         display: [
+          'Plus Jakarta Sans',
           'SF Pro Display',
           '-apple-system',
           'BlinkMacSystemFont',

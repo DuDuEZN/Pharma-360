@@ -254,12 +254,10 @@ function ReportsPage() {
     
     const stats = {
       total: reports.length,
-      total_amount: 0,
       by_type: {}
     }
     
     reports.forEach(report => {
-      stats.total_amount += report.total_amount || 0
       if (report.type) {
         stats.by_type[report.type] = (stats.by_type[report.type] || 0) + 1
       }
@@ -398,21 +396,13 @@ function ReportsPage() {
             <CardTitle>Statistiques</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {summaryStats.total}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Total Rapports
-                </p>
-              </div>
-              <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                  {formatCurrency(summaryStats.total_amount || 0)}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Montant Total
                 </p>
               </div>
               <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -467,7 +457,6 @@ function ReportsPage() {
                   <TableHead>Type</TableHead>
                   <TableHead>Période</TableHead>
                   <TableHead>Date de Génération</TableHead>
-                  <TableHead>Montant</TableHead>
                   <TableHead>Nombre d'Enregistrements</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -492,11 +481,6 @@ function ReportsPage() {
                       </TableCell>
                       <TableCell>
                         {formatDate(report.created_at || report.generated_at)}
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-medium text-primary-600 dark:text-primary-400">
-                          {formatCurrency(report.total_amount || 0)}
-                        </span>
                       </TableCell>
                       <TableCell>
                         <Badge variant="info">
@@ -584,15 +568,7 @@ function ReportsPage() {
                   <CardTitle>Résumé</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                        {formatCurrency(reportDetails.total_amount || 0)}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Montant Total
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <p className="text-2xl font-bold text-success-600 dark:text-success-400">
                         {reportDetails.total_records || 0}

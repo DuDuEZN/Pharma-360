@@ -82,11 +82,13 @@ function Sidebar({ mobileOpen = false, onClose }) {
       >
         {/* Logo / nom de la pharmacie */}
         <div className="flex h-[68px] items-center gap-3 px-5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-primary-500 to-primary-700 shadow-apple-sm">
-            <Package className="h-[18px] w-[18px] text-white" strokeWidth={2.2} />
-          </div>
+          <img
+            src="/logo-emblem.png"
+            alt="Pharma 360"
+            className="h-10 w-10 shrink-0 rounded-xl object-contain"
+          />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold leading-tight tracking-tight text-secondary-900 dark:text-white">
+            <p className="truncate font-heading text-[15px] font-bold leading-tight tracking-tight text-[color:var(--p360-text-dark)] dark:text-white">
               Pharma 360
             </p>
             <p className="truncate text-[11px] font-medium text-secondary-500 dark:text-secondary-400">
