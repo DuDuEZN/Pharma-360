@@ -1,0 +1,242 @@
+# ============================================================
+# Pharma 360 — Simulation de coexistence LAN (Windows)
+# ============================================================
+# Objectif : simuler un serveur où une autre application occupe
+# déjà les ports 80/443, et où Pharma 360 doit coexister sans
+# conflit (ports alternatifs, ressources limitées, DB interne).
+# Usage : docker compose -f docker/docker-compose.coexist.yml up -d
+# ============================================================
+
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------
+  # APPLICATION EXISTANTE (simulation légère — nginx statique)
+  # Occupe les ports 80/443 comme le ferait le logiciel client.
+  # ----------------------------------------------------------
+  otherapp:
+    image: nginx:alpine
+    container_name: otherapp-sim
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./sim/otherapp:/usr/share/nginx/html:ro
+    networks:
+      - coexist-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ----------------------------------------------------------
+  # BASE DE DONNÉES PHARMA (port NON publié = accès interne)
+  # ----------------------------------------------------------
+  pharma360-db:
+    image: postgres:15-alpine
+    container_name: pharma360-db-coexist
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pharma360_coexist}
+      POSTGRES_USER: ${POSTGRES_USER:-pharma_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Pharma360_Coexist_Pass_2025}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+      TZ: Africa/Porto-Novo
+    volumes:
+      - pharma360-db-coexist-data:/var/lib/postgresql/data
+    networks:
+      - coexist-net
+    # PAS de ports publiés : isolation totale
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pharma_admin} -d ${POSTGRES_DB:-pharma360_coexist}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+
+  # ----------------------------------------------------------
+  # BACKEND PHARMA (port alternatif 18000)
+  # ----------------------------------------------------------
+  pharma360-backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: pharma360-backend-coexist
+    restart: unless-stopped
+    environment:
+      APP_NAME: Pharma-360
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_SECRET_KEY: pharma360_coexist_secret_key_2025
+      POSTGRES_HOST: pharma360-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-pharma360_coexist}
+      POSTGRES_USER: ${POSTGRES_USER:-pharma_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Pharma360_Coexist_Pass_2025}
+      JWT_SECRET: pharma360_jwt_coexist_2025
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: 480
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 8000
+      CORS_ORIGINS: "http://localhost:8080,https://localhost:8443"
+      BACKEND_WORKERS: 2
+      LOG_LEVEL: INFO
+      LOG_FILE: /app/logs/app.log
+    depends_on:
+      pharma360-db:
+        condition: service_healthy
+    ports:
+      - "18000:8000"
+    networks:
+      - coexist-net
+    volumes:
+      - pharma360-backend-coexist-logs:/app/logs
+      - pharma360-backend-coexist-uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/health', timeout=5).raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # ----------------------------------------------------------
+  # FRONTEND PHARMA (port alternatif 18080 interne)
+  # ----------------------------------------------------------
+  pharma360-frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: pharma360-frontend-coexist
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      BACKEND_URL: http://pharma360-backend:8000
+      IA_URL: http://pharma360-ia:8001
+    depends_on:
+      pharma360-backend:
+        condition: service_healthy
+    # Pas de port publié : accès via nginx Pharma uniquement
+    networks:
+      - coexist-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # ----------------------------------------------------------
+  # IA PHARMA (port alternatif 18001)
+  # ----------------------------------------------------------
+  pharma360-ia:
+    build:
+      context: .
+      dockerfile: docker/ia.Dockerfile
+    container_name: pharma360-ia-coexist
+    restart: unless-stopped
+    environment:
+      IA_HOST: 0.0.0.0
+      IA_PORT: 8001
+      POSTGRES_HOST: pharma360-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-pharma360_coexist}
+      POSTGRES_USER: ${POSTGRES_USER:-pharma_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Pharma360_Coexist_Pass_2025}
+    depends_on:
+      pharma360-db:
+        condition: service_healthy
+      pharma360-backend:
+        condition: service_healthy
+    ports:
+      - "18001:8001"
+    networks:
+      - coexist-net
+    volumes:
+      - pharma360-ia-coexist-logs:/app/ia/logs
+      - pharma360-ia-coexist-uploads:/app/ia/uploads
+      - pharma360-ia-coexist-models:/app/ia/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8001/api/health', timeout=5).raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+  # ----------------------------------------------------------
+  # REVERSE PROXY PHARMA (ports alternatifs 8080/8443)
+  # ----------------------------------------------------------
+  pharma360-nginx:
+    image: nginx:alpine
+    container_name: pharma360-nginx-coexist
+    restart: unless-stopped
+    depends_on:
+      pharma360-backend:
+        condition: service_healthy
+      pharma360-frontend:
+        condition: service_healthy
+      pharma360-ia:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+      - "8443:443"
+    networks:
+      - coexist-net
+    volumes:
+      - ./docker/nginx/nginx.coexist.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+volumes:
+  pharma360-db-coexist-data:
+    name: pharma360-db-coexist-data
+  pharma360-backend-coexist-logs:
+    name: pharma360-backend-coexist-logs
+  pharma360-backend-coexist-uploads:
+    name: pharma360-backend-coexist-uploads
+  pharma360-ia-coexist-logs:
+    name: pharma360-ia-coexist-logs
+  pharma360-ia-coexist-uploads:
+    name: pharma360-ia-coexist-uploads
+  pharma360-ia-coexist-models:
+    name: pharma360-ia-coexist-models
+
+networks:
+  coexist-net:
+    name: pharma360-coexist-net
+    driver: bridge
