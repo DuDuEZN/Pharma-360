@@ -545,7 +545,7 @@ function ReportsPage() {
                   <CardTitle>Informations du Rapport</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <p className="text-sm text-gray-500 dark:text-gray-400">Type</p>
                       <p className="font-medium">{getReportTypeConfig(reportDetails.type).label}</p>
@@ -558,32 +558,9 @@ function ReportsPage() {
                       <p className="text-sm text-gray-500 dark:text-gray-400">Date de Génération</p>
                       <p className="font-medium">{formatDate(reportDetails.created_at)}</p>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Summary */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Résumé</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <p className="text-2xl font-bold text-success-600 dark:text-success-400">
-                        {reportDetails.total_records || 0}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Enregistrements
-                      </p>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <p className="text-2xl font-bold text-warning-600 dark:text-warning-400">
-                        {reportDetails.average_amount ? formatCurrency(reportDetails.average_amount) : 'N/A'}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Moyenne
-                      </p>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Enregistrements</p>
+                      <p className="font-medium">{reportDetails.total_records || 0}</p>
                     </div>
                   </div>
                 </CardContent>
