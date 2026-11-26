@@ -24,8 +24,15 @@
     Mot de passe du superutilisateur PostgreSQL (postgres). Si absent, il est
     demande de facon masquee. Utilise uniquement pour creer le role et la base.
 
+.PARAMETER PythonExe
+    Chemin complet vers python.exe a utiliser (Python 3.11 ou 3.12). Si absent,
+    le script cherche automatiquement une installation compatible.
+
 .EXEMPLE
     .\install-pharma360.ps1 -HttpPort 8080
+
+.EXEMPLE
+    .\install-pharma360.ps1 -PythonExe "C:\Program Files\Python312\python.exe"
 
 .EXEMPLE
     .\install-pharma360.ps1 -SkipServices -SkipDatabase
@@ -44,7 +51,8 @@ param(
     [switch]$SkipFrontendBuild,
     [switch]$SkipServices,
     [switch]$RotateSecrets,
-    [switch]$NoDownload
+    [switch]$NoDownload,
+    [string]$PythonExe
 )
 
 $ErrorActionPreference = "Stop"
@@ -105,6 +113,84 @@ function Write-EnvFile {
     $content = ($Lines -join "`r`n") + "`r`n"
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($Path, $content, $utf8NoBom)
+}
+
+function Get-PythonVersion {
+    param([string]$Exe)
+    try {
+        $out = & $Exe -c "import sys;print('%d.%d.%d' % sys.version_info[:3])" 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $out) { return $null }
+        return ("$out").Trim()
+    } catch {
+        return $null
+    }
+}
+
+function Test-PythonCompatible {
+    param([string]$Version)
+    if (-not $Version -or $Version -notmatch '^(\d+)\.(\d+)\.') { return $false }
+    $major = [int]$Matches[1]
+    $minor = [int]$Matches[2]
+    return ($major -eq 3 -and ($minor -eq 11 -or $minor -eq 12))
+}
+
+function Find-CompatiblePython {
+    param([string]$Explicit)
+
+    $seen = @{}
+    $ordered = New-Object System.Collections.Generic.List[string]
+    $rejected = New-Object System.Collections.Generic.List[string]
+
+    $add = {
+        param([string]$Path)
+        if (-not $Path) { return }
+        $full = "$Path".Trim()
+        if (-not $full) { return }
+        $key = $full.ToLowerInvariant()
+        if ($seen.ContainsKey($key)) { return }
+        $seen[$key] = $true
+        [void]$ordered.Add($full)
+    }
+
+    if ($Explicit) {
+        if (-not (Test-Path $Explicit)) { Fail ("PythonExe introuvable : " + $Explicit) }
+        & $add $Explicit
+    }
+
+    foreach ($v in @("312", "311")) {
+        & $add ("C:\Program Files\Python" + $v + "\python.exe")
+        & $add ("C:\Program Files (x86)\Python" + $v + "\python.exe")
+        & $add ($env:LOCALAPPDATA + "\Programs\Python\Python" + $v + "\python.exe")
+    }
+
+    # Lanceur py (python.org) : resout le vrai python.exe d'une version donnee.
+    try {
+        $pyLauncher = Get-Command "py" -ErrorAction SilentlyContinue
+        if ($pyLauncher) {
+            foreach ($v in @("3.12", "3.11")) {
+                try {
+                    $exe = & $pyLauncher.Source "-$v" -c "import sys;print(sys.executable)" 2>$null
+                    if ($LASTEXITCODE -eq 0 -and $exe) { & $add ("$exe") }
+                } catch { }
+            }
+        }
+    } catch { }
+
+    $pathCmd = Get-Command "python" -ErrorAction SilentlyContinue
+    if ($pathCmd) { & $add $pathCmd.Source }
+
+    foreach ($candidate in $ordered) {
+        if (-not (Test-Path $candidate)) { continue }
+        $version = Get-PythonVersion $candidate
+        if (Test-PythonCompatible $version) {
+            return [pscustomobject]@{ Exe = $candidate; Version = $version }
+        }
+        [void]$rejected.Add(($candidate + " (Python " + $(if ($version) { $version } else { "inconnu" }) + ")"))
+    }
+
+    $detail = ""
+    if ($rejected.Count -gt 0) { $detail = "`r`n  Installations detectees mais incompatibles :`r`n    " + ($rejected -join "`r`n    ") }
+    Fail ("Python 3.11 ou 3.12 est requis (3.13+ non supporte : certaines dependances n'ont pas encore de wheels)." + $detail + "`r`n  Telechargez Python 3.12 : https://www.python.org/downloads/release/python-3129/`r`n  Puis relancez avec : -PythonExe ""C:\Program Files\Python312\python.exe""")
 }
 
 function Resolve-Executable {
@@ -224,20 +310,10 @@ if (-not $isAdmin) {
 # -----------------------------------------------------------------------------
 Write-Step "1/9 Verification des prerequis"
 
-$pythonExe = Resolve-Executable -CommandName "python" -Candidates @(
-    "C:\Program Files\Python311\python.exe",
-    "C:\Program Files\Python312\python.exe",
-    "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe"
-)
-if (-not $pythonExe) {
-    Fail "Python introuvable. Installez Python 3.11+ (https://www.python.org/downloads/windows/) en cochant 'Add python.exe to PATH'."
-}
-$pyVersion = & $pythonExe -c "import sys;print('%d.%d' % sys.version_info[:2])"
-if ($LASTEXITCODE -ne 0) { Fail "Python ne fonctionne pas correctement : $pythonExe" }
-$pyParts = $pyVersion.Split(".")
-if ([int]$pyParts[0] -lt 3 -or ([int]$pyParts[0] -eq 3 -and [int]$pyParts[1] -lt 11)) {
-    Fail ("Python " + $pyVersion + " detecte : Python 3.11 ou superieur est requis.")
-}
+$python = Find-CompatiblePython -Explicit $PythonExe
+$pythonExe = $python.Exe
+$pyVersion = $python.Version
+$pyVersionMinor = ($pyVersion.Split("."))[0..1] -join "."
 Write-Ok ("Python " + $pyVersion + " -> " + $pythonExe)
 
 $npmExe = Resolve-Executable -CommandName "npm.cmd" -Candidates @("C:\Program Files\nodejs\npm.cmd")
@@ -496,19 +572,36 @@ if ($SkipDatabase) {
 # 5. Environnement Python + dependances
 # -----------------------------------------------------------------------------
 Write-Step "5/9 Environnement Python et dependances"
-if (-not (Test-Path $VenvPy)) {
+$recreateVenv = $false
+if (Test-Path $VenvPy) {
+    $venvVersion = Get-PythonVersion $VenvPy
+    $venvMinor = $null
+    if ($venvVersion) { $venvMinor = ($venvVersion.Split("."))[0..1] -join "." }
+    if ($venvMinor -ne $pyVersionMinor) {
+        Write-Warn2 ("venv existant en Python " + $(if ($venvVersion) { $venvVersion } else { "inconnu" }) + " : recreation avec Python " + $pyVersion)
+        $recreateVenv = $true
+    }
+}
+if ($recreateVenv -or -not (Test-Path $VenvPy)) {
+    if (Test-Path $VenvDir) {
+        Write-Host "    suppression de l'ancien venv : $VenvDir"
+        Remove-Item -Recurse -Force $VenvDir
+    }
     Write-Host "    creation du venv : $VenvDir"
     & $pythonExe -m venv $VenvDir
     if ($LASTEXITCODE -ne 0) { Fail "Creation du venv impossible." }
 }
-Write-Ok ("venv : " + $VenvDir)
+Write-Ok ("venv : " + $VenvDir + " (Python " + $pyVersionMinor + ")")
 
 & $VenvPy -m pip install --upgrade pip setuptools wheel --quiet
 if ($LASTEXITCODE -ne 0) { Write-Warn2 "mise a jour de pip en echec (on continue)" }
 
 Write-Host "    installation des dependances backend (peut prendre quelques minutes)..."
 & $VenvPy -m pip install -r (Join-Path $RepoRoot "backend\requirements.txt") --quiet
-if ($LASTEXITCODE -ne 0) { Fail "Echec de l'installation des dependances backend." }
+if ($LASTEXITCODE -ne 0) {
+    & $VenvPy -m pip install -r (Join-Path $RepoRoot "backend\requirements.txt") 2>&1 | Select-Object -Last 25 | ForEach-Object { Write-Host ("    " + $_) }
+    Fail ("Echec de l'installation des dependances backend. Verifiez que le venv utilise bien Python 3.11/3.12 (" + $pyVersion + "). Si l'erreur mentionne uvloop : " + $pyVersion + " doit etre remplace par Python 3.12.")
+}
 Write-Ok "dependances backend installees"
 
 Write-Host "    installation des dependances IA (peut prendre quelques minutes)..."

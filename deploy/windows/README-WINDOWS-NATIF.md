@@ -65,13 +65,15 @@ Répertoires créés dans le dossier du projet :
 | Windows | 10 / 11, 64 bits | — | — |
 | PowerShell | 5.1 (inclus) | exécution des scripts | — |
 | PostgreSQL | 15 ou + | base de données | https://www.postgresql.org/download/windows/ (installeur EDB) |
-| Python | 3.11 ou + | backend + service IA | https://www.python.org/downloads/windows/ |
+| Python | **3.11 ou 3.12** (3.13+ non supporté) | backend + service IA | https://www.python.org/downloads/release/python-3129/ |
 | Node.js | 20 LTS ou 22 LTS | compilation du frontend **uniquement** | https://nodejs.org/ |
 | nginx | 1.26+ (Windows) | serveur web / reverse proxy | téléchargé automatiquement par le script |
 | NSSM | 2.24 | services Windows | téléchargé automatiquement par le script |
 | Tesseract OCR | 5.x + données `fra` | OCR des factures (optionnel) | https://github.com/UB-Mannheim/tesseract/wiki |
 
-> **Python** : cocher « Add python.exe to PATH » pendant l'installation.
+> **Python** : installer **Python 3.12** (ou 3.11) et cocher « Add python.exe to PATH ».
+> Python 3.13 et supérieur **ne fonctionnent pas** : plusieurs dépendances épinglées (`greenlet==3.0.3`, `psycopg2-binary`, `reportlab`, `websockets==12.0`, `anyio==3.7.1`) n'ont pas encore de paquets binaires pour ces versions.
+> Si Python est installé ailleurs, indiquer son chemin : `-PythonExe "C:\Program Files\Python312\python.exe"`.
 > **PostgreSQL** : noter le mot de passe du superutilisateur `postgres`, conserver le port `5432`.
 > **Tesseract** : cocher la langue française (`fra`) et ajouter le dossier au `PATH`.
 
@@ -124,11 +126,11 @@ Le script demande **le mot de passe PostgreSQL** (`postgres`) pour créer le rô
 
 | Étape | Action |
 |---|---|
-| 1/9 | Vérifie Python ≥ 3.11, npm, `psql`, service PostgreSQL |
+| 1/9 | Vérifie Python 3.11/3.12, npm, `psql`, service PostgreSQL |
 | 2/9 | Crée `logs\`, `uploads\`, `backups\`, `static\`, `tools\` |
 | 3/9 | Génère les secrets (56/40 caractères), écrit `.env` et `.env.ia`, restreint leurs droits |
 | 4/9 | Crée le rôle `pharma_admin`, la base `pharma360_prod`, l'extension `uuid-ossp`, puis exécute `scripts\init-db.sql` |
-| 5/9 | Crée `.venv` et installe les dépendances backend + IA |
+| 5/9 | Crée (ou recrée si la version Python a changé) `.venv` et installe les dépendances backend + IA |
 | 6/9 | `npm ci` + `npm run build` → `frontend\dist` |
 | 7/9 | Télécharge nginx (si absent), génère `tools\nginx\conf\nginx.conf`, valide avec `nginx -t` |
 | 8/9 | Télécharge NSSM (si absent) et crée les 3 services Windows |
@@ -418,6 +420,7 @@ git checkout <commit_precedent>
 | OCR en échec | Tesseract absent du `PATH` | réinstaller Tesseract, cocher `fra`, redémarrer le service IA |
 | Téléchargements bloqués pendant l'installation | proxy / pare-feu sortant | installer nginx et NSSM manuellement (§7.4 et §7.5) |
 | Accès impossible depuis un poste du LAN | pare-feu ou mauvaise IP | vérifier la règle pare-feu, tester `http://<IP>:<port>/health` |
+| `RuntimeError: uvloop does not support Windows` / `Failed to build 'uvloop'` | Python 3.13+ utilisé, ou ancien fichier `requirements.txt` | installer **Python 3.12**, supprimer `.venv`, relancer. Vérifier la ligne uvloop : `uvloop>=0.19.0; sys_platform != "win32"` |
 | Lenteurs / mémoire saturée | workers trop nombreux | `BACKEND_WORKERS=2` dans `.env`, redémarrer |
 
 Commandes utiles :
