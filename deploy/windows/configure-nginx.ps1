@@ -48,7 +48,8 @@ if (-not (Test-Path $nginxExe)) { Fail ("nginx introuvable : " + $nginxExe + " (
 if (-not (Test-Path $template)) { Fail ("Modele introuvable : " + $template) }
 
 Write-Step "Generation de la configuration nginx (port $HttpPort)"
-$rendered = (Get-Content $template -Raw).Replace("__PHARMA_ROOT__", $RootFwd).Replace("__HTTP_PORT__", "$HttpPort")
+$nginxFwd = $nginxDir.Replace("\", "/")
+$rendered = (Get-Content $template -Raw).Replace("__PHARMA_ROOT__", $RootFwd).Replace("__NGINX_ROOT__", $nginxFwd).Replace("__HTTP_PORT__", "$HttpPort")
 
 $confDir = Join-Path $nginxDir "conf"
 New-Item -ItemType Directory -Force -Path $confDir | Out-Null

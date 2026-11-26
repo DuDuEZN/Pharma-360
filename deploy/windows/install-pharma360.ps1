@@ -565,7 +565,8 @@ if (-not (Test-Path $nginxExe)) {
 $template = Join-Path $PSScriptRoot "nginx.pharma360.conf"
 if (-not (Test-Path $template)) { Fail ("Modele nginx introuvable : " + $template) }
 $rendered = Get-Content $template -Raw
-$rendered = $rendered.Replace("__PHARMA_ROOT__", $RootFwd).Replace("__HTTP_PORT__", "$HttpPort")
+$nginxFwd = $nginxDir.Replace("\", "/")
+$rendered = $rendered.Replace("__PHARMA_ROOT__", $RootFwd).Replace("__NGINX_ROOT__", $nginxFwd).Replace("__HTTP_PORT__", "$HttpPort")
 
 $confDir = Join-Path $nginxDir "conf"
 New-Item -ItemType Directory -Force -Path $confDir | Out-Null
