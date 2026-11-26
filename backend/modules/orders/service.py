@@ -349,6 +349,7 @@ class DeliveryService:
             item_objs.append(DeliveryItemResponse(
                 id=i.id, delivery_id=i.delivery_id, product_id=i.product_id,
                 product_name=product_names.get(i.product_id),
+                product_code=product_codes.get(i.product_id),
                 product_barcode=product_barcodes.get(i.product_id),
                 barcode=item_barcode,
                 product_price=product_prices.get(i.product_id, 0) or 0,

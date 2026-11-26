@@ -610,7 +610,7 @@ function DeliveriesPage() {
                         return (
                           <TableRow key={index}>
                             <TableCell>{item.product_name}</TableCell>
-                            <TableCell className="font-mono">{item.product_barcode || item.barcode || '—'}</TableCell>
+                            <TableCell className="font-mono">{item.product_code || item.product_barcode || item.barcode || '—'}</TableCell>
                             <TableCell className="whitespace-nowrap font-medium">
                               {formatCurrency((item.unit_price || 0) * (item.quantity || 0))}
                             </TableCell>

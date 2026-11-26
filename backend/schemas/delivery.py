@@ -29,6 +29,7 @@ class DeliveryItemResponse(BaseModel):
     delivery_id: int
     product_id: Optional[int] = None
     product_name: Optional[str] = None
+    product_code: Optional[str] = None
     product_barcode: Optional[str] = None
     barcode: Optional[str] = None
     product_price: float = 0

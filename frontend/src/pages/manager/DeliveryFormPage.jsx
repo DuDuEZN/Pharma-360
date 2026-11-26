@@ -113,8 +113,8 @@ function DeliveryFormPage() {
         items: (data.items || []).map((item) => ({
           ...item,
           product_id: item.product_id ? String(item.product_id) : '',
-          product_barcode: item.product_barcode || '',
-          barcode: item.product_barcode || item.barcode || '',
+          product_barcode: item.product_code || item.product_barcode || '',
+          barcode: item.product_code || item.product_barcode || item.barcode || '',
           quantity: Number(item.quantity || 1),
           unit_price: Number(item.unit_price || 0),
           selling_price: Number(item.selling_price ?? item.product_price ?? 0),
@@ -183,8 +183,8 @@ function DeliveryFormPage() {
         const product = getProduct(it.product_id)
         return {
           product_id: String(it.product_id),
-          product_barcode: it.product_barcode || '',
-          barcode: it.product_barcode || '',
+          product_barcode: product?.code || it.product_barcode || '',
+          barcode: product?.code || it.product_barcode || '',
           quantity: it.quantity || 1,
           unit_price: it.unit_price || 0,
           selling_price: product?.price || 0,
@@ -228,8 +228,8 @@ function DeliveryFormPage() {
           ? {
               ...item,
               product_id: productId,
-              product_barcode: product?.barcode || '',
-              barcode: product?.barcode || '',
+              product_barcode: product?.code || product?.barcode || '',
+              barcode: product?.code || product?.barcode || '',
               unit_price: item.unit_price || product?.cost_price || product?.price || 0,
               selling_price: item.selling_price || product?.price || 0,
               bulk_price: product?.is_bulk
