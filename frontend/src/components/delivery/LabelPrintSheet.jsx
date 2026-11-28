@@ -14,6 +14,18 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
  */
 export const LABEL_FORMATS = [
   {
+    id: 'a4_5x12',
+    label: 'Planche A4 — 5 × 12 (60 étiquettes)',
+    page: 'A4',
+    pageMargin: '8mm 5mm',
+    columns: 5,
+    gap: '2mm',
+    width: '38mm',
+    height: '23mm',
+    fontSize: '7pt',
+    breakAfter: false,
+  },
+  {
     id: 'a4_3x8',
     label: 'Planche A4 — 3 × 8 (24 étiquettes)',
     page: 'A4',
