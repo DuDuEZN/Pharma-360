@@ -393,6 +393,14 @@ function OrdersPage() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(`/api/v1/manager/orders/${order.id}/purchase-order`, '_blank')}
+                            title="Bon de commande (imprimer/télécharger)"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
                           {canEditOrder(order) && (
                             <Button
                               variant="ghost"

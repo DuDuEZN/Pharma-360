@@ -402,7 +402,7 @@ function OrderFormPage() {
                             <SelectContent>
                               {products.map(product => (
                                 <SelectItem key={product.id} value={String(product.id)}>
-                                  {product.name} ({product.barcode})
+                                  {product.name} ({product.code || product.barcode})
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -413,7 +413,7 @@ function OrderFormPage() {
                           <Label htmlFor={`item-barcode-${index}`}>Code-barres</Label>
                           <Input
                             id={`item-barcode-${index}`}
-                            value={products.find(p => String(p.id) === String(item.product_id))?.barcode || ''}
+                            value={products.find(p => String(p.id) === String(item.product_id))?.code || products.find(p => String(p.id) === String(item.product_id))?.barcode || ''}
                             placeholder="—"
                             readOnly
                             disabled
