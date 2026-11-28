@@ -150,6 +150,141 @@ async def startup_event():
                     await conn.execute(text("ALTER TABLE expired_products_log ALTER COLUMN expiry_date TYPE DATE USING expiry_date::date"))
             except Exception:
                 pass
+            # Migration douce : ordonnance, assurance et précommandes.
+            try:
+                async with conn.begin_nested():
+                    await conn.execute(text(
+                        "ALTER TABLE products ADD COLUMN IF NOT EXISTS "
+                        "requires_prescription BOOLEAN NOT NULL DEFAULT FALSE"
+                    ))
+                    await conn.execute(text(
+                        "ALTER TABLE products ADD COLUMN IF NOT EXISTS "
+                        "is_reimbursable BOOLEAN NOT NULL DEFAULT TRUE"
+                    ))
+                    await conn.execute(text(
+                        "ALTER TABLE batches ADD COLUMN IF NOT EXISTS "
+                        "reserved_quantity INTEGER NOT NULL DEFAULT 0"
+                    ))
+                    await conn.execute(text(
+                        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS "
+                        "lines_frozen BOOLEAN NOT NULL DEFAULT FALSE"
+                    ))
+                    # Une ligne de vente peut être une précommande sans lot.
+                    await conn.execute(text(
+                        "ALTER TABLE sale_items ALTER COLUMN batch_id DROP NOT NULL"
+                    ))
+                    for column, ddl in (
+                        ("is_preorder", "BOOLEAN NOT NULL DEFAULT FALSE"),
+                        ("is_reimbursable", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                        ("insurance_rate", "NUMERIC(5, 2) NOT NULL DEFAULT 0"),
+                        ("insurance_amount", "NUMERIC(12, 2) NOT NULL DEFAULT 0"),
+                        ("patient_amount", "NUMERIC(12, 2) NOT NULL DEFAULT 0"),
+                    ):
+                        await conn.execute(text(
+                            f"ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS "
+                            f"{column} {ddl}"
+                        ))
+            except Exception:
+                pass
+            # Tables assurance / ordonnancier / précommandes (idempotent).
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS insurance_structures (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(150) UNIQUE NOT NULL,
+                    code VARCHAR(50) UNIQUE,
+                    contact VARCHAR(150),
+                    phone VARCHAR(30),
+                    email VARCHAR(120),
+                    address TEXT,
+                    default_rate NUMERIC(5, 2) NOT NULL DEFAULT 0,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS insurance_clients (
+                    id SERIAL PRIMARY KEY,
+                    structure_id INTEGER NOT NULL REFERENCES insurance_structures(id) ON DELETE CASCADE,
+                    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+                    name VARCHAR(150) NOT NULL,
+                    phone VARCHAR(30),
+                    policy_number VARCHAR(80),
+                    coverage_rate NUMERIC(5, 2) NOT NULL DEFAULT 0,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    CONSTRAINT uq_insurance_client_policy UNIQUE (structure_id, policy_number)
+                )
+            """))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS prescriptions (
+                    id SERIAL PRIMARY KEY,
+                    prescription_number VARCHAR(50) UNIQUE NOT NULL,
+                    sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+                    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+                    prescription_type VARCHAR(20) NOT NULL DEFAULT 'SIMPLE',
+                    patient_name VARCHAR(150) NOT NULL,
+                    prescriber_name VARCHAR(150) NOT NULL,
+                    prescriber_registration VARCHAR(100) NOT NULL,
+                    health_structure VARCHAR(150) NOT NULL,
+                    insurance_structure_id INTEGER REFERENCES insurance_structures(id) ON DELETE SET NULL,
+                    insurance_client_id INTEGER REFERENCES insurance_clients(id) ON DELETE SET NULL,
+                    notes TEXT,
+                    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS preorders (
+                    id SERIAL PRIMARY KEY,
+                    reference VARCHAR(80) UNIQUE NOT NULL,
+                    pickup_code VARCHAR(40) UNIQUE NOT NULL,
+                    sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+                    sale_item_id INTEGER REFERENCES sale_items(id) ON DELETE SET NULL,
+                    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+                    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+                    customer_name VARCHAR(150) NOT NULL,
+                    customer_phone VARCHAR(30) NOT NULL,
+                    quantity INTEGER NOT NULL DEFAULT 1,
+                    unit_price NUMERIC(10, 2) NOT NULL DEFAULT 0,
+                    status VARCHAR(20) NOT NULL DEFAULT 'EN_ATTENTE',
+                    reserved_batch_id INTEGER REFERENCES batches(id) ON DELETE SET NULL,
+                    notes TEXT,
+                    available_at TIMESTAMPTZ,
+                    delivered_at TIMESTAMPTZ,
+                    cancelled_at TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """))
+            # Colonnes assurance de la vente (après création des tables liées).
+            try:
+                async with conn.begin_nested():
+                    for column, ddl in (
+                        ("insurance_structure_id", "INTEGER REFERENCES insurance_structures(id) ON DELETE SET NULL"),
+                        ("insurance_client_id", "INTEGER REFERENCES insurance_clients(id) ON DELETE SET NULL"),
+                        ("is_insurance_sale", "BOOLEAN NOT NULL DEFAULT FALSE"),
+                        ("insurance_rate", "NUMERIC(5, 2) NOT NULL DEFAULT 0"),
+                        ("insurance_amount", "NUMERIC(12, 2) NOT NULL DEFAULT 0"),
+                        ("patient_amount", "NUMERIC(12, 2) NOT NULL DEFAULT 0"),
+                        ("has_preorder", "BOOLEAN NOT NULL DEFAULT FALSE"),
+                    ):
+                        await conn.execute(text(
+                            f"ALTER TABLE sales ADD COLUMN IF NOT EXISTS "
+                            f"{column} {ddl}"
+                        ))
+            except Exception:
+                pass
+            for index_sql in (
+                "CREATE INDEX IF NOT EXISTS ix_insurance_clients_name ON insurance_clients(name)",
+                "CREATE INDEX IF NOT EXISTS ix_insurance_clients_phone ON insurance_clients(phone)",
+                "CREATE INDEX IF NOT EXISTS ix_prescriptions_prescriber ON prescriptions(prescriber_name)",
+                "CREATE INDEX IF NOT EXISTS ix_prescriptions_structure ON prescriptions(health_structure)",
+                "CREATE INDEX IF NOT EXISTS ix_preorders_status ON preorders(status)",
+            ):
+                await conn.execute(text(index_sql))
             # Tables RBAC roles/permissions (création idempotente).
             await conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS roles (

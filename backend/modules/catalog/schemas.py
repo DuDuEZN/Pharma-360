@@ -36,6 +36,9 @@ class ProductBase(BaseModel):
     requires_prescription: bool = Field(
         default=False, description="Whether prescription is required"
     )
+    is_reimbursable: bool = Field(
+        default=True, description="Produit éligible à la prise en charge assurance"
+    )
     is_bulk: bool = Field(
         default=False, description="Produit vendable en vrac (à l'unité)"
     )
@@ -78,6 +81,7 @@ class ProductUpdate(BaseModel):
     manufacturer: Optional[str] = Field(None, max_length=100)
     is_active: Optional[bool] = Field(None)
     requires_prescription: Optional[bool] = Field(None)
+    is_reimbursable: Optional[bool] = Field(None)
     is_bulk: Optional[bool] = Field(None)
     units_per_box: Optional[int] = Field(None, ge=1)
     bulk_price: Optional[Decimal] = Field(None, ge=0)

@@ -5,9 +5,30 @@ Pydantic models for sale-related API validation
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional, List
+from typing import Literal, Optional, List
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class InsuranceClientInline(BaseModel):
+    """Client assuré créé à la volée depuis la caisse."""
+
+    structure_id: Optional[int] = Field(None, description="Structure d'assurance")
+    name: str = Field(..., min_length=1, max_length=150)
+    phone: Optional[str] = Field(None, max_length=30)
+    policy_number: Optional[str] = Field(None, max_length=80)
+    coverage_rate: Decimal = Field(default=0, ge=0, le=100)
+
+
+class PrescriptionInline(BaseModel):
+    """Ordonnance saisie au comptoir."""
+
+    prescription_type: Literal["SIMPLE", "ASSURANCE"] = "SIMPLE"
+    prescriber_name: str = Field(..., min_length=1, max_length=150)
+    prescriber_registration: str = Field(..., min_length=1, max_length=100)
+    health_structure: str = Field(..., min_length=1, max_length=150)
+    patient_name: str = Field(..., min_length=1, max_length=150)
+    notes: Optional[str] = None
 
 
 # Base Sale Schema
@@ -32,13 +53,25 @@ class SaleBase(BaseModel):
         None, max_length=100, description="Payment reference"
     )
     notes: Optional[str] = Field(None, description="Additional notes")
+    # Assurance
+    insurance_structure_id: Optional[int] = Field(None, description="Structure d'assurance")
+    insurance_client_id: Optional[int] = Field(None, description="Client assuré existant")
+    is_insurance_sale: bool = Field(default=False, description="Vente en mode assurance")
+    insurance_rate: Decimal = Field(
+        default=0, ge=0, le=100, description="Taux de couverture appliqué (%)"
+    )
+    insurance_amount: Decimal = Field(default=Decimal("0"), ge=0, description="Part assurance")
+    patient_amount: Decimal = Field(default=Decimal("0"), ge=0, description="Part client")
+    has_preorder: bool = Field(default=False, description="La vente contient une précommande")
 
 
 # Sale Item Create Schema
 class SaleItemCreate(BaseModel):
     """Schema for creating a sale item"""
 
-    batch_id: int = Field(..., description="Batch ID (for FEFO tracking)")
+    batch_id: Optional[int] = Field(
+        None, description="Batch ID (NULL pour une ligne en précommande)"
+    )
     product_id: int = Field(..., description="Product ID")
     quantity: int = Field(..., ge=1, description="Quantity")
     unit_price: Decimal = Field(..., ge=0, description="Unit price")
@@ -46,6 +79,9 @@ class SaleItemCreate(BaseModel):
         default="box",
         pattern="^(box|bulk)$",
         description="Unité vendue : 'box' (boîte) ou 'bulk' (vrac)",
+    )
+    is_preorder: bool = Field(
+        default=False, description="Vendre ce produit en précommande (stock zéro)"
     )
 
 
@@ -55,12 +91,12 @@ class SaleItemResponse(BaseModel):
 
     id: int = Field(..., description="Sale item ID")
     sale_id: int = Field(..., description="Sale ID")
-    batch_id: int = Field(..., description="Batch ID")
+    batch_id: Optional[int] = Field(None, description="Batch ID (NULL en précommande)")
     product_id: int = Field(..., description="Product ID")
     product_name: str = Field(..., description="Product name")
     product_code: Optional[str] = Field(None, description="Product code/SKU")
     product_barcode: Optional[str] = Field(None, description="Product barcode")
-    batch_number: str = Field(..., description="Batch number")
+    batch_number: Optional[str] = Field(None, description="Batch number")
     batch_location: Optional[str] = Field(
         None, description="Batch storage location (rayon)"
     )
@@ -70,6 +106,11 @@ class SaleItemResponse(BaseModel):
     total_price: Decimal = Field(..., description="Total price")
     tax_rate: Decimal = Field(default=0, description="Taux de TVA de la ligne (%)")
     tax_amount: Decimal = Field(default=0, description="Montant de TVA de la ligne")
+    is_preorder: bool = Field(default=False, description="Ligne en précommande")
+    is_reimbursable: bool = Field(default=True, description="Produit éligible assurance")
+    insurance_rate: Decimal = Field(default=0, description="Taux de couverture (%)")
+    insurance_amount: Decimal = Field(default=Decimal("0"), description="Part assurance")
+    patient_amount: Decimal = Field(default=Decimal("0"), description="Part client")
     expiry_date: Optional[str] = Field(None, description="Expiry date at time of sale")
     created_at: datetime = Field(..., description="Creation timestamp")
 
@@ -81,6 +122,18 @@ class SaleCreate(SaleBase):
     """Schema for creating a new sale"""
 
     items: List[SaleItemCreate] = Field(..., description="List of sale items")
+    insurance_client: Optional[InsuranceClientInline] = Field(
+        None, description="Client assuré à créer à la volée"
+    )
+    prescription: Optional[PrescriptionInline] = Field(
+        None, description="Ordonnance (obligatoire si un produit l'exige)"
+    )
+    allow_preorder: bool = Field(
+        default=False,
+        description="Autoriser le basculement automatique en précommande si stock nul",
+    )
+    preorder_customer_name: Optional[str] = Field(None, max_length=150)
+    preorder_customer_phone: Optional[str] = Field(None, max_length=30)
 
 
 # Sale Update Schema
@@ -151,6 +204,17 @@ class BulkLabel(BaseModel):
     units_per_box: int = Field(default=1, description="Unités par boîte")
 
 
+class PreorderInfo(BaseModel):
+    """Précommande créée par une vente."""
+
+    id: int
+    product_id: int
+    product_name: str
+    quantity: int
+    pickup_code: str
+    status: str = "EN_ATTENTE"
+
+
 class SaleValidationResponse(BaseModel):
     """Schema for sale validation response"""
 
@@ -166,6 +230,18 @@ class SaleValidationResponse(BaseModel):
     )
     reconditioned_boxes: int = Field(
         default=0, description="Nombre de boîtes ouvertes pour le vrac"
+    )
+    insurance_amount: Decimal = Field(
+        default=0, description="Part assurance calculée sur la vente"
+    )
+    patient_amount: Decimal = Field(
+        default=0, description="Part restant à charge du client"
+    )
+    prescription_number: Optional[str] = Field(
+        None, description="Numéro d'ordonnance enregistrée"
+    )
+    preorders: List[PreorderInfo] = Field(
+        default_factory=list, description="Précommandes générées"
     )
 
 

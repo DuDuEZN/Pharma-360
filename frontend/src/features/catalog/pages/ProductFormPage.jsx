@@ -39,6 +39,8 @@ function ProductFormPage() {
     bulk_price: '',
     apply_tax: true,
     tax_rate: 18,
+    requires_prescription: false,
+    is_reimbursable: true,
   })
   
   const [categories, setCategories] = useState([])
@@ -176,6 +178,8 @@ function ProductFormPage() {
         tax_rate: Boolean(product.apply_tax)
           ? parseFloat(product.tax_rate) || 0
           : 0,
+        requires_prescription: Boolean(product.requires_prescription),
+        is_reimbursable: Boolean(product.is_reimbursable),
       }
 
       const payload = id
@@ -443,6 +447,47 @@ function ProductFormPage() {
                         />
                       </div>
                     )}
+                  </div>
+
+                  {/* Règles produit : ordonnance et assurance */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b pb-2">
+                      Règles produit
+                    </h3>
+
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                      <div>
+                        <Label htmlFor="requires_prescription">Ordonnance obligatoire</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Le produit exige une ordonnance à la vente.
+                        </p>
+                      </div>
+                      <Switch
+                        id="requires_prescription"
+                        checked={Boolean(product.requires_prescription)}
+                        onCheckedChange={(checked) =>
+                          handleSwitchChange('requires_prescription', checked)
+                        }
+                        disabled={isSubmitting}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                      <div>
+                        <Label htmlFor="is_reimbursable">Remboursable (assurance)</Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Produit éligible à la prise en charge assurance.
+                        </p>
+                      </div>
+                      <Switch
+                        id="is_reimbursable"
+                        checked={product.is_reimbursable !== false}
+                        onCheckedChange={(checked) =>
+                          handleSwitchChange('is_reimbursable', checked)
+                        }
+                        disabled={isSubmitting}
+                      />
+                    </div>
                   </div>
 
                   {/* Stock Information */}

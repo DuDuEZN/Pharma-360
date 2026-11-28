@@ -67,6 +67,7 @@ class OrderService:
                 notes=o.notes,
                 approved_by=o.approved_by,
                 approved_at=o.approved_at,
+                lines_frozen=bool(getattr(o, "lines_frozen", False)),
                 items_count=items_count,
                 total_amount=total_amount,
                 created_at=o.created_at,
@@ -116,6 +117,7 @@ class OrderService:
             notes=o.notes,
             approved_by=o.approved_by,
             approved_at=o.approved_at,
+            lines_frozen=bool(getattr(o, "lines_frozen", False)),
             items_count=len(o.items),
             total_amount=total_amount,
             created_at=o.created_at,
@@ -163,6 +165,11 @@ class OrderService:
         o = await OrderService._get_orm(db, order_id)
         if not o:
             return None
+        if getattr(o, "lines_frozen", False):
+            raise ValueError(
+                "Commande %d validée : les lignes sont figées et ne peuvent "
+                "plus être modifiées" % order_id
+            )
         previous_status = o.status
         o.supplier_id = data.supplier_id
         o.reference = data.reference
@@ -208,6 +215,8 @@ class OrderService:
         o.status = "confirmed"
         o.approved_by = user_id
         o.approved_at = datetime.utcnow()
+        # Validation : les lignes sont figées, le bon de commande est émis.
+        o.lines_frozen = True
         await db.commit()
         await db.refresh(o)
         o.status = "pending_delivery"
@@ -649,6 +658,7 @@ class DeliveryService:
         d.status = status
         # Stock entry on delivery validation
         if status == "delivered" and not d.stock_applied:
+            received_product_ids: set[int] = set()
             for item in (d.items or []):
                 conforming = max(0, (item.received_quantity or 0) - (item.non_conforming_quantity or 0))
                 if conforming <= 0 or not item.product_id:
@@ -691,7 +701,16 @@ class DeliveryService:
                     status="active",
                 )
                 db.add(batch)
+                received_product_ids.add(item.product_id)
             d.stock_applied = True
+            if received_product_ids:
+                # Réception fournisseur : les précommandes en attente sont
+                # réservées sur les lots qui viennent d'entrer en stock.
+                from ..preorders.service import PreorderService
+
+                await PreorderService.reserve_pending_for_delivery(
+                    db, received_product_ids
+                )
             if d.order_id:
                 order = await db.get(Order, d.order_id)
                 if order is not None:
@@ -710,10 +729,12 @@ class DeliveryService:
         d.status = "delivered"
         d.received_at = datetime.utcnow()
         if not d.stock_applied:
+            received_product_ids: set[int] = set()
             for item in (d.items or []):
                 conforming = max(0, (item.received_quantity or 0) - (item.non_conforming_quantity or 0))
                 if conforming <= 0 or not item.product_id:
                     continue
+                received_product_ids.add(item.product_id)
                 product = await db.get(Product, item.product_id)
                 # Prix du vrac précisé à la livraison : il devient le prix
                 # de référence du produit pour les ventes à l'unité.
@@ -768,6 +789,12 @@ class DeliveryService:
                         status="active",
                     ))
             d.stock_applied = True
+            if received_product_ids:
+                from ..preorders.service import PreorderService
+
+                await PreorderService.reserve_pending_for_delivery(
+                    db, received_product_ids
+                )
             if d.order_id:
                 order = await db.get(Order, d.order_id)
                 if order is not None:

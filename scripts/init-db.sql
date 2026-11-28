@@ -608,6 +608,114 @@ ON CONFLICT DO NOTHING;
 -- Pour l'instant, nous laissons vide, l'application devra créer le premier utilisateur
 
 -- =============================================================================
+-- 6bis. ORDONNANCE, ASSURANCE ET PRECOMMANDES
+-- =============================================================================
+
+-- Règles produit (création/mise à jour via le catalogue)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS is_reimbursable BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS apply_tax BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5, 2) NOT NULL DEFAULT 18.00;
+
+-- Stock : physique (quantity) vs réservé (reserved_quantity)
+ALTER TABLE batches ADD COLUMN IF NOT EXISTS bulk_quantity INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE batches ADD COLUMN IF NOT EXISTS reserved_quantity INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE batches ADD COLUMN IF NOT EXISTS barcode VARCHAR(50);
+
+-- Commande : brouillon vs validée (lignes figées)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS lines_frozen BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Vente : une ligne de précommande n'a pas de lot
+ALTER TABLE sale_items ALTER COLUMN batch_id DROP NOT NULL;
+ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS is_preorder BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS is_reimbursable BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS insurance_rate NUMERIC(5, 2) NOT NULL DEFAULT 0;
+ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS insurance_amount NUMERIC(12, 2) NOT NULL DEFAULT 0;
+ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS patient_amount NUMERIC(12, 2) NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS insurance_structures (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(150) UNIQUE NOT NULL,
+    code VARCHAR(50) UNIQUE,
+    contact VARCHAR(150),
+    phone VARCHAR(30),
+    email VARCHAR(120),
+    address TEXT,
+    default_rate NUMERIC(5, 2) NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS insurance_clients (
+    id SERIAL PRIMARY KEY,
+    structure_id INTEGER NOT NULL REFERENCES insurance_structures(id) ON DELETE CASCADE,
+    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    name VARCHAR(150) NOT NULL,
+    phone VARCHAR(30),
+    policy_number VARCHAR(80),
+    coverage_rate NUMERIC(5, 2) NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_insurance_client_policy UNIQUE (structure_id, policy_number)
+);
+
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS insurance_structure_id INTEGER REFERENCES insurance_structures(id) ON DELETE SET NULL;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS insurance_client_id INTEGER REFERENCES insurance_clients(id) ON DELETE SET NULL;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS is_insurance_sale BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS insurance_rate NUMERIC(5, 2) NOT NULL DEFAULT 0;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS insurance_amount NUMERIC(12, 2) NOT NULL DEFAULT 0;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS patient_amount NUMERIC(12, 2) NOT NULL DEFAULT 0;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS has_preorder BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS prescriptions (
+    id SERIAL PRIMARY KEY,
+    prescription_number VARCHAR(50) UNIQUE NOT NULL,
+    sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    prescription_type VARCHAR(20) NOT NULL DEFAULT 'SIMPLE',
+    patient_name VARCHAR(150) NOT NULL,
+    prescriber_name VARCHAR(150) NOT NULL,
+    prescriber_registration VARCHAR(100) NOT NULL,
+    health_structure VARCHAR(150) NOT NULL,
+    insurance_structure_id INTEGER REFERENCES insurance_structures(id) ON DELETE SET NULL,
+    insurance_client_id INTEGER REFERENCES insurance_clients(id) ON DELETE SET NULL,
+    notes TEXT,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS preorders (
+    id SERIAL PRIMARY KEY,
+    reference VARCHAR(80) UNIQUE NOT NULL,
+    pickup_code VARCHAR(40) UNIQUE NOT NULL,
+    sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+    sale_item_id INTEGER REFERENCES sale_items(id) ON DELETE SET NULL,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    customer_name VARCHAR(150) NOT NULL,
+    customer_phone VARCHAR(30) NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    unit_price NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'EN_ATTENTE',
+    reserved_batch_id INTEGER REFERENCES batches(id) ON DELETE SET NULL,
+    notes TEXT,
+    available_at TIMESTAMPTZ,
+    delivered_at TIMESTAMPTZ,
+    cancelled_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_insurance_clients_name ON insurance_clients(name);
+CREATE INDEX IF NOT EXISTS idx_insurance_clients_phone ON insurance_clients(phone);
+CREATE INDEX IF NOT EXISTS idx_prescriptions_number ON prescriptions(prescription_number);
+CREATE INDEX IF NOT EXISTS idx_prescriptions_prescriber ON prescriptions(prescriber_name);
+CREATE INDEX IF NOT EXISTS idx_preorders_pickup_code ON preorders(pickup_code);
+CREATE INDEX IF NOT EXISTS idx_preorders_status ON preorders(status);
+
+-- =============================================================================
 -- 7. MESSAGE DE CONFIRMATION
 -- =============================================================================
 

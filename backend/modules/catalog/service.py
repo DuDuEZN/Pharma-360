@@ -209,7 +209,7 @@ class ProductService:
             .where(
                 and_(
                     Batch.product_id == product.id,
-                    Batch.quantity > 0,
+                    Batch.quantity - func.coalesce(Batch.reserved_quantity, 0) > 0,
                     Batch.status == "active",
                     Batch.expiry_date >= date.today(),
                 )
@@ -279,7 +279,8 @@ class ProductService:
             .where(
                 and_(
                     Batch.product_id == product_id,
-                    Batch.quantity >= quantity,
+                    Batch.quantity - func.coalesce(Batch.reserved_quantity, 0)
+                    >= quantity,
                     Batch.status == "active",
                     Batch.expiry_date >= date.today(),
                 )
@@ -306,8 +307,9 @@ class ProductService:
         units_per_box = max(int(units_per_box or 1), 1)
 
         def _can_supply(batch: Batch) -> bool:
+            available = int(batch.quantity or 0) - int(batch.reserved_quantity or 0)
             return (
-                int(batch.bulk_quantity or 0) + batch.quantity * units_per_box
+                int(batch.bulk_quantity or 0) + max(available, 0) * units_per_box
             ) >= quantity
 
         if preferred_batch_id:

@@ -77,7 +77,12 @@ class Product(Base):
     manufacturer: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     requires_prescription: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    # Éligibilité à la prise en charge assurance. Un produit non remboursable
+    # force un taux de couverture à 0 %, même pour un client bien couvert.
+    is_reimbursable: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
     )
     # Vente en vrac : le produit reste unique (même code-barres). Une boîte
     # peut être reconditionnée en unités vendables à l'unité.
@@ -142,13 +147,9 @@ class Product(Base):
     def __repr__(self) -> str:
         return f"<Product(id={self.id}, name='{self.name}', barcode={self.barcode or 'N/A'})>"
 
-    @hybrid_property
-    def current_stock(self) -> int:
-        """Stock vendable : lots actifs ET non périmés uniquement.
-
-        Un lot périmé ne doit jamais être compté dans le stock disponible :
-        il reste consultable (voir ``expired_stock``) mais n'est pas vendable.
-        """
+    @property
+    def physical_stock(self) -> int:
+        """Stock physique : lots actifs non périmés (réservations incluses)."""
         today = date.today()
         if self.batches:
             return sum(
@@ -158,14 +159,49 @@ class Product(Base):
             )
         return 0
 
+    @property
+    def reserved_stock(self) -> int:
+        """Quantité engagée sur des précommandes en attente de retrait."""
+        today = date.today()
+        if self.batches:
+            return sum(
+                int(batch.reserved_quantity or 0)
+                for batch in self.batches
+                if batch.status == "active" and batch.expiry_date >= today
+            )
+        return 0
+
+    @hybrid_property
+    def current_stock(self) -> int:
+        """Stock réellement disponible à la vente.
+
+        Physique moins les réservations de précommandes, sur les lots actifs
+        ET non périmés uniquement. Un lot périmé ne doit jamais être compté
+        dans le stock disponible : il reste consultable (voir
+        ``expired_stock``) mais n'est pas vendable.
+        """
+        today = date.today()
+        if self.batches:
+            return sum(
+                int(batch.quantity or 0) - int(batch.reserved_quantity or 0)
+                for batch in self.batches
+                if batch.status == "active" and batch.expiry_date >= today
+            )
+        return 0
+
     @current_stock.inplace.expression
     @classmethod
     def _current_stock_expression(cls):
-        """Version SQL : somme des quantités des lots actifs non périmés."""
+        """Version SQL : physique moins réservé sur les lots actifs non périmés."""
         from .batch import Batch
 
         return (
-            select(func.coalesce(func.sum(Batch.quantity), 0))
+            select(
+                func.coalesce(
+                    func.sum(Batch.quantity - func.coalesce(Batch.reserved_quantity, 0)),
+                    0,
+                )
+            )
             .where(
                 Batch.product_id == cls.id,
                 Batch.status == "active",

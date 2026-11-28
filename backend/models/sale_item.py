@@ -49,11 +49,12 @@ class SaleItem(Base):
     sale_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("sales.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    batch_id: Mapped[int] = mapped_column(
+    batch_id: Mapped[Optional[int]] = mapped_column(
         Integer,
         ForeignKey("batches.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
+        comment="Lot vendu ; NULL pour une ligne en précommande",
     )
     product_id: Mapped[int] = mapped_column(
         Integer,
@@ -77,6 +78,26 @@ class SaleItem(Base):
     tax_amount: Mapped[float] = mapped_column(
         Numeric(12, 2), default=0.00, server_default="0.00", nullable=False,
         comment="Montant de TVA de la ligne",
+    )
+    is_preorder: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False,
+        comment="Ligne vendue en précommande (aucun stock décrémenté)",
+    )
+    is_reimbursable: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False,
+        comment="Éligibilité assurance figée à la vente",
+    )
+    insurance_rate: Mapped[float] = mapped_column(
+        Numeric(5, 2), default=0, server_default="0.00", nullable=False,
+        comment="Taux de couverture effectif de la ligne (%)",
+    )
+    insurance_amount: Mapped[float] = mapped_column(
+        Numeric(12, 2), default=0, server_default="0.00", nullable=False,
+        comment="Part assurance de la ligne (hors TVA)",
+    )
+    patient_amount: Mapped[float] = mapped_column(
+        Numeric(12, 2), default=0, server_default="0.00", nullable=False,
+        comment="Part client de la ligne (TVA incluse)",
     )
     expiry_date: Mapped[Optional[date]] = mapped_column(
         Date, nullable=True, comment="Expiry date at time of sale (from batch)"
@@ -108,7 +129,9 @@ class SaleItem(Base):
     @property
     def batch_number(self) -> str:
         """Get batch number"""
-        return self.batch.batch_number if self.batch else "Unknown"
+        if self.batch:
+            return self.batch.batch_number
+        return "Précommande" if self.is_preorder else "Unknown"
 
     @property
     def expiry_info(self) -> str:

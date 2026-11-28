@@ -52,6 +52,7 @@ class OrderResponse(BaseModel):
     notes: Optional[str] = None
     approved_by: Optional[int] = None
     approved_at: Optional[datetime] = None
+    lines_frozen: bool = False
     items_count: int = 0
     total_amount: float = 0.0
     created_at: datetime

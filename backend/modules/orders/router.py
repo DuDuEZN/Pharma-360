@@ -65,7 +65,10 @@ async def update_order(order_id: int, data: OrderUpdate, db: AsyncSession = Depe
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Une commande n'est modifiable que tant qu'elle est en attente ou à corriger",
         )
-    order = await OrderService.update_order(db, order_id, data)
+    try:
+        order = await OrderService.update_order(db, order_id, data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     return order

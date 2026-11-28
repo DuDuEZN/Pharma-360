@@ -369,6 +369,7 @@ async def create_product(
         manufacturer=product_data.manufacturer,
         is_active=product_data.is_active,
         requires_prescription=product_data.requires_prescription,
+        is_reimbursable=product_data.is_reimbursable,
         is_bulk=product_data.is_bulk,
         units_per_box=max(int(product_data.units_per_box or 1), 1),
         bulk_price=product_data.bulk_price,

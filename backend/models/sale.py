@@ -24,6 +24,9 @@ from .base import Base
 if TYPE_CHECKING:
     from .cash_session import CashSession
     from .customer import Customer
+    from .insurance import InsuranceClient, InsuranceStructure
+    from .preorder import Preorder
+    from .prescription import Prescription
     from .sale_history import SaleHistory
     from .sale_item import SaleItem
     from .user import User
@@ -83,6 +86,37 @@ class Sale(Base):
         index=True,
         comment="Session de caisse ayant encaissé la vente",
     )
+    # --- Assurance / ordonnance / précommande -----------------------------
+    insurance_structure_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("insurance_structures.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    insurance_client_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("insurance_clients.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    is_insurance_sale: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    insurance_rate: Mapped[float] = mapped_column(
+        Numeric(5, 2), default=0, server_default="0.00", nullable=False,
+        comment="Taux de couverture appliqué à la vente (%)",
+    )
+    insurance_amount: Mapped[float] = mapped_column(
+        Numeric(12, 2), default=0, server_default="0.00", nullable=False,
+        comment="Part prise en charge assurance",
+    )
+    patient_amount: Mapped[float] = mapped_column(
+        Numeric(12, 2), default=0, server_default="0.00", nullable=False,
+        comment="Part restant à charge du client",
+    )
+    has_preorder: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -110,6 +144,21 @@ class Sale(Base):
     )
     history_records: Mapped[list["SaleHistory"]] = relationship(
         "SaleHistory", back_populates="sale", foreign_keys="SaleHistory.sale_id"
+    )
+    insurance_structure: Mapped[Optional["InsuranceStructure"]] = relationship(
+        "InsuranceStructure", foreign_keys=[insurance_structure_id]
+    )
+    insurance_client: Mapped[Optional["InsuranceClient"]] = relationship(
+        "InsuranceClient", foreign_keys=[insurance_client_id]
+    )
+    prescription: Mapped[Optional["Prescription"]] = relationship(
+        "Prescription",
+        back_populates="sale",
+        foreign_keys="Prescription.sale_id",
+        uselist=False,
+    )
+    preorders: Mapped[list["Preorder"]] = relationship(
+        "Preorder", back_populates="sale", foreign_keys="Preorder.sale_id"
     )
 
     # Constraints

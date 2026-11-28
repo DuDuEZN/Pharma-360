@@ -18,8 +18,11 @@ from fastapi import APIRouter
 from .catalog import router as catalog_router
 from .cash import router as cash_router
 from .customers import router as customers_router
+from .insurance import router as insurance_router
 from .inventory import router as inventory_router
 from .orders import router as orders_router
+from .preorders import router as preorders_router
+from .prescriptions import router as prescriptions_router
 from .reports import router as reports_router
 from .sales import router as sales_router
 
@@ -60,6 +63,30 @@ MODULES: tuple[ModuleSpec, ...] = (
         depends_on=("catalog",),
         license_feature="sales",
         description="Ventes, encaissement, annulation et file d'attente caisse.",
+    ),
+    ModuleSpec(
+        name="insurance",
+        router=insurance_router,
+        enabled=_module_flag("insurance"),
+        depends_on=(),
+        license_feature="insurance",
+        description="Structures d'assurance et clients assurés (taux de couverture).",
+    ),
+    ModuleSpec(
+        name="prescriptions",
+        router=prescriptions_router,
+        enabled=_module_flag("prescriptions"),
+        depends_on=("sales", "insurance"),
+        license_feature="prescriptions",
+        description="Ordonnancier : registre, auto-complétion et export.",
+    ),
+    ModuleSpec(
+        name="preorders",
+        router=preorders_router,
+        enabled=_module_flag("preorders"),
+        depends_on=("sales", "catalog"),
+        license_feature="preorders",
+        description="Précommandes sur stock zéro, réservation et remise au retrait.",
     ),
     ModuleSpec(
         name="cash",
