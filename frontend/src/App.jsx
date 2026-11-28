@@ -28,7 +28,7 @@ import { InventoryPage } from '@/features/inventory'
 import { OrdersPage, OrderFormPage } from '@/features/orders'
 import { AdminReportsPage, ManagerReportsPage, ReportFormPage } from '@/features/reports'
 import { SalesPage, SaleFormPage } from '@/features/sales'
-import { InsurancePage, PrescriptionsPage } from '@/features/insurance'
+import { InsurancePage, PrescriptionsPage, PreordersPage } from '@/features/insurance'
 
 // Admin Pages
 import {
@@ -166,6 +166,7 @@ function App() {
                         <Route path="orders/:id/edit" element={<OrderFormPage />} />
                         <Route path="insurance" element={<InsurancePage />} />
                         <Route path="prescriptions" element={<PrescriptionsPage />} />
+                        <Route path="preorders" element={<PreordersPage />} />
                         <Route path="deliveries" element={<DeliveriesPage />} />
                         <Route path="deliveries/new" element={<DeliveryFormPage />} />
                         <Route path="deliveries/:id/edit" element={<DeliveryFormPage />} />
