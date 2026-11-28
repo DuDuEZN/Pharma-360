@@ -1,3 +1,5 @@
-﻿export const insuranceNavigation = { name: 'Assurances', href: '/manager/insurance', icon: null, roles: ['admin','manager','seller'] }
-export const insuranceModule = { name: 'insurance', navigation: insuranceNavigation }
+﻿import InsurancePage from './pages/InsurancePage'
+import PrescriptionsPage from './pages/PrescriptionsPage'
+export { InsurancePage, PrescriptionsPage }
 export { default as insuranceApi } from './api'
+export const insuranceNavigation = { name: 'Assurances', href: '/manager/insurance', roles: ['admin','manager','seller'] }

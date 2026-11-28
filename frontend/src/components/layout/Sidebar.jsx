@@ -38,6 +38,8 @@ function Sidebar({ mobileOpen = false, onClose }) {
     customersNavigation,
     cashNavigation,
     { name: 'Commandes', href: '/manager/orders', icon: ClipboardList, roles: ['seller'] },
+{ name: 'Assurances', href: '/manager/insurance', icon: Shield, roles: ['admin', 'manager', 'seller'] },
+{ name: 'Ordonnances', href: '/manager/prescriptions', icon: FileText, roles: ['admin', 'manager', 'seller'] },
     { name: 'Administrateur', href: '/admin', icon: Users, roles: ['admin'] },
     { name: 'Gestionnaire', href: '/manager', icon: BarChart3, roles: ['admin', 'manager'] },
     { name: 'Livraisons', href: '/manager/deliveries', icon: Truck, roles: ['seller'] },
