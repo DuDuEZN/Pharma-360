@@ -114,6 +114,11 @@ function App() {
                       <Route path="/sales" element={<SalesPage />} />
                       <Route path="/sales/new" element={<SaleFormPage />} />
 
+                      {/* Modules de gestion (hors Gestionnaire) */}
+                      <Route path="/insurance" element={<InsurancePage />} />
+                      <Route path="/prescriptions" element={<PrescriptionsPage />} />
+                      <Route path="/preorders" element={<PreordersPage />} />
+
                       {/* Clients (tous sauf caissier) */}
                       <Route
                         path="/customers"
@@ -164,9 +169,6 @@ function App() {
                         <Route path="orders" element={<OrdersPage />} />
                         <Route path="orders/new" element={<OrderFormPage />} />
                         <Route path="orders/:id/edit" element={<OrderFormPage />} />
-                        <Route path="insurance" element={<InsurancePage />} />
-                        <Route path="prescriptions" element={<PrescriptionsPage />} />
-                        <Route path="preorders" element={<PreordersPage />} />
                         <Route path="deliveries" element={<DeliveriesPage />} />
                         <Route path="deliveries/new" element={<DeliveryFormPage />} />
                         <Route path="deliveries/:id/edit" element={<DeliveryFormPage />} />
