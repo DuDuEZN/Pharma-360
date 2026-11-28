@@ -997,7 +997,7 @@ function SalesPage() {
                     {selectedProduct.name}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Code-barres: {selectedProduct.barcode || '—'}
+                    Code-barres: {selectedBatch?.barcode || selectedProduct.barcode || '—'}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Catégorie: {selectedProduct.category_name || 'Sans catégorie'}
