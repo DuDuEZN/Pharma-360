@@ -34,7 +34,7 @@ export const CartProvider = ({ children }) => {
   const [items, setItems] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
 
-  const addItem = useCallback((product, batch, quantity = 1, saleUnit = 'box') => {
+  const addItem = useCallback((product, batch, quantity = 1, saleUnit = 'box', isPreorder = false) => {
     if (!product?.id) return;
 
     const unit = saleUnit === 'bulk' ? 'bulk' : 'box';
@@ -43,8 +43,9 @@ export const CartProvider = ({ children }) => {
       const existingItemIndex = prevItems.findIndex(
         item =>
           item.product.id === product.id &&
-          item.batch?.id === batch?.id &&
-          (item.saleUnit || 'box') === unit
+          item.batch?.id === (isPreorder ? null : batch?.id) &&
+          (item.saleUnit || 'box') === unit &&
+          Boolean(item.isPreorder) === Boolean(isPreorder)
       );
 
       if (existingItemIndex >= 0) {
@@ -59,7 +60,7 @@ export const CartProvider = ({ children }) => {
         return updatedItems;
       }
 
-      return [...prevItems, { product, batch, quantity, saleUnit: unit, addedAt: new Date() }];
+      return [...prevItems, { product, batch: isPreorder ? null : batch, quantity, saleUnit: unit, isPreorder: Boolean(isPreorder), addedAt: new Date() }];
     });
   }, []);
 

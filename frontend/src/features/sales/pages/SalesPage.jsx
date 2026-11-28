@@ -78,6 +78,14 @@ function SalesPage() {
   const [customerResults, setCustomerResults] = useState([])
   const [isSearchingCustomers, setIsSearchingCustomers] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
+  // Ordonnance / assurance / précommande
+  const [prescription, setPrescription] = useState(null)
+  const [insuranceStructureId, setInsuranceStructureId] = useState('')
+  const [insuranceClientId, setInsuranceClientId] = useState('')
+  const [insuranceRate, setInsuranceRate] = useState('')
+  const [allowPreorder, setAllowPreorder] = useState(false)
+  const [preorderName, setPreorderName] = useState('')
+  const [preorderPhone, setPreorderPhone] = useState('')
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '' })
   const [isSavingCustomer, setIsSavingCustomer] = useState(false)
 
@@ -474,12 +482,21 @@ function SalesPage() {
       notes: selectedCustomer
         ? `Client : ${selectedCustomer.name}${selectedCustomer.phone ? ` (${selectedCustomer.phone})` : ''}`
         : 'Client anonyme',
+      insurance_structure_id: insuranceStructureId ? Number(insuranceStructureId) : null,
+      insurance_client_id: insuranceClientId ? Number(insuranceClientId) : null,
+      is_insurance_sale: Boolean(insuranceStructureId || insuranceClientId),
+      insurance_rate: insuranceRate ? Number(insuranceRate) : 0,
+      allow_preorder: allowPreorder,
+      preorder_customer_name: preorderName || selectedCustomer?.name || '',
+      preorder_customer_phone: preorderPhone || selectedCustomer?.phone || '',
+      prescription: prescription,
       items: cartItems.map((item) => ({
         product_id: item.product.id,
-        batch_id: item.batch?.id,
+        batch_id: item.isPreorder ? null : item.batch?.id,
         quantity: item.quantity,
         unit_price: getItemUnitPrice(item),
         sale_unit: item.saleUnit === 'bulk' ? 'bulk' : 'box',
+        is_preorder: Boolean(item.isPreorder),
       })),
     }
 
