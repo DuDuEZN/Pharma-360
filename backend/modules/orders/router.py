@@ -134,3 +134,44 @@ async def delete_order(order_id: int, db: AsyncSession = Depends(get_db), curren
     if not ok:
         raise HTTPException(status_code=404, detail="Order not found")
     return None
+
+
+@router.get("/{order_id}/purchase-order")
+async def purchase_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Bon de commande structure, imprimable/telechargeable (HTML)."""
+    from fastapi.responses import HTMLResponse
+    order = await OrderService.get_order(db, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    lines = ""
+    for it in (order.items or []):
+        lines += (
+            "<tr><td>" + str(it.product_name or "") + "</td>"
+            "<td>" + str(it.product_barcode or "") + "</td>"
+            "<td style='text-align:center'>" + str(it.quantity) + "</td>"
+            "<td style='text-align:right'>" + format(it.unit_price, ".2f") + "</td>"
+            "<td style='text-align:right'>" + format(it.total_price, ".2f") + "</td></tr>"
+        )
+    html = ("<!DOCTYPE html><html lang='fr'><head><meta charset='utf-8'>"
+            "<title>Bon de commande " + str(order.reference or order.id) + "</title>"
+            "<style>body{font-family:Arial,sans-serif;margin:20px;color:#222}"
+            "h1{font-size:18px;margin-bottom:4px}table{width:100%;border-collapse:collapse;margin-top:12px}"
+            "th,td{border:1px solid #ccc;padding:6px;font-size:12px}th{background:#f2f2f2}"
+            ".total{text-align:right;font-weight:bold;margin-top:12px}"
+            "@media print{.noprint{display:none}}</style></head><body>"
+            "<div class='noprint'><button onclick='window.print()'>Imprimer / Enregistrer en PDF</button></div>"
+            "<h1>Bon de commande</h1>"
+            "<p><strong>Reference :</strong> " + str(order.reference or order.id) + "<br>"
+            "<strong>Fournisseur :</strong> " + str(order.supplier_name or "-") + "<br>"
+            "<strong>Date :</strong> " + str(order.order_date) + "<br>"
+            "<strong>Statut :</strong> " + str(order.status) + "<br>"
+            "<strong>Lignes figees :</strong> " + ("Oui" if order.lines_frozen else "Non") + "</p>"
+            "<table><thead><tr><th>Produit</th><th>Code-barres</th><th>Qte</th><th>P.U.</th><th>Total</th></tr></thead>"
+            "<tbody>" + lines + "</tbody></table>"
+            "<p class='total'>Total : " + format(order.total_amount, ".2f") + "</p>"
+            "</body></html>")
+    return HTMLResponse(content=html)
